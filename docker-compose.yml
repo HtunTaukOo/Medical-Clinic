@@ -1,0 +1,15 @@
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nca
+      POSTGRES_PASSWORD: nca
+      POSTGRES_DB: nca_clinic
+    ports:
+      - "5433:5432"
+    volumes:
+      - nca_clinic_db:/var/lib/postgresql/data
+
+volumes:
+  nca_clinic_db:
