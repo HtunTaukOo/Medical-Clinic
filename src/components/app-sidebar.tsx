@@ -15,6 +15,9 @@ import {
   Settings,
   ClipboardList,
   ListOrdered,
+  BarChart3,
+  History,
+  FlaskConical,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -48,6 +51,10 @@ const ICONS: Record<string, LucideIcon> = {
   settings: Settings,
   medicalRecords: ClipboardList,
   queue: ListOrdered,
+  reports: BarChart3,
+  activityLog: History,
+  lab: FlaskConical,
+  labResults: FlaskConical,
 };
 
 function initials(name: string) {

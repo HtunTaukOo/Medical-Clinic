@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
+import { notifyIfLowStock } from "@/lib/telegram";
 
 const INVENTORY_ROLES = ["ADMIN", "PHARMACIST"] as const;
 
@@ -86,6 +87,10 @@ export async function adjustStock(
       data: { medicineId, type, quantity, reason },
     });
   });
+
+  if (type === "OUT") {
+    await notifyIfLowStock(medicineId);
+  }
 
   revalidatePath("/staff/inventory");
   return { success: true };

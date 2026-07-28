@@ -51,6 +51,17 @@ async function main() {
     },
   });
 
+  const labTech = await prisma.user.upsert({
+    where: { email: "lab@nca.clinic" },
+    update: {},
+    create: {
+      email: "lab@nca.clinic",
+      passwordHash: password,
+      name: "Lab Technician",
+      role: "LAB_TECH",
+    },
+  });
+
   const patientUser = await prisma.user.upsert({
     where: { email: "patient@example.com" },
     update: {},
@@ -94,11 +105,24 @@ async function main() {
     },
   });
 
+  await prisma.labTest.upsert({
+    where: { id: "seed-labtest-cbc" },
+    update: {},
+    create: {
+      id: "seed-labtest-cbc",
+      name: "Complete Blood Count (CBC)",
+      unit: "cells/mcL",
+      normalRange: "4,500–11,000",
+      price: 150,
+    },
+  });
+
   console.log({
     admin: admin.email,
     doctor: doctorUser.email,
     receptionist: receptionist.email,
     pharmacist: pharmacist.email,
+    labTech: labTech.email,
     patient: patientUser.email,
   });
 }

@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
+import { logActivity } from "@/lib/audit";
 
 const BILLING_STAFF_ROLES = ["ADMIN", "RECEPTIONIST"] as const;
 
@@ -61,6 +62,116 @@ export async function createInvoice(
   revalidatePath("/staff/billing");
   if (appointmentId) revalidatePath(`/staff/appointments/${appointmentId}`);
   return { success: true };
+}
+
+async function recomputeInvoiceStatus(invoiceId: string) {
+  const invoice = await prisma.invoice.findUniqueOrThrow({
+    where: { id: invoiceId },
+    include: { items: true, payments: true },
+  });
+  const total = invoice.items.reduce(
+    (sum, item) => sum + item.quantity * Number(item.unitPrice),
+    0
+  );
+  const paid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const status = paid >= total ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID";
+
+  await prisma.invoice.update({ where: { id: invoiceId }, data: { total, status } });
+}
+
+const invoiceItemSchema = z.object({
+  description: z.string().min(1),
+  quantity: z.coerce.number().int().positive(),
+  unitPrice: z.coerce.number().nonnegative(),
+});
+
+export type InvoiceItemFormState = { error?: string; success?: boolean };
+
+export async function addInvoiceItem(
+  invoiceId: string,
+  _prevState: InvoiceItemFormState,
+  formData: FormData
+): Promise<InvoiceItemFormState> {
+  const session = await requireRole([...BILLING_STAFF_ROLES]);
+
+  const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
+  if (invoice.status === "PAID") {
+    return { error: "This invoice is already fully paid and can no longer be edited" };
+  }
+
+  const parsed = invoiceItemSchema.safeParse({
+    description: formData.get("description"),
+    quantity: formData.get("quantity"),
+    unitPrice: formData.get("unitPrice"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.invoiceItem.create({ data: { invoiceId, ...parsed.data } });
+  await recomputeInvoiceStatus(invoiceId);
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: `Added invoice item "${parsed.data.description}" (${parsed.data.quantity} x ${parsed.data.unitPrice})`,
+    target: `Invoice ${invoiceId}`,
+  });
+
+  revalidatePath("/staff/billing");
+  revalidatePath(`/staff/billing/${invoiceId}`);
+  return { success: true };
+}
+
+export async function removeInvoiceItem(invoiceId: string, itemId: string) {
+  const session = await requireRole([...BILLING_STAFF_ROLES]);
+
+  const invoice = await prisma.invoice.findUniqueOrThrow({
+    where: { id: invoiceId },
+    include: { items: true },
+  });
+  if (invoice.status === "PAID") {
+    throw new Error("This invoice is already fully paid and can no longer be edited");
+  }
+  if (invoice.items.length <= 1) {
+    throw new Error("An invoice must have at least one line item");
+  }
+
+  const item = invoice.items.find((i) => i.id === itemId);
+
+  await prisma.invoiceItem.delete({ where: { id: itemId } });
+  await recomputeInvoiceStatus(invoiceId);
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: `Removed invoice item "${item?.description ?? itemId}"`,
+    target: `Invoice ${invoiceId}`,
+  });
+
+  revalidatePath("/staff/billing");
+  revalidatePath(`/staff/billing/${invoiceId}`);
+}
+
+export async function voidPayment(invoiceId: string, paymentId: string) {
+  const session = await requireRole(["ADMIN"]);
+
+  const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
+  await prisma.payment.delete({ where: { id: paymentId } });
+  await recomputeInvoiceStatus(invoiceId);
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: `Voided payment of ${payment ? Number(payment.amount).toFixed(2) : "?"} (${payment?.method ?? "unknown method"})`,
+    target: `Invoice ${invoiceId}`,
+  });
+
+  revalidatePath("/staff/billing");
+  revalidatePath(`/staff/billing/${invoiceId}`);
 }
 
 const paymentSchema = z.object({

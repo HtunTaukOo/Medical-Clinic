@@ -15,7 +15,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const ROLES = ["ADMIN", "DOCTOR", "RECEPTIONIST", "PHARMACIST"] as const;
+const ROLES = ["ADMIN", "DOCTOR", "RECEPTIONIST", "PHARMACIST", "LAB_TECH"] as const;
 
 export function StaffForm() {
   const t = useTranslations("staff");
@@ -60,10 +60,23 @@ export function StaffForm() {
         </Select>
       </div>
       {role === "DOCTOR" && (
-        <div className="grid gap-2">
-          <Label htmlFor="specialty">Specialty</Label>
-          <Input id="specialty" name="specialty" />
-        </div>
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="specialty">Specialty</Label>
+            <Input id="specialty" name="specialty" />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor="consultationFee">Consultation fee</Label>
+            <Input
+              id="consultationFee"
+              name="consultationFee"
+              type="number"
+              min={0}
+              step="0.01"
+              placeholder="0.00"
+            />
+          </div>
+        </>
       )}
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { Phone, Mail, CalendarDays } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
@@ -9,6 +10,8 @@ import { NoteForm } from "@/components/medical-records/note-form";
 import { DocumentUploadForm } from "@/components/medical-records/document-upload-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/empty-state";
+import { SetPasswordForm } from "@/components/staff/set-password-form";
 
 export default async function PatientDetailPage({
   params,
@@ -37,7 +40,7 @@ export default async function PatientDetailPage({
   if (!patient) notFound();
 
   const boundUpdate = updatePatient.bind(null, patient.id);
-  const canEditPatient = role === "ADMIN" || role === "DOCTOR" || role === "RECEPTIONIST";
+  const canEditPatient = role === "ADMIN" || role === "RECEPTIONIST";
 
   return (
     <div className="grid gap-6">
@@ -57,10 +60,31 @@ export default async function PatientDetailPage({
         />
       ) : (
         <Card>
-          <CardContent className="grid gap-1 text-sm">
-            <p>{patient.phone}</p>
-            <p>{patient.email}</p>
-            <p>{patient.address}</p>
+          <CardContent className="grid gap-2 text-sm text-muted-foreground">
+            {patient.phone && (
+              <div className="flex items-center gap-2">
+                <Phone className="size-4" />
+                {patient.phone}
+              </div>
+            )}
+            {patient.email && (
+              <div className="flex items-center gap-2">
+                <Mail className="size-4" />
+                {patient.email}
+              </div>
+            )}
+            {patient.address && <p>{patient.address}</p>}
+          </CardContent>
+        </Card>
+      )}
+
+      {role === "ADMIN" && patient.userId && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Account</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <SetPasswordForm userId={patient.userId} />
           </CardContent>
         </Card>
       )}
@@ -72,7 +96,7 @@ export default async function PatientDetailPage({
           </CardHeader>
           <CardContent className="grid gap-2">
             {patient.appointments.length === 0 && (
-              <p className="text-muted-foreground">{tAppt("noResults")}</p>
+              <EmptyState icon={CalendarDays} message={tAppt("noResults")} />
             )}
             {patient.appointments.map((appt) => (
               <div

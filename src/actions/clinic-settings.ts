@@ -11,6 +11,7 @@ const settingsSchema = z
     isOpen: z.enum(["open", "closed"]).transform((v) => v === "open"),
     openingTime: z.string().regex(/^\d{2}:\d{2}$/),
     closingTime: z.string().regex(/^\d{2}:\d{2}$/),
+    staffTelegramChatId: z.string().optional(),
   })
   .refine((data) => data.openingTime < data.closingTime, {
     message: "Opening time must be before closing time",
@@ -29,17 +30,24 @@ export async function updateClinicSettings(
     isOpen: formData.get("isOpen"),
     openingTime: formData.get("openingTime"),
     closingTime: formData.get("closingTime"),
+    staffTelegramChatId: formData.get("staffTelegramChatId") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { isOpen, openingTime, closingTime } = parsed.data;
+  const { isOpen, openingTime, closingTime, staffTelegramChatId } = parsed.data;
 
   await prisma.clinicSettings.upsert({
     where: { id: CLINIC_SETTINGS_ID },
-    update: { isOpen, openingTime, closingTime },
-    create: { id: CLINIC_SETTINGS_ID, isOpen, openingTime, closingTime },
+    update: { isOpen, openingTime, closingTime, staffTelegramChatId },
+    create: {
+      id: CLINIC_SETTINGS_ID,
+      isOpen,
+      openingTime,
+      closingTime,
+      staffTelegramChatId,
+    },
   });
 
   revalidatePath("/staff/settings");

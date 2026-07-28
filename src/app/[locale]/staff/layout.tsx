@@ -30,7 +30,14 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
     labelKey: "inventory",
     roles: ["ADMIN", "PHARMACIST"],
   },
+  {
+    href: "/staff/lab",
+    labelKey: "lab",
+    roles: ["ADMIN", "LAB_TECH"],
+  },
   { href: "/staff/users", labelKey: "staff", roles: ["ADMIN"] },
+  { href: "/staff/reports", labelKey: "reports", roles: ["ADMIN"] },
+  { href: "/staff/activity-log", labelKey: "activityLog", roles: ["ADMIN"] },
   { href: "/staff/settings", labelKey: "settings", roles: ["ADMIN"] },
 ];
 
@@ -39,6 +46,7 @@ const ROLE_LABELS: Record<string, string> = {
   DOCTOR: "Doctor Console",
   RECEPTIONIST: "Front Desk",
   PHARMACIST: "Pharmacy Console",
+  LAB_TECH: "Lab Console",
 };
 
 export default async function StaffLayout({

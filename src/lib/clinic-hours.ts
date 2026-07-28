@@ -10,7 +10,7 @@ export async function getClinicSettings() {
   });
 }
 
-function toMinutes(time: string) {
+export function toMinutes(time: string) {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;
 }

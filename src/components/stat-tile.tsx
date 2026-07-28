@@ -7,6 +7,7 @@ const COLOR_CLASSES = {
   purple: "bg-purple-100 text-purple-600",
   amber: "bg-amber-100 text-amber-600",
   rose: "bg-rose-100 text-rose-600",
+  orange: "bg-orange-100 text-orange-600",
 } as const;
 
 export function StatTile({

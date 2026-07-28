@@ -7,9 +7,13 @@ import {
   checkInAppointment,
   cancelAppointment,
   completeAppointment,
+  markNoShow,
 } from "@/actions/appointments";
 import { createPrescription } from "@/actions/prescriptions";
 import { PrescriptionForm } from "@/components/prescriptions/prescription-form";
+import { NoteForm } from "@/components/medical-records/note-form";
+import { OrderLabTestsForm } from "@/components/lab/order-lab-tests-form";
+import { dateKey } from "@/lib/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -32,6 +36,7 @@ export default async function AppointmentDetailPage({
       doctor: { include: { user: true } },
       prescriptions: { include: { items: { include: { medicine: true } } } },
       invoice: true,
+      labOrders: { include: { items: { include: { labTest: true } } } },
     },
   });
 
@@ -43,14 +48,19 @@ export default async function AppointmentDetailPage({
 
   const isOwnDoctor =
     session.user.role === "DOCTOR" && appointment.doctorId === session.user.doctorId;
-  const canPrescribe =
+  const canWriteNote =
     isOwnDoctor &&
     (appointment.status === "CONFIRMED" ||
       appointment.status === "CHECKED_IN" ||
       appointment.status === "COMPLETED");
+  const isSameDayAsVisit = dateKey(appointment.scheduledAt) === dateKey(new Date());
+  const canPrescribe = canWriteNote && isSameDayAsVisit;
 
   const medicines = canPrescribe
     ? await prisma.medicine.findMany({ orderBy: { name: "asc" } })
+    : [];
+  const labTests = canPrescribe
+    ? await prisma.labTest.findMany({ orderBy: { name: "asc" } })
     : [];
 
   const boundCreatePrescription = createPrescription.bind(null, appointment.id);
@@ -89,6 +99,13 @@ export default async function AppointmentDetailPage({
           <form action={checkInAppointment.bind(null, appointment.id)}>
             <Button variant="secondary" type="submit">
               {t("checkIn")}
+            </Button>
+          </form>
+        )}
+        {appointment.status === "CONFIRMED" && (
+          <form action={markNoShow.bind(null, appointment.id)}>
+            <Button variant="outline" type="submit">
+              {t("noShow")}
             </Button>
           </form>
         )}
@@ -142,6 +159,17 @@ export default async function AppointmentDetailPage({
           </Card>
         )}
 
+      {canWriteNote && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Medical Record</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <NoteForm patientId={appointment.patientId} />
+          </CardContent>
+        </Card>
+      )}
+
       {appointment.prescriptions.length > 0 && (
         <Card>
           <CardHeader>
@@ -162,6 +190,12 @@ export default async function AppointmentDetailPage({
                   {rx.items.map((item) => (
                     <li key={item.id}>
                       {item.medicine.name} &mdash; {item.dosage} x{item.quantity}
+                      {item.timesPerDay && item.durationDays && (
+                        <span className="text-muted-foreground">
+                          {" "}
+                          (reminders: {item.timesPerDay}x/day for {item.durationDays} days)
+                        </span>
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -169,6 +203,12 @@ export default async function AppointmentDetailPage({
             ))}
           </CardContent>
         </Card>
+      )}
+
+      {canWriteNote && !isSameDayAsVisit && (
+        <p className="text-sm text-muted-foreground">
+          This visit is from a previous day, so a new prescription can no longer be written for it.
+        </p>
       )}
 
       {canPrescribe && (
@@ -183,6 +223,59 @@ export default async function AppointmentDetailPage({
                 id: m.id,
                 name: m.name,
                 unit: m.unit,
+              }))}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {appointment.labOrders.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Lab Orders</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            {appointment.labOrders.map((order) => (
+              <div key={order.id} className="rounded-md border p-3">
+                <div className="mb-2 flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">
+                    {new Date(order.createdAt).toLocaleString()}
+                  </span>
+                  <Badge variant={order.status === "COMPLETED" ? "default" : "outline"}>
+                    {order.status.replace("_", " ")}
+                  </Badge>
+                </div>
+                <ul className="text-sm">
+                  {order.items.map((item) => (
+                    <li key={item.id}>{item.labTest.name}</li>
+                  ))}
+                </ul>
+                {order.status === "COMPLETED" && (
+                  <Link
+                    href={`/lab-report/${order.id}`}
+                    className="text-sm underline text-muted-foreground"
+                  >
+                    View report
+                  </Link>
+                )}
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {canPrescribe && labTests.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Order Lab Tests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <OrderLabTestsForm
+              appointmentId={appointment.id}
+              tests={labTests.map((test) => ({
+                id: test.id,
+                name: test.name,
+                price: Number(test.price),
               }))}
             />
           </CardContent>

@@ -1,3 +1,4 @@
+import { Stethoscope } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { Link } from "@/i18n/navigation";
@@ -5,23 +6,30 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Card, CardContent } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
+import { SearchInput } from "@/components/search-input";
+import { initials } from "@/lib/format";
 
-function initials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
-
-export default async function FindDoctorsPage() {
+export default async function FindDoctorsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ q?: string }>;
+}) {
   const t = await getTranslations("appointments");
   const tNav = await getTranslations("nav");
+  const { q } = await searchParams;
   const now = new Date();
   const soon = new Date(now.getTime() + 30 * 60 * 1000);
 
   const doctors = await prisma.doctorProfile.findMany({
+    where: q
+      ? {
+          OR: [
+            { user: { name: { contains: q, mode: "insensitive" } } },
+            { specialty: { contains: q, mode: "insensitive" } },
+          ],
+        }
+      : undefined,
     include: {
       user: true,
       appointments: {
@@ -38,6 +46,13 @@ export default async function FindDoctorsPage() {
   return (
     <div className="grid gap-4">
       <h1 className="text-2xl font-semibold">{tNav("findDoctors")}</h1>
+      <SearchInput placeholder="Search doctors by name or specialty..." />
+      {doctors.length === 0 && (
+        <EmptyState
+          icon={Stethoscope}
+          message={q ? `No doctors match "${q}".` : "No doctors available yet."}
+        />
+      )}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {doctors.map((doctor) => {
           const isBusy = doctor.appointments.length > 0;

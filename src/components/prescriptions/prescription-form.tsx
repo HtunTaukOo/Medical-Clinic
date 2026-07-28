@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { PrescriptionFormState } from "@/actions/prescriptions";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -13,7 +14,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-type Row = { medicineId: string; dosage: string; quantity: string };
+type Row = {
+  medicineId: string;
+  dosage: string;
+  quantity: string;
+  timesPerDay: string;
+  durationDays: string;
+};
 
 export function PrescriptionForm({
   action,
@@ -27,7 +34,7 @@ export function PrescriptionForm({
 }) {
   const t = useTranslations("appointments");
   const [rows, setRows] = useState<Row[]>([
-    { medicineId: "", dosage: "", quantity: "1" },
+    { medicineId: "", dosage: "", quantity: "1", timesPerDay: "", durationDays: "" },
   ]);
   const [state, formAction, pending] = useActionState<
     PrescriptionFormState,
@@ -41,57 +48,98 @@ export function PrescriptionForm({
   }
 
   function handleSubmit(formData: FormData) {
-    formData.set("items", JSON.stringify(rows));
+    const items = rows.map((row) => ({
+      medicineId: row.medicineId,
+      dosage: row.dosage,
+      quantity: row.quantity,
+      timesPerDay: row.timesPerDay || undefined,
+      durationDays: row.durationDays || undefined,
+    }));
+    formData.set("items", JSON.stringify(items));
     return formAction(formData);
   }
 
   return (
     <form action={handleSubmit} className="grid max-w-2xl gap-4">
-      <div className="grid gap-3">
+      <div className="grid gap-4">
         {rows.map((row, index) => (
-          <div key={index} className="flex flex-wrap items-end gap-2">
-            <div className="min-w-48">
-              <Select
-                value={row.medicineId}
-                onValueChange={(value) => updateRow(index, { medicineId: value })}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder={t("addMedicine")} />
-                </SelectTrigger>
-                <SelectContent>
-                  {medicines.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.name} ({m.unit})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+          <div key={index} className="grid gap-2 rounded-md border p-3">
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="min-w-48">
+                <Select
+                  value={row.medicineId}
+                  onValueChange={(value) => updateRow(index, { medicineId: value })}
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder={t("addMedicine")} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {medicines.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.name} ({m.unit})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <Input
+                placeholder="Dosage"
+                value={row.dosage}
+                onChange={(e) => updateRow(index, { dosage: e.target.value })}
+                className="w-40"
+              />
+              <Input
+                type="number"
+                min={1}
+                value={row.quantity}
+                onChange={(e) => updateRow(index, { quantity: e.target.value })}
+                className="w-24"
+              />
+              {rows.length > 1 && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  onClick={() =>
+                    setRows((prev) => prev.filter((_, i) => i !== index))
+                  }
+                >
+                  Remove
+                </Button>
+              )}
             </div>
-            <Input
-              placeholder="Dosage"
-              value={row.dosage}
-              onChange={(e) => updateRow(index, { dosage: e.target.value })}
-              className="w-40"
-            />
-            <Input
-              type="number"
-              min={1}
-              value={row.quantity}
-              onChange={(e) => updateRow(index, { quantity: e.target.value })}
-              className="w-24"
-            />
-            {rows.length > 1 && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                onClick={() =>
-                  setRows((prev) => prev.filter((_, i) => i !== index))
-                }
-              >
-                Remove
-              </Button>
-            )}
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="grid gap-1">
+                <Label className="text-xs text-muted-foreground">
+                  Reminders: times/day
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={8}
+                  placeholder="e.g. 3"
+                  value={row.timesPerDay}
+                  onChange={(e) => updateRow(index, { timesPerDay: e.target.value })}
+                  className="w-24"
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs text-muted-foreground">
+                  For how many days
+                </Label>
+                <Input
+                  type="number"
+                  min={1}
+                  placeholder="e.g. 5"
+                  value={row.durationDays}
+                  onChange={(e) => updateRow(index, { durationDays: e.target.value })}
+                  className="w-24"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Optional — sends Telegram reminders to the patient once fulfilled
+              </p>
+            </div>
           </div>
         ))}
         <Button
@@ -102,7 +150,13 @@ export function PrescriptionForm({
           onClick={() =>
             setRows((prev) => [
               ...prev,
-              { medicineId: "", dosage: "", quantity: "1" },
+              {
+                medicineId: "",
+                dosage: "",
+                quantity: "1",
+                timesPerDay: "",
+                durationDays: "",
+              },
             ])
           }
         >

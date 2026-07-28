@@ -1,3 +1,4 @@
+import { Clock, ListOrdered } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
@@ -6,11 +7,13 @@ import {
   checkInAppointment,
   completeAppointment,
   cancelAppointment,
+  markNoShow,
 } from "@/actions/appointments";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { EmptyState } from "@/components/empty-state";
 
 export default async function QueuePage() {
   const session = await requireRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
@@ -47,9 +50,7 @@ export default async function QueuePage() {
           <CardTitle>{t("waitingToCheckIn")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2">
-          {waiting.length === 0 && (
-            <p className="text-muted-foreground">{t("noneWaiting")}</p>
-          )}
+          {waiting.length === 0 && <EmptyState icon={Clock} message={t("noneWaiting")} />}
           {waiting.map((appt) => (
             <div
               key={appt.id}
@@ -68,11 +69,18 @@ export default async function QueuePage() {
                 </p>
               </div>
               {session.user.role !== "DOCTOR" && (
-                <form action={checkInAppointment.bind(null, appt.id)}>
-                  <Button size="sm" type="submit">
-                    {t("checkIn")}
-                  </Button>
-                </form>
+                <div className="flex gap-2">
+                  <form action={checkInAppointment.bind(null, appt.id)}>
+                    <Button size="sm" type="submit">
+                      {t("checkIn")}
+                    </Button>
+                  </form>
+                  <form action={markNoShow.bind(null, appt.id)}>
+                    <Button size="sm" variant="outline" type="submit">
+                      {t("noShow")}
+                    </Button>
+                  </form>
+                </div>
               )}
             </div>
           ))}
@@ -84,9 +92,7 @@ export default async function QueuePage() {
           <CardTitle>{t("inQueue")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2">
-          {inQueue.length === 0 && (
-            <p className="text-muted-foreground">{t("queueEmpty")}</p>
-          )}
+          {inQueue.length === 0 && <EmptyState icon={ListOrdered} message={t("queueEmpty")} />}
           {inQueue.map((appt, index) => (
             <div
               key={appt.id}

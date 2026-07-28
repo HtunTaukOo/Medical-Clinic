@@ -16,6 +16,10 @@
     "settings": "Settings",
     "medicalRecords": "Medical Records",
     "queue": "Queue",
+    "reports": "Reports",
+    "activityLog": "Activity Log",
+    "lab": "Laboratory",
+    "labResults": "Lab Results",
     "signOut": "Sign out"
   },
   "auth": {
@@ -60,6 +64,7 @@
     "writePrescription": "Write prescription",
     "addMedicine": "Add medicine",
     "checkIn": "Check in",
+    "noShow": "No-show",
     "waitingToCheckIn": "Waiting to check in",
     "inQueue": "In queue",
     "queuePosition": "You're #{position} in the queue for {doctor}",

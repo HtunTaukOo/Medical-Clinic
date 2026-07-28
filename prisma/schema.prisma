@@ -8,11 +8,12 @@ datasource db {
 }
 
 model ClinicSettings {
-  id          String   @id @default(cuid())
-  isOpen      Boolean  @default(true)
-  openingTime String   @default("09:00")
-  closingTime String   @default("17:00")
-  updatedAt   DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  isOpen              Boolean  @default(true)
+  openingTime         String   @default("09:00")
+  closingTime         String   @default("17:00")
+  staffTelegramChatId String?
+  updatedAt           DateTime @updatedAt
 }
 
 enum Role {
@@ -20,19 +21,22 @@ enum Role {
   DOCTOR
   RECEPTIONIST
   PHARMACIST
+  LAB_TECH
   PATIENT
 }
 
 model User {
-  id           String   @id @default(cuid())
-  email        String   @unique
-  passwordHash String
-  name         String
-  role         Role
-  locale       String   @default("en")
-  active       Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id                  String    @id @default(cuid())
+  email               String    @unique
+  passwordHash        String
+  name                String
+  role                Role
+  locale              String    @default("en")
+  active              Boolean   @default(true)
+  resetToken          String?   @unique
+  resetTokenExpiresAt DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 
   patient        Patient?
   doctorProfile  DoctorProfile?
@@ -40,31 +44,52 @@ model User {
 }
 
 model Patient {
-  id        String    @id @default(cuid())
-  userId    String?   @unique
-  user      User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  name      String
-  email     String?
-  dob       DateTime?
-  phone     String?
-  address   String?
-  notes     String?
-  createdAt DateTime  @default(now())
+  id             String    @id @default(cuid())
+  userId         String?   @unique
+  user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  name           String
+  email          String?
+  dob            DateTime?
+  phone          String?
+  address        String?
+  notes          String?
+  telegramChatId String?
+  createdAt      DateTime  @default(now())
 
   appointments   Appointment[]
   invoices       Invoice[]
   prescriptions  Prescription[]
   medicalRecords MedicalRecord[]
+  pillReminders  PillReminder[]
+  labOrders      LabOrder[]
 }
 
 model DoctorProfile {
-  id        String  @id @default(cuid())
-  userId    String  @unique
-  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialty String?
+  id               String  @id @default(cuid())
+  userId           String  @unique
+  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty        String?
+  consultationFee  Decimal @default(0) @db.Decimal(10, 2)
+  workingDays      Int[]   @default([1, 2, 3, 4, 5])
+  workStartTime    String?
+  workEndTime      String?
 
   appointments  Appointment[]
   prescriptions Prescription[]
+  labOrders     LabOrder[]
+  leaveDays     DoctorLeave[]
+}
+
+model DoctorLeave {
+  id        String        @id @default(cuid())
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  date      DateTime
+  reason    String?
+  createdAt DateTime      @default(now())
+
+  @@unique([doctorId, date])
+  @@index([doctorId, date])
 }
 
 enum AppointmentStatus {
@@ -73,6 +98,7 @@ enum AppointmentStatus {
   CHECKED_IN
   COMPLETED
   CANCELLED
+  NO_SHOW
 }
 
 model Appointment {
@@ -86,11 +112,13 @@ model Appointment {
   reason      String?
   notes       String?
   checkedInAt DateTime?
+  reminderSent Boolean          @default(false)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
 
   invoice       Invoice?
   prescriptions Prescription[]
+  labOrders     LabOrder[]
 
   @@index([doctorId, scheduledAt])
   @@index([patientId])
@@ -183,6 +211,25 @@ model PrescriptionItem {
   medicine       Medicine     @relation(fields: [medicineId], references: [id])
   dosage         String
   quantity       Int
+  timesPerDay    Int?
+  durationDays   Int?
+
+  reminders PillReminder[]
+}
+
+model PillReminder {
+  id                 String           @id @default(cuid())
+  prescriptionItemId String
+  prescriptionItem   PrescriptionItem @relation(fields: [prescriptionItemId], references: [id], onDelete: Cascade)
+  patientId          String
+  patient            Patient          @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  scheduledFor       DateTime
+  sent               Boolean          @default(false)
+  sentAt             DateTime?
+  createdAt          DateTime         @default(now())
+
+  @@index([sent, scheduledFor])
+  @@index([patientId])
 }
 
 enum StockTransactionType {
@@ -221,4 +268,68 @@ model MedicalRecord {
   createdAt DateTime          @default(now())
 
   @@index([patientId])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  actorId   String?
+  actorName String
+  actorRole String
+  action    String
+  target    String?
+  createdAt DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+model LabTest {
+  id          String   @id @default(cuid())
+  name        String
+  unit        String?
+  normalRange String?
+  price       Decimal  @db.Decimal(10, 2)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  orderItems LabOrderItem[]
+}
+
+enum LabOrderStatus {
+  ORDERED
+  SAMPLE_COLLECTED
+  COMPLETED
+  CANCELLED
+}
+
+model LabOrder {
+  id                String         @id @default(cuid())
+  patientId         String
+  patient           Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId          String
+  doctor            DoctorProfile  @relation(fields: [doctorId], references: [id])
+  appointmentId     String?
+  appointment       Appointment?   @relation(fields: [appointmentId], references: [id])
+  status            LabOrderStatus @default(ORDERED)
+  sampleCollectedAt DateTime?
+  completedAt       DateTime?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  items LabOrderItem[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([status])
+}
+
+model LabOrderItem {
+  id              String    @id @default(cuid())
+  labOrderId      String
+  labOrder        LabOrder  @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+  labTestId       String
+  labTest         LabTest   @relation(fields: [labTestId], references: [id])
+  price           Decimal   @db.Decimal(10, 2)
+  resultValue     String?
+  resultNote      String?
+  resultEnteredAt DateTime?
 }

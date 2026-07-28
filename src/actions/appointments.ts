@@ -14,6 +14,13 @@ import {
   formatTime,
 } from "@/lib/clinic-hours";
 import { isWithinSelfCheckInWindow } from "@/lib/queue";
+import {
+  isDoctorOnLeave,
+  isWorkingDay,
+  isWithinDoctorHours,
+  WEEKDAY_LABELS,
+} from "@/lib/doctor-availability";
+import { notifyPatient, notifyStaff } from "@/lib/telegram";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
 
@@ -43,6 +50,12 @@ export async function createAppointment(
   }
 
   const scheduledAt = new Date(parsed.data.scheduledAt);
+
+  const onLeave = await isDoctorOnLeave(parsed.data.doctorId, scheduledAt);
+  if (onLeave) {
+    return { error: "This doctor is on leave on the selected date." };
+  }
+
   const conflict = await findConflictingAppointment(parsed.data.doctorId, scheduledAt);
   if (conflict) {
     return { error: CONFLICT_MESSAGE };
@@ -97,12 +110,34 @@ export async function requestAppointment(
     };
   }
 
+  const doctor = await prisma.doctorProfile.findUnique({
+    where: { id: parsed.data.doctorId },
+  });
+  if (!doctor) {
+    return { error: "Doctor not found" };
+  }
+
+  const onLeave = await isDoctorOnLeave(doctor.id, scheduledAt);
+  if (onLeave) {
+    return { error: "This doctor is unavailable on the selected date. Please choose another day." };
+  }
+  if (!isWorkingDay(doctor.workingDays, scheduledAt)) {
+    return {
+      error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[scheduledAt.getDay()]}s. Please choose another day.`,
+    };
+  }
+  if (!isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime)) {
+    return {
+      error: `Please choose a time between ${formatTime(doctor.workStartTime!)} and ${formatTime(doctor.workEndTime!)} for this doctor.`,
+    };
+  }
+
   const conflict = await findConflictingAppointment(parsed.data.doctorId, scheduledAt);
   if (conflict) {
     return { error: CONFLICT_MESSAGE };
   }
 
-  await prisma.appointment.create({
+  const appointment = await prisma.appointment.create({
     data: {
       patientId,
       doctorId: parsed.data.doctorId,
@@ -110,7 +145,12 @@ export async function requestAppointment(
       reason: parsed.data.reason,
       status: "REQUESTED",
     },
+    include: { patient: true, doctor: { include: { user: true } } },
   });
+
+  await notifyStaff(
+    `📅 New appointment request: ${appointment.patient.name} with ${appointment.doctor.user.name} at ${scheduledAt.toLocaleString()}.`
+  );
 
   revalidatePath("/portal/appointments");
   return { success: true };
@@ -130,10 +170,15 @@ async function assertCanManage(appointmentId: string) {
 
 export async function confirmAppointment(appointmentId: string) {
   await assertCanManage(appointmentId);
-  await prisma.appointment.update({
+  const appointment = await prisma.appointment.update({
     where: { id: appointmentId },
     data: { status: "CONFIRMED" },
+    include: { doctor: { include: { user: true } } },
   });
+  await notifyPatient(
+    appointment.patientId,
+    `✅ Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} has been confirmed.\n\nReply CANCEL to cancel it.`
+  );
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
@@ -173,15 +218,80 @@ export async function checkInAppointment(appointmentId: string) {
   revalidatePath("/portal");
 }
 
-export async function cancelAppointment(appointmentId: string) {
-  await assertCanManage(appointmentId);
+export async function markNoShow(appointmentId: string) {
+  const session = await requireRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+  });
+  if (!appointment) throw new UnauthorizedError("Appointment not found");
+  if (session.user.role === "DOCTOR" && appointment.doctorId !== session.user.doctorId) {
+    throw new UnauthorizedError("Not your appointment");
+  }
+  if (appointment.status !== "CONFIRMED") {
+    throw new UnauthorizedError("Only a confirmed appointment can be marked as a no-show");
+  }
+
   await prisma.appointment.update({
     where: { id: appointmentId },
-    data: { status: "CANCELLED" },
+    data: { status: "NO_SHOW" },
   });
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
+}
+
+export async function cancelAppointment(appointmentId: string) {
+  const session = await requireSession();
+  const role = session.user.role;
+  let cancelledByPatient = false;
+
+  if (role === "ADMIN" || role === "RECEPTIONIST") {
+    // staff can cancel any appointment, no restriction
+  } else if (role === "DOCTOR") {
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+    });
+    if (!appointment || appointment.doctorId !== session.user.doctorId) {
+      throw new UnauthorizedError("Not your appointment");
+    }
+  } else if (role === "PATIENT") {
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+    });
+    if (!appointment || appointment.patientId !== session.user.patientId) {
+      throw new UnauthorizedError("Not your appointment");
+    }
+    if (appointment.status !== "REQUESTED" && appointment.status !== "CONFIRMED") {
+      throw new UnauthorizedError("This appointment can no longer be cancelled");
+    }
+    cancelledByPatient = true;
+  } else {
+    throw new UnauthorizedError("Not allowed to cancel appointments");
+  }
+
+  const appointment = await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { status: "CANCELLED" },
+    include: { doctor: { include: { user: true } }, patient: true },
+  });
+
+  if (cancelledByPatient) {
+    await notifyStaff(
+      `❌ ${appointment.patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} via the patient portal.`
+    );
+  } else {
+    await notifyPatient(
+      appointment.patientId,
+      `❌ Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} has been cancelled.`
+    );
+  }
+
+  revalidatePath("/staff/appointments");
+  revalidatePath(`/staff/appointments/${appointmentId}`);
+  revalidatePath("/staff/queue");
+  revalidatePath("/portal/appointments");
+  revalidatePath(`/portal/appointments/${appointmentId}`);
+  revalidatePath("/portal");
 }
 
 export async function completeAppointment(appointmentId: string) {

@@ -9,18 +9,10 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { HeroBanner } from "@/components/hero-banner";
 import { StatTile } from "@/components/stat-tile";
 import { ClinicStatusBanner } from "@/components/clinic/clinic-status-banner";
-import { getDisplayFirstName } from "@/lib/format";
+import { EmptyState } from "@/components/empty-state";
+import { getDisplayFirstName, initials } from "@/lib/format";
 import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
-import { checkInAppointment } from "@/actions/appointments";
-
-function initials(name: string) {
-  return name
-    .split(" ")
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join("");
-}
+import { checkInAppointment, cancelAppointment } from "@/actions/appointments";
 
 export default async function PortalDashboardPage() {
   const session = await auth();
@@ -97,7 +89,7 @@ export default async function PortalDashboardPage() {
         </CardHeader>
         <CardContent className="grid gap-3">
           {upcomingAppointments.length === 0 && (
-            <p className="text-muted-foreground">{t("appointments.noResults")}</p>
+            <EmptyState icon={CalendarClock} message={t("appointments.noResults")} />
           )}
           {await Promise.all(
             upcomingAppointments.map(async (appt) => {
@@ -107,6 +99,8 @@ export default async function PortalDashboardPage() {
                   : undefined;
               const canSelfCheckIn =
                 appt.status === "CONFIRMED" && isWithinSelfCheckInWindow(appt.scheduledAt);
+              const canCancel =
+                appt.status === "REQUESTED" || appt.status === "CONFIRMED";
               return (
                 <div
                   key={appt.id}
@@ -138,13 +132,22 @@ export default async function PortalDashboardPage() {
                         {new Date(appt.scheduledAt).toLocaleString()}
                       </p>
                     )}
-                    {canSelfCheckIn && (
-                      <form action={checkInAppointment.bind(null, appt.id)} className="mt-1">
-                        <Button size="sm" type="submit">
-                          {t("appointments.checkIn")}
-                        </Button>
-                      </form>
-                    )}
+                    <div className="mt-1 flex justify-end gap-2">
+                      {canSelfCheckIn && (
+                        <form action={checkInAppointment.bind(null, appt.id)}>
+                          <Button size="sm" type="submit">
+                            {t("appointments.checkIn")}
+                          </Button>
+                        </form>
+                      )}
+                      {canCancel && (
+                        <form action={cancelAppointment.bind(null, appt.id)}>
+                          <Button size="sm" variant="destructive" type="submit">
+                            {t("appointments.cancel")}
+                          </Button>
+                        </form>
+                      )}
+                    </div>
                   </div>
                 </div>
               );

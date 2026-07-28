@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requireRole, requireSession, UnauthorizedError } from "@/lib/authz";
 
 const PATIENT_STAFF_ROLES = ["ADMIN", "DOCTOR", "RECEPTIONIST"] as const;
+const PATIENT_EDIT_ROLES = ["ADMIN", "RECEPTIONIST"] as const;
 
 const patientSchema = z.object({
   name: z.string().min(1),
@@ -62,7 +63,7 @@ export async function updatePatient(
   _prevState: PatientFormState,
   formData: FormData
 ): Promise<PatientFormState> {
-  await requireRole([...PATIENT_STAFF_ROLES]);
+  await requireRole([...PATIENT_EDIT_ROLES]);
 
   const parsed = parsePatientForm(formData);
   if (!parsed.success) {
@@ -85,5 +86,49 @@ export async function updatePatient(
 
   revalidatePath("/staff/patients");
   revalidatePath(`/staff/patients/${patientId}`);
+  return { success: true };
+}
+
+const selfProfileSchema = z.object({
+  name: z.string().min(1),
+  email: z.union([z.email(), z.literal("")]).optional(),
+  phone: z.string().optional(),
+  dob: z.string().optional(),
+  address: z.string().optional(),
+});
+
+export async function updateOwnProfile(
+  _prevState: PatientFormState,
+  formData: FormData
+): Promise<PatientFormState> {
+  const session = await requireSession();
+  const patientId = session.user.patientId;
+  if (!patientId) throw new UnauthorizedError("No patient profile");
+
+  const parsed = selfProfileSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email") || undefined,
+    phone: formData.get("phone") || undefined,
+    dob: formData.get("dob") || undefined,
+    address: formData.get("address") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const { name, email, phone, dob, address } = parsed.data;
+
+  await prisma.patient.update({
+    where: { id: patientId },
+    data: {
+      name,
+      email: email || null,
+      phone,
+      address,
+      dob: dob ? new Date(dob) : null,
+    },
+  });
+
+  revalidatePath("/portal/settings");
   return { success: true };
 }

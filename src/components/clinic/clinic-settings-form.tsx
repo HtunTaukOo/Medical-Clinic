@@ -21,10 +21,12 @@ export function ClinicSettingsForm({
   isOpen,
   openingTime,
   closingTime,
+  staffTelegramChatId,
 }: {
   isOpen: boolean;
   openingTime: string;
   closingTime: string;
+  staffTelegramChatId?: string | null;
 }) {
   const t = useTranslations("clinic");
   const [state, formAction, pending] = useActionState<
@@ -65,6 +67,20 @@ export function ClinicSettingsForm({
           defaultValue={closingTime}
           required
         />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="staffTelegramChatId">Staff Telegram chat ID</Label>
+        <Input
+          id="staffTelegramChatId"
+          name="staffTelegramChatId"
+          placeholder="e.g. 123456789 or -1001234567890 for a group"
+          defaultValue={staffTelegramChatId ?? ""}
+        />
+        <p className="text-xs text-muted-foreground">
+          Message your bot directly (or add it to a staff group), then find the
+          chat ID via @userinfobot or @getidsbot on Telegram and paste it here.
+          New booking requests and low-stock alerts will be sent there.
+        </p>
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       {state.success && (

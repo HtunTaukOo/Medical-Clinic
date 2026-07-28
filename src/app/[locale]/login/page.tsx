@@ -70,6 +70,11 @@ export default async function LoginPage({
             </Button>
           </form>
           <p className="mt-4 text-sm text-muted-foreground">
+            <Link href="/forgot-password" className="underline">
+              Forgot your password?
+            </Link>
+          </p>
+          <p className="mt-2 text-sm text-muted-foreground">
             {t("noAccount")}{" "}
             <Link href="/register" className="underline">
               {t("register")}

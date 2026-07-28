@@ -1,5 +1,6 @@
 import { FileText, StickyNote } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/empty-state";
 
 type RecordItem = {
   id: string;
@@ -12,7 +13,7 @@ type RecordItem = {
 
 export function MedicalRecordList({ records }: { records: RecordItem[] }) {
   if (records.length === 0) {
-    return <p className="text-muted-foreground">No medical records yet.</p>;
+    return <EmptyState icon={FileText} message="No medical records yet." />;
   }
 
   return (

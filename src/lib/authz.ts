@@ -8,6 +8,7 @@ export const STAFF_ROLES: Role[] = [
   "DOCTOR",
   "RECEPTIONIST",
   "PHARMACIST",
+  "LAB_TECH",
 ];
 
 export async function requireSession() {
