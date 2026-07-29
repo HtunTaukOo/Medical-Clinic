@@ -1,21 +1,29 @@
 import { prisma } from "@/lib/prisma";
-import { toMinutes } from "@/lib/clinic-hours";
+import {
+  toMinutes,
+  clinicLocalMinutes,
+  clinicMidnight,
+  clinicMidnightForYMD,
+  clinicWeekday,
+} from "@/lib/clinic-hours";
 
 export const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+// Normalizes an instant (e.g. an appointment's scheduledAt) down to clinic-local
+// midnight of the calendar day it falls on, for matching against leave days.
 export function toDateOnly(date: Date) {
-  const copy = new Date(date);
-  copy.setHours(0, 0, 0, 0);
-  return copy;
+  return clinicMidnight(date);
 }
 
+// Parses a "YYYY-MM-DD" value from a date input as a clinic-local calendar day,
+// so it lines up with toDateOnly() when matched against a stored leave day.
 export function parseDateOnlyInput(value: string) {
   const [year, month, day] = value.split("-").map(Number);
-  return new Date(year, month - 1, day);
+  return clinicMidnightForYMD(year, month, day);
 }
 
 export function isWorkingDay(workingDays: number[], date: Date) {
-  return workingDays.includes(date.getDay());
+  return workingDays.includes(clinicWeekday(date));
 }
 
 export function isWithinDoctorHours(
@@ -24,7 +32,7 @@ export function isWithinDoctorHours(
   workEndTime: string | null
 ) {
   if (!workStartTime || !workEndTime) return true;
-  const minutes = date.getHours() * 60 + date.getMinutes();
+  const minutes = clinicLocalMinutes(date);
   return minutes >= toMinutes(workStartTime) && minutes < toMinutes(workEndTime);
 }
 

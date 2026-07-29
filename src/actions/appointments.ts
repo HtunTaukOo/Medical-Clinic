@@ -12,6 +12,7 @@ import {
   getClinicSettings,
   isWithinOpeningHours,
   formatTime,
+  clinicWeekday,
 } from "@/lib/clinic-hours";
 import { isWithinSelfCheckInWindow } from "@/lib/queue";
 import {
@@ -123,7 +124,7 @@ export async function requestAppointment(
   }
   if (!isWorkingDay(doctor.workingDays, scheduledAt)) {
     return {
-      error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[scheduledAt.getDay()]}s. Please choose another day.`,
+      error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[clinicWeekday(scheduledAt)]}s. Please choose another day.`,
     };
   }
   if (!isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime)) {

@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { clinicMidnight } from "@/lib/clinic-hours";
 
 export const SELF_CHECK_IN_BEFORE_MINUTES = 30;
 export const SELF_CHECK_IN_AFTER_MINUTES = 60;
@@ -11,10 +12,8 @@ export function isWithinSelfCheckInWindow(scheduledAt: Date, now: Date = new Dat
 }
 
 export function todayRange() {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  const end = new Date(start);
-  end.setDate(end.getDate() + 1);
+  const start = clinicMidnight(new Date());
+  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000);
   return { start, end };
 }
 

@@ -2,14 +2,30 @@ import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 import { prisma } from "./db";
 
+// Matches CLINIC_UTC_OFFSET_MINUTES in src/lib/clinic-hours.ts (Asia/Yangon, fixed, no DST).
+const CLINIC_UTC_OFFSET_MINUTES = 6 * 60 + 30;
+
+function clinicMidnightForYMD(year: number, month: number, day: number) {
+  return new Date(Date.UTC(year, month - 1, day) - CLINIC_UTC_OFFSET_MINUTES * 60 * 1000);
+}
+
+// Picks a future weekday, working entirely in UTC calendar arithmetic so it's
+// independent of the test runner's own local timezone, then returns the same
+// clinic-local-midnight instant the app itself would compute for that date.
 function futureWeekday(daysAhead: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + daysAhead);
-  while (date.getDay() === 0 || date.getDay() === 6) {
-    date.setDate(date.getDate() + 1);
+  let cursor = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+  let year = cursor.getUTCFullYear();
+  let month = cursor.getUTCMonth() + 1;
+  let day = cursor.getUTCDate();
+  let weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  while (weekday === 0 || weekday === 6) {
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+    year = cursor.getUTCFullYear();
+    month = cursor.getUTCMonth() + 1;
+    day = cursor.getUTCDate();
+    weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
   }
-  date.setHours(0, 0, 0, 0);
-  return date;
+  return clinicMidnightForYMD(year, month, day);
 }
 
 function toDatetimeLocal(date: Date, hours: number, minutes: number) {
