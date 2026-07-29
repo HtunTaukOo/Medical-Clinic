@@ -90,12 +90,20 @@ When configured, the bot sends:
 - **To a staff chat** (set by an Admin on the Settings page): new appointment requests, low-stock
   alerts, lab results ready, patient-initiated cancellations (see below).
 
-The bot is otherwise one-way (notifications out) with one exception: a patient can reply **CANCEL**
-to any appointment confirmation or reminder message to cancel their own next confirmed appointment
-— without logging into the portal ([src/app/api/telegram/webhook/route.ts](src/app/api/telegram/webhook/route.ts)).
-If they have more than one upcoming confirmed appointment, the bot lists them and asks the patient to
-cancel from the portal instead, rather than guessing which one they meant. Any other message just gets
-a generic "I didn't understand that" reply — there's no other two-way command handling.
+A connected patient can also reply with one of three commands, without logging into the portal
+([src/app/api/telegram/webhook/route.ts](src/app/api/telegram/webhook/route.ts)):
+
+- **CANCEL** — cancels their own next upcoming confirmed appointment.
+- **CHECK IN** — self-check-in for an appointment that's within the same 30-minutes-before /
+  60-minutes-after window used on the portal (`src/lib/queue.ts`), replying with their queue position.
+- **CHAT \<message\>** — forwards the message to the clinic's shared staff Telegram chat, prefixed
+  with the patient's name. Staff reply by using Telegram's native **Reply** on that specific message;
+  the bot detects the reply and relays it back to that same patient's chat — no separate app or login
+  needed on the staff side either.
+
+For all three, if there's more than one matching appointment the bot lists them and asks the patient
+to use the portal instead, rather than guessing which one they meant. Any other message gets a
+generic "I didn't understand that" reply listing the available commands.
 
 Setup:
 1. Add `TELEGRAM_BOT_TOKEN`, `TELEGRAM_BOT_USERNAME`, and `TELEGRAM_WEBHOOK_SECRET` to your env.

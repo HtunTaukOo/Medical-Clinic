@@ -56,12 +56,21 @@ model Patient {
   telegramChatId String?
   createdAt      DateTime  @default(now())
 
-  appointments   Appointment[]
-  invoices       Invoice[]
-  prescriptions  Prescription[]
-  medicalRecords MedicalRecord[]
-  pillReminders  PillReminder[]
-  labOrders      LabOrder[]
+  appointments        Appointment[]
+  invoices            Invoice[]
+  prescriptions       Prescription[]
+  medicalRecords      MedicalRecord[]
+  pillReminders       PillReminder[]
+  labOrders           LabOrder[]
+  telegramChatMessages TelegramChatMessage[]
+}
+
+model TelegramChatMessage {
+  id             String   @id @default(cuid())
+  staffMessageId Int      @unique
+  patientId      String
+  patient        Patient  @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  createdAt      DateTime @default(now())
 }
 
 model DoctorProfile {

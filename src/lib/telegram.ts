@@ -7,9 +7,12 @@ export function getTelegramBotUsername() {
   return process.env.TELEGRAM_BOT_USERNAME;
 }
 
-export async function sendTelegramMessage(chatId: string, text: string) {
+export async function sendTelegramMessage(
+  chatId: string,
+  text: string
+): Promise<{ message_id: number } | null> {
   const token = process.env.TELEGRAM_BOT_TOKEN;
-  if (!token) return;
+  if (!token) return null;
 
   try {
     const res = await fetch(`${TELEGRAM_API}${token}/sendMessage`, {
@@ -19,9 +22,13 @@ export async function sendTelegramMessage(chatId: string, text: string) {
     });
     if (!res.ok) {
       console.error("Telegram sendMessage failed", await res.text());
+      return null;
     }
+    const body = await res.json();
+    return body.result ?? null;
   } catch (err) {
     console.error("Telegram sendMessage error", err);
+    return null;
   }
 }
 
@@ -35,13 +42,18 @@ export async function notifyPatient(patientId: string, text: string) {
   }
 }
 
-export async function notifyStaff(text: string) {
+export async function getStaffTelegramChatId() {
   const settings = await prisma.clinicSettings.findUnique({
     where: { id: CLINIC_SETTINGS_ID },
     select: { staffTelegramChatId: true },
   });
-  if (settings?.staffTelegramChatId) {
-    await sendTelegramMessage(settings.staffTelegramChatId, text);
+  return settings?.staffTelegramChatId ?? null;
+}
+
+export async function notifyStaff(text: string) {
+  const chatId = await getStaffTelegramChatId();
+  if (chatId) {
+    await sendTelegramMessage(chatId, text);
   }
 }
 
