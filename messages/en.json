@@ -20,6 +20,7 @@
     "activityLog": "Activity Log",
     "lab": "Laboratory",
     "labResults": "Lab Results",
+    "myAvailability": "My Availability",
     "signOut": "Sign out"
   },
   "auth": {

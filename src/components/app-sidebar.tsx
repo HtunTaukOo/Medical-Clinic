@@ -18,6 +18,7 @@ import {
   BarChart3,
   History,
   FlaskConical,
+  CalendarOff,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -55,6 +56,7 @@ const ICONS: Record<string, LucideIcon> = {
   activityLog: History,
   lab: FlaskConical,
   labResults: FlaskConical,
+  myAvailability: CalendarOff,
 };
 
 function initials(name: string) {

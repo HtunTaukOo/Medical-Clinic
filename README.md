@@ -193,8 +193,12 @@ is still `CONFIRMED`.
 ## Doctor availability
 
 Each doctor has a weekly schedule (working days + optional start/end time override) and a
-list of specific leave days, managed by an Admin from **Staff → \[doctor\] → Manage
-availability**. Booking respects this:
+list of specific leave days. The weekly schedule is Admin-managed from **Staff → \[doctor\]
+→ Manage availability** — it changes rarely and is treated like other business-level settings
+(e.g. consultation fee). Leave days are the time-sensitive case, so a doctor can also manage
+their own from **My Availability** in their own console — no Admin needed to block off a sick
+day or vacation. Both surfaces edit the same data; a doctor can only add/remove their own leave
+days, not another doctor's. Booking respects all of this:
 
 - **Leave days** are a hard block for everyone — neither a patient requesting an appointment
   nor staff booking one directly can schedule a doctor on a day they're marked as on leave.

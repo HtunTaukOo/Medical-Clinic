@@ -4,9 +4,16 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requireRole, requireSession, UnauthorizedError } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
 import { parseDateOnlyInput } from "@/lib/doctor-availability";
+
+async function assertCanManageDoctorLeave(doctorId: string) {
+  const session = await requireSession();
+  if (session.user.role === "ADMIN") return;
+  if (session.user.role === "DOCTOR" && session.user.doctorId === doctorId) return;
+  throw new UnauthorizedError("Not allowed to manage this doctor's leave days");
+}
 
 const staffSchema = z.object({
   name: z.string().min(1),
@@ -134,7 +141,7 @@ export async function addDoctorLeave(
   _prevState: DoctorLeaveFormState,
   formData: FormData
 ): Promise<DoctorLeaveFormState> {
-  await requireRole(["ADMIN"]);
+  await assertCanManageDoctorLeave(doctorId);
 
   const parsed = leaveSchema.safeParse({
     date: formData.get("date"),
@@ -152,13 +159,17 @@ export async function addDoctorLeave(
   });
 
   revalidatePath(`/staff/users/${doctorId}/availability`);
+  revalidatePath("/staff/my-availability");
   return { success: true };
 }
 
 export async function removeDoctorLeave(leaveId: string) {
-  await requireRole(["ADMIN"]);
-  const leave = await prisma.doctorLeave.delete({ where: { id: leaveId } });
+  const leave = await prisma.doctorLeave.findUniqueOrThrow({ where: { id: leaveId } });
+  await assertCanManageDoctorLeave(leave.doctorId);
+
+  await prisma.doctorLeave.delete({ where: { id: leaveId } });
   revalidatePath(`/staff/users/${leave.doctorId}/availability`);
+  revalidatePath("/staff/my-availability");
 }
 
 const setPasswordSchema = z.object({

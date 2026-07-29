@@ -146,6 +146,54 @@ test.describe("Doctor availability", () => {
       });
     }
   });
+
+  test("a doctor can manage their own leave days from /staff/my-availability", async ({ page }) => {
+    const doctor = await prisma.doctorProfile.findFirstOrThrow({
+      where: { user: { email: "doctor@nca.clinic" } },
+    });
+
+    try {
+      await loginAs(page, "doctor@nca.clinic");
+      await page.goto("/en/staff/my-availability");
+
+      const leaveDate = futureWeekday(48);
+      const dateInputValue = `${leaveDate.getFullYear()}-${String(leaveDate.getMonth() + 1).padStart(2, "0")}-${String(leaveDate.getDate()).padStart(2, "0")}`;
+      await page.fill('input[name="date"]', dateInputValue);
+      await page.fill('input[name="reason"]', "Personal day");
+      await page.click('button:has-text("Add leave day")');
+      await expect(page.getByText("Personal day")).toBeVisible();
+
+      await expect.poll(async () => {
+        const row = await prisma.doctorLeave.findUnique({
+          where: { doctorId_date: { doctorId: doctor.id, date: leaveDate } },
+        });
+        return row?.reason ?? null;
+      }).toBe("Personal day");
+
+      await page.getByRole("button", { name: "Remove" }).first().click();
+      await expect(page.getByText("Personal day")).not.toBeVisible();
+
+      await expect.poll(async () => {
+        return prisma.doctorLeave.findUnique({
+          where: { doctorId_date: { doctorId: doctor.id, date: leaveDate } },
+        });
+      }).toBeNull();
+    } finally {
+      await prisma.doctorLeave.deleteMany({ where: { doctorId: doctor.id } });
+    }
+  });
+
+  test("the admin-only availability page rejects a doctor visiting it directly", async ({ page }) => {
+    const doctor = await prisma.doctorProfile.findFirstOrThrow({
+      where: { user: { email: "doctor@nca.clinic" } },
+    });
+
+    await loginAs(page, "doctor@nca.clinic");
+    await page.goto(`/en/staff/users/${doctor.id}/availability`);
+    await page.waitForURL((url) => !url.pathname.includes("/staff/users"));
+    expect(page.url()).toContain("/en/staff");
+    expect(page.url()).not.toContain("/staff/users");
+  });
 });
 
 function toDateStrict(date: Date, hours: number, minutes: number) {
