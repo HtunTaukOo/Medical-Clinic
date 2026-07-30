@@ -198,7 +198,10 @@ list of specific leave days. The weekly schedule is Admin-managed from **Staff �
 (e.g. consultation fee). Leave days are the time-sensitive case, so a doctor can also manage
 their own from **My Availability** in their own console — no Admin needed to block off a sick
 day or vacation. Both surfaces edit the same data; a doctor can only add/remove their own leave
-days, not another doctor's. Booking respects all of this:
+days, not another doctor's. Patients can see a doctor's specialty, consultation fee, and
+working days/hours themselves — click through from **Find Doctors** to a doctor's profile
+(`/portal/doctors/[id]`), which also links straight to requesting an appointment with them.
+Booking respects all of this:
 
 - **Leave days** are a hard block for everyone — neither a patient requesting an appointment
   nor staff booking one directly can schedule a doctor on a day they're marked as on leave.

@@ -60,28 +60,33 @@ export default async function FindDoctorsPage({
             <Card key={doctor.id}>
               <CardContent className="grid gap-3">
                 <div className="flex items-start justify-between">
-                  <div className="flex items-center gap-3">
+                  <Link href={`/portal/doctors/${doctor.id}`} className="flex items-center gap-3">
                     <Avatar className="size-12">
                       <AvatarFallback className="bg-secondary text-secondary-foreground">
                         {initials(doctor.user.name)}
                       </AvatarFallback>
                     </Avatar>
                     <div>
-                      <p className="font-semibold">{doctor.user.name}</p>
+                      <p className="font-semibold hover:underline">{doctor.user.name}</p>
                       <p className="text-sm text-muted-foreground">
                         {doctor.specialty ?? "General Practice"}
                       </p>
                     </div>
-                  </div>
+                  </Link>
                   <Badge variant={isBusy ? "secondary" : "outline"}>
                     {isBusy ? "Busy" : "Available"}
                   </Badge>
                 </div>
-                <Button asChild className="w-fit">
-                  <Link href={`/portal/appointments/new?doctorId=${doctor.id}`}>
-                    {t("requestNew")}
-                  </Link>
-                </Button>
+                <div className="flex gap-2">
+                  <Button asChild variant="outline" className="w-fit">
+                    <Link href={`/portal/doctors/${doctor.id}`}>View profile</Link>
+                  </Button>
+                  <Button asChild className="w-fit">
+                    <Link href={`/portal/appointments/new?doctorId=${doctor.id}`}>
+                      {t("requestNew")}
+                    </Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           );
