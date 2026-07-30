@@ -82,3 +82,17 @@ export async function uploadMedicalDocument(
   revalidatePath("/portal/settings");
   return { success: true };
 }
+
+export async function deleteMedicalRecord(recordId: string) {
+  const session = await requireSession();
+
+  const record = await prisma.medicalRecord.findUniqueOrThrow({ where: { id: recordId } });
+  if (record.authorId !== session.user.id) {
+    throw new UnauthorizedError("You can only remove records you added yourself");
+  }
+
+  await prisma.medicalRecord.delete({ where: { id: recordId } });
+
+  revalidatePath(`/staff/patients/${record.patientId}`);
+  revalidatePath("/portal/settings");
+}

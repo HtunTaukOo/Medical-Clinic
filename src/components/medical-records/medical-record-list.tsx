@@ -1,5 +1,7 @@
 import { FileText, StickyNote } from "lucide-react";
+import { deleteMedicalRecord } from "@/actions/medical-records";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
 
 type RecordItem = {
@@ -8,10 +10,17 @@ type RecordItem = {
   note: string | null;
   fileName: string | null;
   createdAt: Date;
+  authorId: string;
   author: { name: string; role: string };
 };
 
-export function MedicalRecordList({ records }: { records: RecordItem[] }) {
+export function MedicalRecordList({
+  records,
+  currentUserId,
+}: {
+  records: RecordItem[];
+  currentUserId?: string;
+}) {
   if (records.length === 0) {
     return <EmptyState icon={FileText} message="No medical records yet." />;
   }
@@ -51,6 +60,13 @@ export function MedicalRecordList({ records }: { records: RecordItem[] }) {
               </div>
             )}
           </div>
+          {currentUserId && record.authorId === currentUserId && (
+            <form action={deleteMedicalRecord.bind(null, record.id)}>
+              <Button size="sm" variant="destructive" type="submit">
+                Remove
+              </Button>
+            </form>
+          )}
         </div>
       ))}
     </div>

@@ -77,7 +77,7 @@ export default async function PortalSettingsPage() {
               <CardTitle>{t("nav.medicalRecords")}</CardTitle>
             </CardHeader>
             <CardContent>
-              <MedicalRecordList records={medicalRecords} />
+              <MedicalRecordList records={medicalRecords} currentUserId={session?.user.id} />
             </CardContent>
           </Card>
         </TabsContent>

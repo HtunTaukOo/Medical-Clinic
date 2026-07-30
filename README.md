@@ -218,6 +218,15 @@ breakdown, computed from the `NO_SHOW` appointment status above. An **Export CSV
 downloads the full report (revenue by month, appointments by status, top medicines, no-shows
 by doctor) as a single CSV file via `GET /api/reports/export` — also Admin-only.
 
+## Medical records
+
+Every record (a doctor's note, or an uploaded document) tracks who authored it. Patients see
+their full record in **Settings → Profile** and can upload their own documents there (e.g.
+prior medical history from before they were a patient here). A patient can remove a record
+only if they authored it themselves — a doctor's note or a document staff uploaded on their
+behalf shows no Remove option, so the clinic's own record of a visit can't be edited away by
+the patient.
+
 ## Laboratory
 
 A full lab workflow, run by the **Lab Technician** role (also usable by Admin):
