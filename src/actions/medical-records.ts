@@ -79,6 +79,6 @@ export async function uploadMedicalDocument(
   });
 
   revalidatePath(`/staff/patients/${targetPatientId}`);
-  revalidatePath("/portal/records");
+  revalidatePath("/portal/settings");
   return { success: true };
 }

@@ -3,6 +3,8 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { SelfProfileForm } from "@/components/patients/self-profile-form";
 import { TelegramConnectCard } from "@/components/telegram/telegram-connect-card";
+import { MedicalRecordList } from "@/components/medical-records/medical-record-list";
+import { DocumentUploadForm } from "@/components/medical-records/document-upload-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -20,6 +22,14 @@ export default async function PortalSettingsPage() {
     ? await prisma.patient.findUnique({ where: { id: patientId } })
     : null;
 
+  const medicalRecords = patientId
+    ? await prisma.medicalRecord.findMany({
+        where: { patientId },
+        orderBy: { createdAt: "desc" },
+        include: { author: true },
+      })
+    : [];
+
   return (
     <div className="grid gap-6">
       <h1 className="text-2xl font-semibold">{t("nav.settings")}</h1>
@@ -30,7 +40,7 @@ export default async function PortalSettingsPage() {
           <TabsTrigger value="telegram">Telegram</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="profile" className="mt-4">
+        <TabsContent value="profile" className="mt-4 grid gap-6">
           <Card>
             <CardHeader>
               <CardTitle>Profile</CardTitle>
@@ -47,6 +57,27 @@ export default async function PortalSettingsPage() {
                   }}
                 />
               )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Upload a document</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-3 text-sm text-muted-foreground">
+                New to the clinic? Upload your previous medical history or records here.
+              </p>
+              {patientId && <DocumentUploadForm patientId={patientId} />}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>{t("nav.medicalRecords")}</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <MedicalRecordList records={medicalRecords} />
             </CardContent>
           </Card>
         </TabsContent>

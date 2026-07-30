@@ -6,7 +6,6 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/portal", labelKey: "dashboard" },
   { href: "/portal/doctors", labelKey: "findDoctors" },
   { href: "/portal/appointments", labelKey: "myAppointments" },
-  { href: "/portal/records", labelKey: "medicalRecords" },
   { href: "/portal/lab-results", labelKey: "labResults" },
   { href: "/portal/invoices", labelKey: "myInvoices" },
   { href: "/portal/settings", labelKey: "settings" },
