@@ -22,6 +22,7 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/doctor-availability";
 import { notifyPatient, notifyStaff } from "@/lib/telegram";
+import { notifyWaitlistOfOpening } from "@/actions/waitlist";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
 
@@ -30,9 +31,17 @@ const bookingSchema = z.object({
   doctorId: z.string().min(1),
   scheduledAt: z.string().min(1),
   reason: z.string().optional(),
+  repeatWeekly: z.string().optional(),
+  occurrences: z.coerce.number().int().min(2).max(12).optional(),
 });
 
-export type AppointmentFormState = { error?: string; success?: boolean };
+export type AppointmentFormState = {
+  error?: string;
+  success?: boolean;
+  conflict?: { doctorId: string; scheduledAt: string; reason?: string };
+  createdCount?: number;
+  skippedDates?: string[];
+};
 
 export async function createAppointment(
   _prevState: AppointmentFormState,
@@ -45,35 +54,53 @@ export async function createAppointment(
     doctorId: formData.get("doctorId"),
     scheduledAt: formData.get("scheduledAt"),
     reason: formData.get("reason") || undefined,
+    repeatWeekly: formData.get("repeatWeekly") || undefined,
+    occurrences: formData.get("occurrences") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const scheduledAt = new Date(parsed.data.scheduledAt);
+  const baseDate = new Date(parsed.data.scheduledAt);
+  const isRecurring = !!parsed.data.repeatWeekly;
+  const occurrenceCount = isRecurring ? Math.max(2, parsed.data.occurrences ?? 4) : 1;
 
-  const onLeave = await isDoctorOnLeave(parsed.data.doctorId, scheduledAt);
-  if (onLeave) {
-    return { error: "This doctor is on leave on the selected date." };
+  const skippedDates: string[] = [];
+  let createdCount = 0;
+
+  for (let i = 0; i < occurrenceCount; i++) {
+    const occurrenceDate = new Date(baseDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
+
+    const onLeave = await isDoctorOnLeave(parsed.data.doctorId, occurrenceDate);
+    const conflict = onLeave ? null : await findConflictingAppointment(parsed.data.doctorId, occurrenceDate);
+
+    if (onLeave || conflict) {
+      if (!isRecurring) {
+        return { error: onLeave ? "This doctor is on leave on the selected date." : CONFLICT_MESSAGE };
+      }
+      skippedDates.push(occurrenceDate.toLocaleDateString());
+      continue;
+    }
+
+    await prisma.appointment.create({
+      data: {
+        patientId: parsed.data.patientId,
+        doctorId: parsed.data.doctorId,
+        scheduledAt: occurrenceDate,
+        reason: parsed.data.reason,
+        status: "CONFIRMED",
+      },
+    });
+    createdCount++;
   }
-
-  const conflict = await findConflictingAppointment(parsed.data.doctorId, scheduledAt);
-  if (conflict) {
-    return { error: CONFLICT_MESSAGE };
-  }
-
-  await prisma.appointment.create({
-    data: {
-      patientId: parsed.data.patientId,
-      doctorId: parsed.data.doctorId,
-      scheduledAt,
-      reason: parsed.data.reason,
-      status: "CONFIRMED",
-    },
-  });
 
   revalidatePath("/staff/appointments");
-  return { success: true };
+
+  if (createdCount === 0) {
+    return { error: "None of the requested weekly occurrences could be booked (conflicts or leave days)." };
+  }
+
+  return isRecurring ? { success: true, createdCount, skippedDates } : { success: true };
 }
 
 const requestSchema = z.object({
@@ -135,7 +162,14 @@ export async function requestAppointment(
 
   const conflict = await findConflictingAppointment(parsed.data.doctorId, scheduledAt);
   if (conflict) {
-    return { error: CONFLICT_MESSAGE };
+    return {
+      error: CONFLICT_MESSAGE,
+      conflict: {
+        doctorId: parsed.data.doctorId,
+        scheduledAt: parsed.data.scheduledAt,
+        reason: parsed.data.reason,
+      },
+    };
   }
 
   const appointment = await prisma.appointment.create({
@@ -236,6 +270,9 @@ export async function markNoShow(appointmentId: string) {
     where: { id: appointmentId },
     data: { status: "NO_SHOW" },
   });
+
+  await notifyWaitlistOfOpening(appointment.doctorId, appointment.scheduledAt);
+
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
@@ -286,6 +323,8 @@ export async function cancelAppointment(appointmentId: string) {
       `❌ Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} has been cancelled.`
     );
   }
+
+  await notifyWaitlistOfOpening(appointment.doctorId, appointment.scheduledAt);
 
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);

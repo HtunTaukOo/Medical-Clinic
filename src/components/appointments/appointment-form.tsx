@@ -1,9 +1,10 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import type { AppointmentFormState } from "@/actions/appointments";
-import { useRouter } from "@/i18n/navigation";
+import { useRouter, Link } from "@/i18n/navigation";
+import { JoinWaitlistForm } from "@/components/appointments/join-waitlist-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -38,15 +39,37 @@ export function AppointmentForm({
     AppointmentFormState,
     FormData
   >(action, {});
+  const [repeatWeekly, setRepeatWeekly] = useState(false);
+
+  const isStaffBooking = !!patients;
 
   useEffect(() => {
-    if (state.success) {
+    if (state.success && state.skippedDates === undefined) {
       router.push(redirectOnSuccess);
     }
-  }, [state.success, redirectOnSuccess, router]);
+  }, [state.success, state.skippedDates, redirectOnSuccess, router]);
+
+  if (state.success && state.skippedDates !== undefined) {
+    return (
+      <div className="grid max-w-lg gap-3">
+        <p className="text-sm text-emerald-600">
+          Booked {state.createdCount} weekly appointment{state.createdCount === 1 ? "" : "s"}.
+        </p>
+        {state.skippedDates.length > 0 && (
+          <p className="text-sm text-muted-foreground">
+            Skipped (conflict or leave day): {state.skippedDates.join(", ")}
+          </p>
+        )}
+        <Button asChild size="sm" variant="outline" className="w-fit">
+          <Link href={redirectOnSuccess}>Done</Link>
+        </Button>
+      </div>
+    );
+  }
 
   return (
-    <form action={formAction} className="grid max-w-lg gap-4">
+    <div className="grid max-w-lg gap-4">
+      <form action={formAction} className="grid gap-4">
       {patients && (
         <div className="grid gap-2">
           <Label htmlFor="patientId">{t("patient")}</Label>
@@ -93,10 +116,52 @@ export function AppointmentForm({
         <Label htmlFor="reason">{t("reason")}</Label>
         <Textarea id="reason" name="reason" />
       </div>
+
+      {isStaffBooking && (
+        <div className="grid gap-2 rounded-lg border p-3">
+          <label className="flex items-center gap-2 text-sm font-medium">
+            <input
+              type="checkbox"
+              name="repeatWeekly"
+              checked={repeatWeekly}
+              onChange={(e) => setRepeatWeekly(e.target.checked)}
+            />
+            Repeat weekly
+          </label>
+          {repeatWeekly && (
+            <div className="grid gap-2">
+              <Label htmlFor="occurrences">Number of occurrences</Label>
+              <Input
+                id="occurrences"
+                name="occurrences"
+                type="number"
+                min={2}
+                max={12}
+                defaultValue={4}
+              />
+              <p className="text-xs text-muted-foreground">
+                Any occurrence that conflicts or falls on a leave day is skipped rather than
+                blocking the rest of the series.
+              </p>
+            </div>
+          )}
+        </div>
+      )}
+
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
+
       <Button type="submit" disabled={pending}>
         {t("new")}
       </Button>
-    </form>
+      </form>
+
+      {!isStaffBooking && state.conflict && (
+        <JoinWaitlistForm
+          doctorId={state.conflict.doctorId}
+          scheduledAt={state.conflict.scheduledAt}
+          reason={state.conflict.reason}
+        />
+      )}
+    </div>
   );
 }

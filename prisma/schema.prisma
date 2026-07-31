@@ -68,6 +68,7 @@ model Patient {
   pillReminders       PillReminder[]
   labOrders           LabOrder[]
   telegramChatMessages TelegramChatMessage[]
+  waitlistEntries      Waitlist[]
 }
 
 model TelegramChatMessage {
@@ -88,10 +89,32 @@ model DoctorProfile {
   workStartTime    String?
   workEndTime      String?
 
-  appointments  Appointment[]
-  prescriptions Prescription[]
-  labOrders     LabOrder[]
-  leaveDays     DoctorLeave[]
+  appointments     Appointment[]
+  prescriptions    Prescription[]
+  labOrders        LabOrder[]
+  leaveDays        DoctorLeave[]
+  waitlistEntries  Waitlist[]
+}
+
+enum WaitlistStatus {
+  WAITING
+  NOTIFIED
+  CANCELLED
+}
+
+model Waitlist {
+  id          String         @id @default(cuid())
+  patientId   String
+  patient     Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId    String
+  doctor      DoctorProfile  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  requestedAt DateTime
+  reason      String?
+  status      WaitlistStatus @default(WAITING)
+  notifiedAt  DateTime?
+  createdAt   DateTime       @default(now())
+
+  @@index([doctorId, status, requestedAt])
 }
 
 model DoctorLeave {

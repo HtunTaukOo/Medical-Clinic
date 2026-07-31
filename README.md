@@ -169,6 +169,25 @@ color-coded by status, click through to the appointment. Doctors see only their 
 Admin/Receptionist see the whole clinic. Patients get the same toggle on their own
 "My Appointments" page, scoped to their own appointments.
 
+## Waitlist
+
+When a patient requests a slot that conflicts with an existing appointment for that doctor
+(within the usual 30-minute buffer), the booking form offers **Join waitlist** alongside the
+conflict error. If that occupying appointment is later cancelled or marked no-show — through
+any path (portal, staff console, or the Telegram CANCEL command) — the oldest matching
+waitlist entry is notified via Telegram that an opening is available, and it shows up on the
+patient's "My Appointments" page either way (no Telegram connection required to see it).
+Booking the freed slot is still a normal, manual booking — nothing is auto-confirmed, so the
+patient always gets a final say. A patient can leave their own waitlist entry at any time.
+
+## Recurring appointments
+
+Admin/Receptionist can check **Repeat weekly** on the "New Appointment" form and pick a number
+of occurrences (2–12) to book a weekly series in one go. Each occurrence is checked
+independently against the doctor's leave days and existing bookings — one that conflicts is
+skipped rather than failing the whole series, and the form reports exactly how many were
+booked and which dates were skipped. This is staff-only; patient self-booking stays one-off.
+
 ## Patient self-cancel
 
 Patients can cancel their own **requested** or **confirmed** appointments directly from the

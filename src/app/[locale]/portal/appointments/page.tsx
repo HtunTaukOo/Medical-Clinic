@@ -4,6 +4,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
 import { checkInAppointment, cancelAppointment } from "@/actions/appointments";
+import { leaveWaitlist } from "@/actions/waitlist";
 import { getMonthGrid, dateKey, addMonths, MONTH_NAMES } from "@/lib/calendar";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -42,6 +43,14 @@ export default async function PortalAppointmentsPage({
     ? await prisma.appointment.findMany({
         where: { patientId },
         orderBy: { scheduledAt: "desc" },
+        include: { doctor: { include: { user: true } } },
+      })
+    : [];
+
+  const waitlistEntries = patientId
+    ? await prisma.waitlist.findMany({
+        where: { patientId, status: { in: ["WAITING", "NOTIFIED"] } },
+        orderBy: { requestedAt: "asc" },
         include: { doctor: { include: { user: true } } },
       })
     : [];
@@ -96,6 +105,37 @@ export default async function PortalAppointmentsPage({
           <Link href="/portal/appointments/new">{t("requestNew")}</Link>
         </Button>
       </div>
+
+      {waitlistEntries.length > 0 && (
+        <Card>
+          <CardContent className="grid gap-2">
+            <p className="text-sm font-medium">Waitlist</p>
+            {waitlistEntries.map((entry) => (
+              <div
+                key={entry.id}
+                className="flex items-center justify-between rounded-lg border p-3 text-sm"
+              >
+                <div>
+                  <p className="font-medium">{entry.doctor.user.name}</p>
+                  <p className="text-muted-foreground">
+                    Requested around {new Date(entry.requestedAt).toLocaleString()}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Badge variant={entry.status === "NOTIFIED" ? "default" : "outline"}>
+                    {entry.status === "NOTIFIED" ? "Opening available!" : "Waiting"}
+                  </Badge>
+                  <form action={leaveWaitlist.bind(null, entry.id)}>
+                    <Button size="sm" variant="outline" type="submit">
+                      Leave waitlist
+                    </Button>
+                  </form>
+                </div>
+              </div>
+            ))}
+          </CardContent>
+        </Card>
+      )}
 
       <div className="flex items-center gap-2">
         <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">

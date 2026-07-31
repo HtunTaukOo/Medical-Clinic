@@ -3,6 +3,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage, notifyStaff, getStaffTelegramChatId } from "@/lib/telegram";
 import { isWithinSelfCheckInWindow, getQueuePosition } from "@/lib/queue";
+import { notifyWaitlistOfOpening } from "@/actions/waitlist";
 
 type TelegramUpdate = {
   message?: {
@@ -239,6 +240,7 @@ async function handleCancelCommand(chatId: string) {
   await notifyStaff(
     `❌ ${patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} via Telegram.`
   );
+  await notifyWaitlistOfOpening(appointment.doctorId, appointment.scheduledAt);
 
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointment.id}`);
