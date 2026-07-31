@@ -46,6 +46,11 @@
     "dob": "Date of birth",
     "address": "Address",
     "notes": "Medical notes",
+    "allergies": "Allergies",
+    "insuranceProvider": "Insurance provider",
+    "insurancePolicyNumber": "Policy / member number",
+    "emergencyContactName": "Emergency contact name",
+    "emergencyContactPhone": "Emergency contact phone",
     "save": "Save patient",
     "noResults": "No patients yet."
   },

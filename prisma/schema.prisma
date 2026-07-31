@@ -53,6 +53,11 @@ model Patient {
   phone          String?
   address        String?
   notes          String?
+  allergies             String?
+  insuranceProvider     String?
+  insurancePolicyNumber String?
+  emergencyContactName  String?
+  emergencyContactPhone String?
   telegramChatId String?
   createdAt      DateTime  @default(now())
 

@@ -46,6 +46,11 @@
     "dob": "မွေးသက္ကရာဇ်",
     "address": "လိပ်စာ",
     "notes": "ဆေးမှတ်တမ်း",
+    "allergies": "ဓာတ်မတည့်မှုများ",
+    "insuranceProvider": "အာမခံကုမ္ပဏီ",
+    "insurancePolicyNumber": "အာမခံ အမှတ်",
+    "emergencyContactName": "အရေးပေါ်ဆက်သွယ်ရန် အမည်",
+    "emergencyContactPhone": "အရေးပေါ်ဆက်သွယ်ရန် ဖုန်းနံပါတ်",
     "save": "လူနာအချက်အလက် သိမ်းမည်",
     "noResults": "လူနာများ မရှိသေးပါ။"
   },

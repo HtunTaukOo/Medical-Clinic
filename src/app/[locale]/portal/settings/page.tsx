@@ -54,6 +54,11 @@ export default async function PortalSettingsPage() {
                     phone: patient.phone ?? "",
                     dob: toDateInputValue(patient.dob),
                     address: patient.address ?? "",
+                    allergies: patient.allergies ?? "",
+                    insuranceProvider: patient.insuranceProvider ?? "",
+                    insurancePolicyNumber: patient.insurancePolicyNumber ?? "",
+                    emergencyContactName: patient.emergencyContactName ?? "",
+                    emergencyContactPhone: patient.emergencyContactPhone ?? "",
                   }}
                 />
               )}

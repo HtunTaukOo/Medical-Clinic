@@ -6,6 +6,7 @@ import { updateOwnProfile, type PatientFormState } from "@/actions/patients";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export function SelfProfileForm({
   defaultValues,
@@ -16,6 +17,11 @@ export function SelfProfileForm({
     phone: string;
     dob: string;
     address: string;
+    allergies: string;
+    insuranceProvider: string;
+    insurancePolicyNumber: string;
+    emergencyContactName: string;
+    emergencyContactPhone: string;
   };
 }) {
   const t = useTranslations("patients");
@@ -45,6 +51,46 @@ export function SelfProfileForm({
       <div className="grid gap-2">
         <Label htmlFor="address">{t("address")}</Label>
         <Input id="address" name="address" defaultValue={defaultValues.address} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="allergies">{t("allergies")}</Label>
+        <Textarea id="allergies" name="allergies" defaultValue={defaultValues.allergies} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="insuranceProvider">{t("insuranceProvider")}</Label>
+          <Input
+            id="insuranceProvider"
+            name="insuranceProvider"
+            defaultValue={defaultValues.insuranceProvider}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="insurancePolicyNumber">{t("insurancePolicyNumber")}</Label>
+          <Input
+            id="insurancePolicyNumber"
+            name="insurancePolicyNumber"
+            defaultValue={defaultValues.insurancePolicyNumber}
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="emergencyContactName">{t("emergencyContactName")}</Label>
+          <Input
+            id="emergencyContactName"
+            name="emergencyContactName"
+            defaultValue={defaultValues.emergencyContactName}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="emergencyContactPhone">{t("emergencyContactPhone")}</Label>
+          <Input
+            id="emergencyContactPhone"
+            name="emergencyContactPhone"
+            defaultValue={defaultValues.emergencyContactPhone}
+          />
+        </div>
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       {state.success && <p className="text-sm text-muted-foreground">Saved.</p>}

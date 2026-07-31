@@ -15,6 +15,11 @@ const patientSchema = z.object({
   dob: z.string().optional(),
   address: z.string().optional(),
   notes: z.string().optional(),
+  allergies: z.string().optional(),
+  insuranceProvider: z.string().optional(),
+  insurancePolicyNumber: z.string().optional(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
 });
 
 export type PatientFormState = { error?: string; success?: boolean };
@@ -27,6 +32,11 @@ function parsePatientForm(formData: FormData) {
     dob: formData.get("dob") || undefined,
     address: formData.get("address") || undefined,
     notes: formData.get("notes") || undefined,
+    allergies: formData.get("allergies") || undefined,
+    insuranceProvider: formData.get("insuranceProvider") || undefined,
+    insurancePolicyNumber: formData.get("insurancePolicyNumber") || undefined,
+    emergencyContactName: formData.get("emergencyContactName") || undefined,
+    emergencyContactPhone: formData.get("emergencyContactPhone") || undefined,
   });
 }
 
@@ -41,7 +51,19 @@ export async function createPatient(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { name, email, phone, dob, address, notes } = parsed.data;
+  const {
+    name,
+    email,
+    phone,
+    dob,
+    address,
+    notes,
+    allergies,
+    insuranceProvider,
+    insurancePolicyNumber,
+    emergencyContactName,
+    emergencyContactPhone,
+  } = parsed.data;
 
   await prisma.patient.create({
     data: {
@@ -50,6 +72,11 @@ export async function createPatient(
       phone,
       address,
       notes,
+      allergies,
+      insuranceProvider,
+      insurancePolicyNumber,
+      emergencyContactName,
+      emergencyContactPhone,
       dob: dob ? new Date(dob) : undefined,
     },
   });
@@ -70,7 +97,19 @@ export async function updatePatient(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { name, email, phone, dob, address, notes } = parsed.data;
+  const {
+    name,
+    email,
+    phone,
+    dob,
+    address,
+    notes,
+    allergies,
+    insuranceProvider,
+    insurancePolicyNumber,
+    emergencyContactName,
+    emergencyContactPhone,
+  } = parsed.data;
 
   await prisma.patient.update({
     where: { id: patientId },
@@ -80,6 +119,11 @@ export async function updatePatient(
       phone,
       address,
       notes,
+      allergies: allergies || null,
+      insuranceProvider: insuranceProvider || null,
+      insurancePolicyNumber: insurancePolicyNumber || null,
+      emergencyContactName: emergencyContactName || null,
+      emergencyContactPhone: emergencyContactPhone || null,
       dob: dob ? new Date(dob) : null,
     },
   });
@@ -95,6 +139,11 @@ const selfProfileSchema = z.object({
   phone: z.string().optional(),
   dob: z.string().optional(),
   address: z.string().optional(),
+  allergies: z.string().optional(),
+  insuranceProvider: z.string().optional(),
+  insurancePolicyNumber: z.string().optional(),
+  emergencyContactName: z.string().optional(),
+  emergencyContactPhone: z.string().optional(),
 });
 
 export async function updateOwnProfile(
@@ -111,12 +160,28 @@ export async function updateOwnProfile(
     phone: formData.get("phone") || undefined,
     dob: formData.get("dob") || undefined,
     address: formData.get("address") || undefined,
+    allergies: formData.get("allergies") || undefined,
+    insuranceProvider: formData.get("insuranceProvider") || undefined,
+    insurancePolicyNumber: formData.get("insurancePolicyNumber") || undefined,
+    emergencyContactName: formData.get("emergencyContactName") || undefined,
+    emergencyContactPhone: formData.get("emergencyContactPhone") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { name, email, phone, dob, address } = parsed.data;
+  const {
+    name,
+    email,
+    phone,
+    dob,
+    address,
+    allergies,
+    insuranceProvider,
+    insurancePolicyNumber,
+    emergencyContactName,
+    emergencyContactPhone,
+  } = parsed.data;
 
   await prisma.patient.update({
     where: { id: patientId },
@@ -125,6 +190,11 @@ export async function updateOwnProfile(
       email: email || null,
       phone,
       address,
+      allergies: allergies || null,
+      insuranceProvider: insuranceProvider || null,
+      insurancePolicyNumber: insurancePolicyNumber || null,
+      emergencyContactName: emergencyContactName || null,
+      emergencyContactPhone: emergencyContactPhone || null,
       dob: dob ? new Date(dob) : null,
     },
   });

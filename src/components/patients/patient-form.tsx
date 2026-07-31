@@ -25,6 +25,11 @@ export function PatientForm({
     dob: string;
     address: string;
     notes: string;
+    allergies: string;
+    insuranceProvider: string;
+    insurancePolicyNumber: string;
+    emergencyContactName: string;
+    emergencyContactPhone: string;
   };
   redirectOnSuccess?: string;
 }) {
@@ -62,6 +67,46 @@ export function PatientForm({
       <div className="grid gap-2">
         <Label htmlFor="address">{t("address")}</Label>
         <Input id="address" name="address" defaultValue={defaultValues?.address} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="allergies">{t("allergies")}</Label>
+        <Textarea id="allergies" name="allergies" defaultValue={defaultValues?.allergies} />
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="insuranceProvider">{t("insuranceProvider")}</Label>
+          <Input
+            id="insuranceProvider"
+            name="insuranceProvider"
+            defaultValue={defaultValues?.insuranceProvider}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="insurancePolicyNumber">{t("insurancePolicyNumber")}</Label>
+          <Input
+            id="insurancePolicyNumber"
+            name="insurancePolicyNumber"
+            defaultValue={defaultValues?.insurancePolicyNumber}
+          />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="emergencyContactName">{t("emergencyContactName")}</Label>
+          <Input
+            id="emergencyContactName"
+            name="emergencyContactName"
+            defaultValue={defaultValues?.emergencyContactName}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="emergencyContactPhone">{t("emergencyContactPhone")}</Label>
+          <Input
+            id="emergencyContactPhone"
+            name="emergencyContactPhone"
+            defaultValue={defaultValues?.emergencyContactPhone}
+          />
+        </div>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="notes">{t("notes")}</Label>

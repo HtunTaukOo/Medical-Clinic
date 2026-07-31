@@ -56,6 +56,11 @@ export default async function PatientDetailPage({
             dob: patient.dob ? patient.dob.toISOString().slice(0, 10) : "",
             address: patient.address ?? "",
             notes: patient.notes ?? "",
+            allergies: patient.allergies ?? "",
+            insuranceProvider: patient.insuranceProvider ?? "",
+            insurancePolicyNumber: patient.insurancePolicyNumber ?? "",
+            emergencyContactName: patient.emergencyContactName ?? "",
+            emergencyContactPhone: patient.emergencyContactPhone ?? "",
           }}
         />
       ) : (
@@ -74,6 +79,27 @@ export default async function PatientDetailPage({
               </div>
             )}
             {patient.address && <p>{patient.address}</p>}
+            {patient.allergies && (
+              <p className="text-destructive">
+                <span className="font-medium">Allergies:</span> {patient.allergies}
+              </p>
+            )}
+            {(patient.insuranceProvider || patient.insurancePolicyNumber) && (
+              <p>
+                <span className="font-medium text-foreground">Insurance:</span>{" "}
+                {[patient.insuranceProvider, patient.insurancePolicyNumber]
+                  .filter(Boolean)
+                  .join(" — ")}
+              </p>
+            )}
+            {(patient.emergencyContactName || patient.emergencyContactPhone) && (
+              <p>
+                <span className="font-medium text-foreground">Emergency contact:</span>{" "}
+                {[patient.emergencyContactName, patient.emergencyContactPhone]
+                  .filter(Boolean)
+                  .join(" — ")}
+              </p>
+            )}
           </CardContent>
         </Card>
       )}
