@@ -78,7 +78,19 @@ export default async function PatientDetailPage({
                 {patient.email}
               </div>
             )}
+            {patient.dob && (
+              <div className="flex items-center gap-2">
+                <CalendarDays className="size-4" />
+                {new Date(patient.dob).toLocaleDateString()}
+              </div>
+            )}
             {patient.address && <p>{patient.address}</p>}
+            {patient.notes && (
+              <p>
+                <span className="font-medium text-foreground">Medical notes:</span>{" "}
+                {patient.notes}
+              </p>
+            )}
             {patient.allergies && (
               <p className="text-destructive">
                 <span className="font-medium">Allergies:</span> {patient.allergies}

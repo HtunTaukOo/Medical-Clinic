@@ -46,15 +46,21 @@ test.describe("Allergies, insurance, and emergency contact fields", () => {
     }
   });
 
-  test("a doctor sees a patient's allergies read-only (cannot edit patient details)", async ({
+  test("a doctor sees a patient's full profile read-only (not just name/phone/email)", async ({
     page,
   }) => {
     const patient = await prisma.patient.findFirstOrThrow({
       where: { email: "patient@example.com" },
     });
+    const original = { dob: patient.dob, notes: patient.notes };
     await prisma.patient.update({
       where: { id: patient.id },
-      data: { allergies: "Latex", emergencyContactName: "John Doe" },
+      data: {
+        allergies: "Latex",
+        emergencyContactName: "John Doe",
+        dob: new Date("1990-05-15"),
+        notes: "History of asthma",
+      },
     });
 
     try {
@@ -64,11 +70,19 @@ test.describe("Allergies, insurance, and emergency contact fields", () => {
       await expect(page.getByText(/Allergies:/)).toBeVisible();
       await expect(page.getByText("Latex")).toBeVisible();
       await expect(page.getByText(/Emergency contact:/)).toBeVisible();
+      await expect(page.getByText(/Medical notes:/)).toBeVisible();
+      await expect(page.getByText("History of asthma")).toBeVisible();
+      await expect(page.getByText("5/15/1990")).toBeVisible();
       await expect(page.locator("#allergies")).toHaveCount(0);
     } finally {
       await prisma.patient.update({
         where: { id: patient.id },
-        data: { allergies: null, emergencyContactName: null },
+        data: {
+          allergies: null,
+          emergencyContactName: null,
+          dob: original.dob,
+          notes: original.notes,
+        },
       });
     }
   });
