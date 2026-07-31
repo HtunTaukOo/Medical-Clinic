@@ -20,7 +20,13 @@ export function DocumentUploadForm({ patientId }: { patientId: string }) {
     <form action={formAction} className="grid max-w-md gap-3">
       <div className="grid gap-2">
         <Label htmlFor="file">Document</Label>
-        <Input id="file" name="file" type="file" required accept=".pdf,.png,.jpg,.jpeg" />
+        <Input
+          id="file"
+          name="file"
+          type="file"
+          required
+          accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.dcm"
+        />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="note">Note (optional)</Label>

@@ -13,6 +13,8 @@ import { createPrescription } from "@/actions/prescriptions";
 import { PrescriptionForm } from "@/components/prescriptions/prescription-form";
 import { NoteForm } from "@/components/medical-records/note-form";
 import { OrderLabTestsForm } from "@/components/lab/order-lab-tests-form";
+import { DiagnosisForm } from "@/components/diagnoses/diagnosis-form";
+import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
 import { dateKey } from "@/lib/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -37,6 +39,7 @@ export default async function AppointmentDetailPage({
       prescriptions: { include: { items: { include: { medicine: true } } } },
       invoice: true,
       labOrders: { include: { items: { include: { labTest: true } } } },
+      diagnoses: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -166,6 +169,18 @@ export default async function AppointmentDetailPage({
           </CardHeader>
           <CardContent>
             <NoteForm patientId={appointment.patientId} />
+          </CardContent>
+        </Card>
+      )}
+
+      {(appointment.diagnoses.length > 0 || canPrescribe) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Diagnosis</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <DiagnosisList diagnoses={appointment.diagnoses} canDelete={canPrescribe} />
+            {canPrescribe && <DiagnosisForm appointmentId={appointment.id} />}
           </CardContent>
         </Card>
       )}

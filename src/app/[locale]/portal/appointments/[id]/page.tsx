@@ -4,6 +4,7 @@ import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { cancelAppointment } from "@/actions/appointments";
+import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -24,6 +25,7 @@ export default async function PortalAppointmentDetailPage({
     include: {
       doctor: { include: { user: true } },
       prescriptions: { include: { items: { include: { medicine: true } } } },
+      diagnoses: { orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -59,6 +61,15 @@ export default async function PortalAppointmentDetailPage({
           <CardContent>{appointment.reason}</CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Diagnosis</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DiagnosisList diagnoses={appointment.diagnoses} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

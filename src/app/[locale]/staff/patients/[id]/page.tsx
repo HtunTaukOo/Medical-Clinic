@@ -8,6 +8,7 @@ import { PatientForm } from "@/components/patients/patient-form";
 import { MedicalRecordList } from "@/components/medical-records/medical-record-list";
 import { NoteForm } from "@/components/medical-records/note-form";
 import { DocumentUploadForm } from "@/components/medical-records/document-upload-form";
+import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
@@ -33,6 +34,10 @@ export default async function PatientDetailPage({
       medicalRecords: {
         orderBy: { createdAt: "desc" },
         include: { author: true },
+      },
+      diagnoses: {
+        orderBy: { createdAt: "desc" },
+        include: { doctor: { include: { user: true } } },
       },
     },
   });
@@ -148,6 +153,17 @@ export default async function PatientDetailPage({
                 <Badge variant="outline">{appt.status}</Badge>
               </div>
             ))}
+          </CardContent>
+        </Card>
+      )}
+
+      {role !== "PHARMACIST" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Diagnosis History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DiagnosisList diagnoses={patient.diagnoses} showDoctor />
           </CardContent>
         </Card>
       )}

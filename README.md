@@ -246,6 +246,23 @@ only if they authored it themselves — a doctor's note or a document staff uplo
 behalf shows no Remove option, so the clinic's own record of a visit can't be edited away by
 the patient.
 
+Uploaded documents get an inline preview instead of just a download link where possible:
+- **Images** (jpg/png/gif/webp) render directly, click to view full-size.
+- **DICOM files** (`.dcm`) get a basic client-side preview (`dicom-parser`, in
+  [dicom-preview.tsx](src/components/medical-records/dicom-preview.tsx)) — auto-contrast
+  grayscale rendering plus Modality/StudyDate/dimensions, for uncompressed single-frame
+  grayscale files. Compressed, color, or multi-frame DICOM falls back to a clear "download to
+  view in a dedicated DICOM viewer" message rather than trying (and failing) to render — this
+  is a basic viewer, not a PACS replacement.
+
+## Diagnoses
+
+Doctors record a structured diagnosis per appointment (same same-day cutoff as prescriptions
+and lab orders) — either picked from a curated list of common ICD-10 codes
+([icd10.ts](src/lib/icd10.ts)) or entered as a fully custom code + description for anything
+not on that shortlist, plus optional free-text notes. Visible to the doctor (with same-day
+delete), the patient on that appointment, and staff on the patient's full Diagnosis History.
+
 ## Laboratory
 
 A full lab workflow, run by the **Lab Technician** role (also usable by Admin):

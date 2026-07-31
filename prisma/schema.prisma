@@ -69,6 +69,7 @@ model Patient {
   labOrders           LabOrder[]
   telegramChatMessages TelegramChatMessage[]
   waitlistEntries      Waitlist[]
+  diagnoses            Diagnosis[]
 }
 
 model TelegramChatMessage {
@@ -94,6 +95,7 @@ model DoctorProfile {
   labOrders        LabOrder[]
   leaveDays        DoctorLeave[]
   waitlistEntries  Waitlist[]
+  diagnoses        Diagnosis[]
 }
 
 enum WaitlistStatus {
@@ -156,9 +158,27 @@ model Appointment {
   invoice       Invoice?
   prescriptions Prescription[]
   labOrders     LabOrder[]
+  diagnoses     Diagnosis[]
 
   @@index([doctorId, scheduledAt])
   @@index([patientId])
+}
+
+model Diagnosis {
+  id            String        @id @default(cuid())
+  appointmentId String
+  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  patientId     String
+  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId      String
+  doctor        DoctorProfile @relation(fields: [doctorId], references: [id])
+  code          String?
+  description   String
+  notes         String?
+  createdAt     DateTime      @default(now())
+
+  @@index([patientId])
+  @@index([appointmentId])
 }
 
 enum InvoiceStatus {
