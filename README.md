@@ -284,6 +284,23 @@ A full lab workflow, run by the **Lab Technician** role (also usable by Admin):
   shared staff chat (naming the ordering doctor) and to the patient directly, via
   the same Telegram setup used elsewhere in this app.
 
+## Inventory: expiry tracking
+
+Medicines can carry an optional expiry date, settable at creation
+(`/staff/inventory/new`) or edited later from a medicine's detail page. The
+inventory list and detail pages show an "Expired" or "Expiring soon" badge
+(within 30 days, see [inventory.ts](src/lib/inventory.ts)), and a daily cron
+(`/api/cron/medicine-expiry`, mirroring the existing pill-reminder cron)
+messages the staff Telegram chat with anything expired or about to expire.
+
+## Staff attendance
+
+`/staff/attendance` lets any staff member (admin, doctor, receptionist,
+pharmacist, lab tech) clock in/out for their shift and see their own recent
+history. Admins additionally see a today's-attendance table across all staff.
+Records live in `AttendanceRecord`, one open (no `clockOut`) row per user at a
+time.
+
 ## Deploying (Vercel + Neon/Supabase)
 
 1. **Database**: create a free Postgres instance on [Neon](https://neon.tech) or [Supabase](https://supabase.com). Copy its pooled connection string.

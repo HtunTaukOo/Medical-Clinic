@@ -49,6 +49,10 @@ export function MedicineForm() {
         <Label htmlFor="price">{t("price")}</Label>
         <Input id="price" name="price" type="number" min={0} step="0.01" required />
       </div>
+      <div className="grid gap-2">
+        <Label htmlFor="expiryDate">{t("expiryDate")}</Label>
+        <Input id="expiryDate" name="expiryDate" type="date" />
+      </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
         {t("newMedicine")}

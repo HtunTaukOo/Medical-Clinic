@@ -21,6 +21,7 @@
     "lab": "Laboratory",
     "labResults": "Lab Results",
     "myAvailability": "My Availability",
+    "attendance": "Attendance",
     "signOut": "Sign out"
   },
   "auth": {
@@ -107,7 +108,26 @@
     "adjustStock": "Adjust stock",
     "noResults": "No medicines yet.",
     "fulfill": "Fulfill",
-    "paymentRequired": "Payment required"
+    "paymentRequired": "Payment required",
+    "expiryDate": "Expiry date",
+    "expired": "Expired",
+    "expiringSoon": "Expiring soon",
+    "setExpiry": "Save",
+    "noExpirySet": "No expiry date set."
+  },
+  "attendance": {
+    "title": "Attendance",
+    "clockIn": "Clock in",
+    "clockOut": "Clock out",
+    "clockedInSince": "Clocked in since {time}",
+    "notClockedIn": "Not clocked in",
+    "myHistory": "My history",
+    "noHistory": "No attendance records yet.",
+    "date": "Date",
+    "duration": "Duration",
+    "inProgress": "In progress",
+    "todayAllStaff": "Today — all staff",
+    "staffMember": "Staff member"
   },
   "staff": {
     "title": "Staff",

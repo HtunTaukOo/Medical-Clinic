@@ -38,9 +38,10 @@ model User {
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  patient        Patient?
-  doctorProfile  DoctorProfile?
-  medicalRecords MedicalRecord[]
+  patient           Patient?
+  doctorProfile     DoctorProfile?
+  medicalRecords    MedicalRecord[]
+  attendanceRecords AttendanceRecord[]
 }
 
 model Patient {
@@ -230,14 +231,15 @@ model Payment {
 }
 
 model Medicine {
-  id           String   @id @default(cuid())
+  id           String    @id @default(cuid())
   name         String
   unit         String
-  stockQty     Int      @default(0)
-  reorderLevel Int      @default(10)
-  price        Decimal  @db.Decimal(10, 2)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  stockQty     Int       @default(0)
+  reorderLevel Int       @default(10)
+  price        Decimal   @db.Decimal(10, 2)
+  expiryDate   DateTime?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
 
   prescriptionItems PrescriptionItem[]
   stockTransactions StockTransaction[]
@@ -325,6 +327,17 @@ model MedicalRecord {
   createdAt DateTime          @default(now())
 
   @@index([patientId])
+}
+
+model AttendanceRecord {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clockIn   DateTime
+  clockOut  DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([userId, clockIn])
 }
 
 model ActivityLog {

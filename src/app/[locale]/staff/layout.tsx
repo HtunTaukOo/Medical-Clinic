@@ -26,6 +26,11 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
     roles: ["DOCTOR"],
   },
   {
+    href: "/staff/attendance",
+    labelKey: "attendance",
+    roles: STAFF_ROLES,
+  },
+  {
     href: "/staff/billing",
     labelKey: "billing",
     roles: ["ADMIN", "RECEPTIONIST"],

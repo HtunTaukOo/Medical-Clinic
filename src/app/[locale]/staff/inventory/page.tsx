@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { fulfillPrescription } from "@/actions/prescriptions";
+import { getExpiryStatus } from "@/lib/inventory";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -105,9 +106,17 @@ export default async function InventoryPage() {
                       </p>
                     </div>
                   </div>
-                  {medicine.stockQty <= medicine.reorderLevel && (
-                    <Badge variant="destructive">{t("lowStock")}</Badge>
-                  )}
+                  <div className="flex flex-col items-end gap-1">
+                    {medicine.stockQty <= medicine.reorderLevel && (
+                      <Badge variant="destructive">{t("lowStock")}</Badge>
+                    )}
+                    {getExpiryStatus(medicine.expiryDate) === "expired" && (
+                      <Badge variant="destructive">{t("expired")}</Badge>
+                    )}
+                    {getExpiryStatus(medicine.expiryDate) === "expiring" && (
+                      <Badge className="bg-amber-500 text-white">{t("expiringSoon")}</Badge>
+                    )}
+                  </div>
                 </div>
                 <AdjustStockForm medicineId={medicine.id} />
                 <Link

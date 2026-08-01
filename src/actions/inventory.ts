@@ -14,6 +14,7 @@ const medicineSchema = z.object({
   stockQty: z.coerce.number().int().nonnegative(),
   reorderLevel: z.coerce.number().int().nonnegative(),
   price: z.coerce.number().nonnegative(),
+  expiryDate: z.coerce.date().optional(),
 });
 
 export type MedicineFormState = { error?: string; success?: boolean };
@@ -30,6 +31,7 @@ export async function createMedicine(
     stockQty: formData.get("stockQty"),
     reorderLevel: formData.get("reorderLevel"),
     price: formData.get("price"),
+    expiryDate: formData.get("expiryDate") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -38,6 +40,36 @@ export async function createMedicine(
   await prisma.medicine.create({ data: parsed.data });
 
   revalidatePath("/staff/inventory");
+  return { success: true };
+}
+
+const expiryDateSchema = z.object({
+  expiryDate: z.coerce.date().optional(),
+});
+
+export type SetExpiryState = { error?: string; success?: boolean };
+
+export async function setMedicineExpiry(
+  medicineId: string,
+  _prevState: SetExpiryState,
+  formData: FormData
+): Promise<SetExpiryState> {
+  await requireRole([...INVENTORY_ROLES]);
+
+  const parsed = expiryDateSchema.safeParse({
+    expiryDate: formData.get("expiryDate") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.medicine.update({
+    where: { id: medicineId },
+    data: { expiryDate: parsed.data.expiryDate ?? null },
+  });
+
+  revalidatePath("/staff/inventory");
+  revalidatePath(`/staff/inventory/${medicineId}`);
   return { success: true };
 }
 
