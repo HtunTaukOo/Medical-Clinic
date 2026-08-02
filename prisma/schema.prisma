@@ -71,6 +71,7 @@ model Patient {
   telegramChatMessages TelegramChatMessage[]
   waitlistEntries      Waitlist[]
   diagnoses            Diagnosis[]
+  insuranceClaims      InsuranceClaim[]
 }
 
 model TelegramChatMessage {
@@ -201,6 +202,7 @@ model Invoice {
 
   items    InvoiceItem[]
   payments Payment[]
+  claims   InsuranceClaim[]
 
   @@index([patientId])
 }
@@ -218,6 +220,7 @@ enum PaymentMethod {
   CASH
   CARD
   MOBILE_BANKING
+  INSURANCE
   OTHER
 }
 
@@ -229,7 +232,37 @@ model Payment {
   method    PaymentMethod @default(CASH)
   paidAt    DateTime      @default(now())
 
-  refunds Refund[]
+  refunds        Refund[]
+  insuranceClaim InsuranceClaim?
+}
+
+enum ClaimStatus {
+  SUBMITTED
+  APPROVED
+  REJECTED
+  PAID
+}
+
+model InsuranceClaim {
+  id                String      @id @default(cuid())
+  invoiceId         String
+  invoice           Invoice     @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  patientId         String
+  patient           Patient     @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  insuranceProvider String
+  policyNumber      String
+  claimedAmount     Decimal     @db.Decimal(10, 2)
+  approvedAmount    Decimal?    @db.Decimal(10, 2)
+  status            ClaimStatus @default(SUBMITTED)
+  notes             String?
+  paymentId         String?     @unique
+  payment           Payment?    @relation(fields: [paymentId], references: [id])
+  submittedAt       DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  @@index([invoiceId])
+  @@index([patientId])
+  @@index([status])
 }
 
 model Refund {

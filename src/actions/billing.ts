@@ -64,7 +64,7 @@ export async function createInvoice(
   return { success: true };
 }
 
-async function recomputeInvoiceStatus(invoiceId: string) {
+export async function recomputeInvoiceStatus(invoiceId: string) {
   const invoice = await prisma.invoice.findUniqueOrThrow({
     where: { id: invoiceId },
     include: { items: true, payments: { include: { refunds: true } } },

@@ -25,6 +25,9 @@ export default async function BillingPage() {
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline">
+            <Link href="/staff/billing/claims">{t("insuranceClaims")}</Link>
+          </Button>
+          <Button asChild variant="outline">
             <Link href="/staff/billing/packages">{t("packages")}</Link>
           </Button>
           <Button asChild>

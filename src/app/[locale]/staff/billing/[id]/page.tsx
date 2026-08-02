@@ -4,9 +4,12 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { recordPayment, removeInvoiceItem, voidPayment } from "@/actions/billing";
+import { markClaimPaid } from "@/actions/insurance-claims";
 import { PaymentForm } from "@/components/billing/payment-form";
 import { AddInvoiceItemForm } from "@/components/billing/add-invoice-item-form";
 import { RefundForm } from "@/components/billing/refund-form";
+import { ClaimForm } from "@/components/billing/claim-form";
+import { ClaimDecisionForm } from "@/components/billing/claim-decision-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -28,7 +31,7 @@ export default async function InvoiceDetailPage({
   const { id } = await params;
   const t = await getTranslations("billing");
 
-  const [invoice, packages] = await Promise.all([
+  const [invoice, packages, claims] = await Promise.all([
     prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -38,6 +41,10 @@ export default async function InvoiceDetailPage({
       },
     }),
     prisma.package.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.insuranceClaim.findMany({
+      where: { invoiceId: id },
+      orderBy: { submittedAt: "desc" },
+    }),
   ]);
 
   if (!invoice) notFound();
@@ -145,6 +152,53 @@ export default async function InvoiceDetailPage({
             );
           })}
           {invoice.status !== "PAID" && <PaymentForm action={boundRecordPayment} />}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("insuranceClaims")}</CardTitle>
+        </CardHeader>
+        <CardContent className="grid gap-4">
+          {claims.map((claim) => (
+            <div key={claim.id} className="grid gap-2 border-b pb-3 last:border-b-0">
+              <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                <span className="font-medium">
+                  {claim.insuranceProvider} &mdash; {claim.policyNumber}
+                </span>
+                <Badge variant={claim.status === "PAID" ? "default" : "outline"}>
+                  {claim.status}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {t("claimedAmount")}: {Number(claim.claimedAmount).toFixed(2)}
+                {claim.approvedAmount != null &&
+                  ` — ${t("approvedAmount")}: ${Number(claim.approvedAmount).toFixed(2)}`}
+              </p>
+              {claim.notes && (
+                <p className="text-sm text-muted-foreground">{claim.notes}</p>
+              )}
+              {claim.status === "SUBMITTED" && (
+                <ClaimDecisionForm
+                  claimId={claim.id}
+                  claimedAmount={Number(claim.claimedAmount)}
+                />
+              )}
+              {claim.status === "APPROVED" && (
+                <form action={markClaimPaid.bind(null, claim.id)}>
+                  <Button size="sm" type="submit">
+                    {t("markPaid")}
+                  </Button>
+                </form>
+              )}
+            </div>
+          ))}
+          <ClaimForm
+            invoiceId={invoice.id}
+            defaultProvider={invoice.patient.insuranceProvider}
+            defaultPolicyNumber={invoice.patient.insurancePolicyNumber}
+            defaultAmount={Number(invoice.total)}
+          />
         </CardContent>
       </Card>
     </div>

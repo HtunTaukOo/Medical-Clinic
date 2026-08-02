@@ -284,6 +284,26 @@ A full lab workflow, run by the **Lab Technician** role (also usable by Admin):
   shared staff chat (naming the ordering doctor) and to the patient directly, via
   the same Telegram setup used elsewhere in this app.
 
+## Billing: insurance claims
+
+Admin/Receptionist can file an `InsuranceClaim` against an invoice from the
+invoice detail page (`/staff/billing/[id]`), prefilled from the patient's
+`insuranceProvider`/`insurancePolicyNumber` but editable per claim, with a
+claimed amount capped at the invoice total. A claim moves through
+`SUBMITTED → APPROVED | REJECTED → PAID`:
+
+- **Approve/Reject** — sets an approved amount (server-validated to not
+  exceed what was claimed) or rejects with no financial effect.
+- **Mark paid** — only available once approved; records a real `Payment` on
+  the invoice (`method: INSURANCE`) for the approved amount, links it back to
+  the claim, and recomputes invoice status the same way any other payment
+  does (see [insurance-claims.ts](src/actions/insurance-claims.ts)).
+
+`/staff/billing/claims` is a cross-patient tracking view (provider, policy,
+claimed/approved amounts, status, submitted date) linking back to each
+invoice. Patients see their own claims' status read-only on their portal
+invoice page.
+
 ## Billing: refunds & package pricing
 
 **Refunds** — an admin can refund a payment (full or partial) from the invoice

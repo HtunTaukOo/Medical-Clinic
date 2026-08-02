@@ -107,7 +107,19 @@
     "active": "Active",
     "inactive": "Inactive",
     "activate": "Activate",
-    "deactivate": "Deactivate"
+    "deactivate": "Deactivate",
+    "insuranceClaims": "Insurance Claims",
+    "insuranceProvider": "Insurance provider",
+    "policyNumber": "Policy number",
+    "claimedAmount": "Claimed amount",
+    "approvedAmount": "Approved amount",
+    "claimNotes": "Notes (optional)",
+    "submitClaim": "Submit claim",
+    "approve": "Approve",
+    "reject": "Reject",
+    "markPaid": "Mark paid",
+    "noClaims": "No insurance claims yet.",
+    "submitted": "Submitted"
   },
   "inventory": {
     "title": "Inventory",

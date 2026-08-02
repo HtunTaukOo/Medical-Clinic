@@ -23,7 +23,11 @@ export default async function PortalInvoiceDetailPage({
 
   const invoice = await prisma.invoice.findUnique({
     where: { id },
-    include: { items: true, payments: { include: { refunds: true } } },
+    include: {
+      items: true,
+      payments: { include: { refunds: true } },
+      claims: { orderBy: { submittedAt: "desc" } },
+    },
   });
 
   if (!invoice || invoice.patientId !== session?.user.patientId) notFound();
@@ -74,6 +78,22 @@ export default async function PortalInvoiceDetailPage({
                   {refund.reason ? ` — ${refund.reason}` : ""}
                 </p>
               ))}
+            </div>
+          ))}
+        </div>
+      )}
+
+      {invoice.claims.length > 0 && (
+        <div className="grid gap-2">
+          <h2 className="font-semibold">{t("insuranceClaims")}</h2>
+          {invoice.claims.map((claim) => (
+            <div key={claim.id} className="flex items-center justify-between text-sm">
+              <span>
+                {claim.insuranceProvider} &mdash; {Number(claim.claimedAmount).toFixed(2)}
+              </span>
+              <Badge variant={claim.status === "PAID" ? "default" : "outline"}>
+                {claim.status}
+              </Badge>
             </div>
           ))}
         </div>

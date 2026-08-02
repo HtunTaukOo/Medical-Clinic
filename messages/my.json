@@ -107,7 +107,19 @@
     "active": "အသုံးပြုနေသည်",
     "inactive": "ရပ်ဆိုင်းထားသည်",
     "activate": "ပြန်သုံးမည်",
-    "deactivate": "ရပ်ဆိုင်းမည်"
+    "deactivate": "ရပ်ဆိုင်းမည်",
+    "insuranceClaims": "အာမခံတောင်းခံမှုများ",
+    "insuranceProvider": "အာမခံကုမ္ပဏီ",
+    "policyNumber": "အာမခံနံပါတ်",
+    "claimedAmount": "တောင်းခံငွေပမာဏ",
+    "approvedAmount": "အတည်ပြုငွေပမာဏ",
+    "claimNotes": "မှတ်ချက် (ရွေးချယ်ခွင့်)",
+    "submitClaim": "တောင်းခံမှုတင်သွင်းမည်",
+    "approve": "အတည်ပြုမည်",
+    "reject": "ငြင်းပယ်မည်",
+    "markPaid": "ငွေရရှိပြီဟု မှတ်သားမည်",
+    "noClaims": "အာမခံတောင်းခံမှုများ မရှိသေးပါ။",
+    "submitted": "တင်သွင်းသည့်ရက်"
   },
   "inventory": {
     "title": "ဆေးဝါးစာရင်း",
