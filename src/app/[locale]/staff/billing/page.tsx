@@ -23,9 +23,14 @@ export default async function BillingPage() {
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <Button asChild>
-          <Link href="/staff/billing/new">{t("newInvoice")}</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/staff/billing/packages">{t("packages")}</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/staff/billing/new">{t("newInvoice")}</Link>
+          </Button>
+        </div>
       </div>
 
       {invoices.length === 0 ? (

@@ -93,7 +93,21 @@
     "addItem": "Add line item",
     "description": "Description",
     "quantity": "Qty",
-    "unitPrice": "Unit price"
+    "unitPrice": "Unit price",
+    "void": "Void",
+    "refund": "Refund",
+    "refunded": "Refunded",
+    "refundReason": "Reason (optional)",
+    "packages": "Packages",
+    "newPackage": "New package",
+    "packageName": "Package name",
+    "packageDescription": "Description (optional)",
+    "addPackage": "Add package",
+    "noPackages": "No packages yet.",
+    "active": "Active",
+    "inactive": "Inactive",
+    "activate": "Activate",
+    "deactivate": "Deactivate"
   },
   "inventory": {
     "title": "Inventory",

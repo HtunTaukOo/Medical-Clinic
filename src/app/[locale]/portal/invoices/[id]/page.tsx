@@ -23,7 +23,7 @@ export default async function PortalInvoiceDetailPage({
 
   const invoice = await prisma.invoice.findUnique({
     where: { id },
-    include: { items: true, payments: true },
+    include: { items: true, payments: { include: { refunds: true } } },
   });
 
   if (!invoice || invoice.patientId !== session?.user.patientId) notFound();
@@ -57,6 +57,27 @@ export default async function PortalInvoiceDetailPage({
       <p className="text-lg font-semibold">
         {t("total")}: {Number(invoice.total).toFixed(2)}
       </p>
+
+      {invoice.payments.length > 0 && (
+        <div className="grid gap-2">
+          <h2 className="font-semibold">{t("recordPayment")}</h2>
+          {invoice.payments.map((payment) => (
+            <div key={payment.id} className="grid gap-1 text-sm">
+              <div className="flex items-center justify-between">
+                <span>{new Date(payment.paidAt).toLocaleDateString()}</span>
+                <span>{payment.method}</span>
+                <span>{Number(payment.amount).toFixed(2)}</span>
+              </div>
+              {payment.refunds.map((refund) => (
+                <p key={refund.id} className="text-muted-foreground">
+                  {t("refunded")}: {Number(refund.amount).toFixed(2)}
+                  {refund.reason ? ` — ${refund.reason}` : ""}
+                </p>
+              ))}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

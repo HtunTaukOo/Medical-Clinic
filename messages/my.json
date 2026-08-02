@@ -93,7 +93,21 @@
     "addItem": "စာရင်းအသစ်ထည့်မည်",
     "description": "ဖော်ပြချက်",
     "quantity": "အရေအတွက်",
-    "unitPrice": "ဈေးနှုန်း"
+    "unitPrice": "ဈေးနှုန်း",
+    "void": "ပယ်ဖျက်မည်",
+    "refund": "ငွေပြန်အမ်းမည်",
+    "refunded": "ငွေပြန်အမ်းပြီး",
+    "refundReason": "အကြောင်းရင်း (ရွေးချယ်ခွင့်)",
+    "packages": "ဆေးရုံအထုပ်များ",
+    "newPackage": "အထုပ်အသစ်",
+    "packageName": "အထုပ်အမည်",
+    "packageDescription": "ဖော်ပြချက် (ရွေးချယ်ခွင့်)",
+    "addPackage": "အထုပ်ထည့်မည်",
+    "noPackages": "အထုပ်များ မရှိသေးပါ။",
+    "active": "အသုံးပြုနေသည်",
+    "inactive": "ရပ်ဆိုင်းထားသည်",
+    "activate": "ပြန်သုံးမည်",
+    "deactivate": "ရပ်ဆိုင်းမည်"
   },
   "inventory": {
     "title": "ဆေးဝါးစာရင်း",

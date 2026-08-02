@@ -13,6 +13,11 @@ export default async function NewInvoicePage({
   const t = await getTranslations("billing");
   const { appointmentId } = await searchParams;
 
+  const packages = await prisma.package.findMany({
+    where: { active: true },
+    orderBy: { name: "asc" },
+  });
+
   if (appointmentId) {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
@@ -37,6 +42,7 @@ export default async function NewInvoicePage({
           lockedPatient={{ id: appointment.patientId, name: appointment.patient.name }}
           appointmentId={appointment.id}
           redirectOnSuccess={`/staff/appointments/${appointment.id}`}
+          packages={packages.map((p) => ({ id: p.id, name: p.name, price: Number(p.price) }))}
         />
       </div>
     );
@@ -47,7 +53,10 @@ export default async function NewInvoicePage({
   return (
     <div className="grid gap-4">
       <h1 className="text-2xl font-semibold">{t("newInvoice")}</h1>
-      <InvoiceForm patients={patients.map((p) => ({ id: p.id, name: p.name }))} />
+      <InvoiceForm
+        patients={patients.map((p) => ({ id: p.id, name: p.name }))}
+        packages={packages.map((p) => ({ id: p.id, name: p.name, price: Number(p.price) }))}
+      />
     </div>
   );
 }

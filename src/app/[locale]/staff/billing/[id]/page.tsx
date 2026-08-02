@@ -6,6 +6,7 @@ import { requireRole } from "@/lib/authz";
 import { recordPayment, removeInvoiceItem, voidPayment } from "@/actions/billing";
 import { PaymentForm } from "@/components/billing/payment-form";
 import { AddInvoiceItemForm } from "@/components/billing/add-invoice-item-form";
+import { RefundForm } from "@/components/billing/refund-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,10 +28,17 @@ export default async function InvoiceDetailPage({
   const { id } = await params;
   const t = await getTranslations("billing");
 
-  const invoice = await prisma.invoice.findUnique({
-    where: { id },
-    include: { patient: true, items: true, payments: { orderBy: { paidAt: "desc" } } },
-  });
+  const [invoice, packages] = await Promise.all([
+    prisma.invoice.findUnique({
+      where: { id },
+      include: {
+        patient: true,
+        items: true,
+        payments: { orderBy: { paidAt: "desc" }, include: { refunds: true } },
+      },
+    }),
+    prisma.package.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+  ]);
 
   if (!invoice) notFound();
 
@@ -85,7 +93,10 @@ export default async function InvoiceDetailPage({
           </p>
           {invoice.status !== "PAID" && (
             <div className="mt-4">
-              <AddInvoiceItemForm invoiceId={invoice.id} />
+              <AddInvoiceItemForm
+                invoiceId={invoice.id}
+                packages={packages.map((p) => ({ id: p.id, name: p.name, price: Number(p.price) }))}
+              />
             </div>
           )}
         </CardContent>
@@ -96,20 +107,43 @@ export default async function InvoiceDetailPage({
           <CardTitle>{t("recordPayment")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {invoice.payments.map((payment) => (
-            <div key={payment.id} className="flex items-center justify-between text-sm">
-              <span>{new Date(payment.paidAt).toLocaleString()}</span>
-              <span>{payment.method}</span>
-              <span>{Number(payment.amount).toFixed(2)}</span>
-              {session.user.role === "ADMIN" && (
-                <form action={voidPayment.bind(null, invoice.id, payment.id)}>
-                  <Button size="sm" variant="ghost" type="submit">
-                    Void
-                  </Button>
-                </form>
-              )}
-            </div>
-          ))}
+          {invoice.payments.map((payment) => {
+            const refundedTotal = payment.refunds.reduce(
+              (sum, r) => sum + Number(r.amount),
+              0
+            );
+            const refundable = Number(payment.amount) - refundedTotal;
+            return (
+              <div key={payment.id} className="grid gap-2 border-b pb-3 last:border-b-0">
+                <div className="flex items-center justify-between text-sm">
+                  <span>{new Date(payment.paidAt).toLocaleString()}</span>
+                  <span>{payment.method}</span>
+                  <span>{Number(payment.amount).toFixed(2)}</span>
+                  {session.user.role === "ADMIN" && (
+                    <form action={voidPayment.bind(null, invoice.id, payment.id)}>
+                      <Button size="sm" variant="ghost" type="submit">
+                        {t("void")}
+                      </Button>
+                    </form>
+                  )}
+                </div>
+                {payment.refunds.map((refund) => (
+                  <p key={refund.id} className="text-sm text-muted-foreground">
+                    {t("refunded")}: {Number(refund.amount).toFixed(2)}
+                    {refund.reason ? ` — ${refund.reason}` : ""} (
+                    {new Date(refund.createdAt).toLocaleDateString()})
+                  </p>
+                ))}
+                {session.user.role === "ADMIN" && refundable > 0 && (
+                  <RefundForm
+                    invoiceId={invoice.id}
+                    paymentId={payment.id}
+                    maxAmount={refundable}
+                  />
+                )}
+              </div>
+            );
+          })}
           {invoice.status !== "PAID" && <PaymentForm action={boundRecordPayment} />}
         </CardContent>
       </Card>

@@ -67,13 +67,16 @@ export async function createInvoice(
 async function recomputeInvoiceStatus(invoiceId: string) {
   const invoice = await prisma.invoice.findUniqueOrThrow({
     where: { id: invoiceId },
-    include: { items: true, payments: true },
+    include: { items: true, payments: { include: { refunds: true } } },
   });
   const total = invoice.items.reduce(
     (sum, item) => sum + item.quantity * Number(item.unitPrice),
     0
   );
-  const paid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const paid = invoice.payments.reduce((sum, p) => {
+    const refunded = p.refunds.reduce((s, r) => s + Number(r.amount), 0);
+    return sum + Number(p.amount) - refunded;
+  }, 0);
   const status = paid >= total ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID";
 
   await prisma.invoice.update({ where: { id: invoiceId }, data: { total, status } });
@@ -172,6 +175,58 @@ export async function voidPayment(invoiceId: string, paymentId: string) {
 
   revalidatePath("/staff/billing");
   revalidatePath(`/staff/billing/${invoiceId}`);
+}
+
+const refundSchema = z.object({
+  amount: z.coerce.number().positive(),
+  reason: z.string().optional(),
+});
+
+export type RefundFormState = { error?: string; success?: boolean };
+
+export async function refundPayment(
+  invoiceId: string,
+  paymentId: string,
+  _prevState: RefundFormState,
+  formData: FormData
+): Promise<RefundFormState> {
+  const session = await requireRole(["ADMIN"]);
+
+  const payment = await prisma.payment.findUniqueOrThrow({
+    where: { id: paymentId },
+    include: { refunds: true },
+  });
+
+  const parsed = refundSchema.safeParse({
+    amount: formData.get("amount"),
+    reason: formData.get("reason") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const alreadyRefunded = payment.refunds.reduce((sum, r) => sum + Number(r.amount), 0);
+  const refundable = Number(payment.amount) - alreadyRefunded;
+  if (parsed.data.amount > refundable) {
+    return { error: `Cannot refund more than ${refundable.toFixed(2)}` };
+  }
+
+  await prisma.refund.create({
+    data: { paymentId, amount: parsed.data.amount, reason: parsed.data.reason },
+  });
+  await recomputeInvoiceStatus(invoiceId);
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: `Refunded ${parsed.data.amount.toFixed(2)} on payment ${paymentId}${parsed.data.reason ? ` (${parsed.data.reason})` : ""}`,
+    target: `Invoice ${invoiceId}`,
+  });
+
+  revalidatePath("/staff/billing");
+  revalidatePath(`/staff/billing/${invoiceId}`);
+  return { success: true };
 }
 
 const paymentSchema = z.object({

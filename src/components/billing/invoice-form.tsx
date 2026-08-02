@@ -22,11 +22,13 @@ export function InvoiceForm({
   lockedPatient,
   appointmentId,
   redirectOnSuccess = "/staff/billing",
+  packages,
 }: {
   patients?: { id: string; name: string }[];
   lockedPatient?: { id: string; name: string };
   appointmentId?: string;
   redirectOnSuccess?: string;
+  packages?: { id: string; name: string; price: number }[];
 }) {
   const t = useTranslations("billing");
   const router = useRouter();
@@ -44,6 +46,16 @@ export function InvoiceForm({
 
   function updateRow(index: number, patch: Partial<Row>) {
     setRows((prev) => prev.map((row, i) => (i === index ? { ...row, ...patch } : row)));
+  }
+
+  function addPackage(packageId: string) {
+    const pkg = packages?.find((p) => p.id === packageId);
+    if (!pkg) return;
+    setRows((prev) => {
+      const newRow = { description: pkg.name, quantity: "1", unitPrice: String(pkg.price) };
+      const isBlankSingleRow = prev.length === 1 && !prev[0].description;
+      return isBlankSingleRow ? [newRow] : [...prev, newRow];
+    });
   }
 
   function handleSubmit(formData: FormData) {
@@ -125,17 +137,33 @@ export function InvoiceForm({
             )}
           </div>
         ))}
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="w-fit"
-          onClick={() =>
-            setRows((prev) => [...prev, { description: "", quantity: "1", unitPrice: "0" }])
-          }
-        >
-          {t("addItem")}
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit"
+            onClick={() =>
+              setRows((prev) => [...prev, { description: "", quantity: "1", unitPrice: "0" }])
+            }
+          >
+            {t("addItem")}
+          </Button>
+          {packages && packages.length > 0 && (
+            <Select onValueChange={addPackage}>
+              <SelectTrigger className="w-56">
+                <SelectValue placeholder={t("addPackage")} />
+              </SelectTrigger>
+              <SelectContent>
+                {packages.map((pkg) => (
+                  <SelectItem key={pkg.id} value={pkg.id}>
+                    {pkg.name} — {pkg.price.toFixed(2)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       <p className="text-lg font-semibold">

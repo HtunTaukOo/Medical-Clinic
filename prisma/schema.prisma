@@ -228,6 +228,29 @@ model Payment {
   amount    Decimal       @db.Decimal(10, 2)
   method    PaymentMethod @default(CASH)
   paidAt    DateTime      @default(now())
+
+  refunds Refund[]
+}
+
+model Refund {
+  id        String   @id @default(cuid())
+  paymentId String
+  payment   Payment  @relation(fields: [paymentId], references: [id], onDelete: Cascade)
+  amount    Decimal  @db.Decimal(10, 2)
+  reason    String?
+  createdAt DateTime @default(now())
+
+  @@index([paymentId])
+}
+
+model Package {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  price       Decimal  @db.Decimal(10, 2)
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Medicine {

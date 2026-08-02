@@ -284,6 +284,27 @@ A full lab workflow, run by the **Lab Technician** role (also usable by Admin):
   shared staff chat (naming the ordering doctor) and to the patient directly, via
   the same Telegram setup used elsewhere in this app.
 
+## Billing: refunds & package pricing
+
+**Refunds** — an admin can refund a payment (full or partial) from the invoice
+detail page. Unlike voiding a payment (which deletes it outright, for
+data-entry corrections), a refund keeps the original `Payment` record intact
+and adds a linked `Refund` row with an amount, optional reason, and
+timestamp — a real audit trail of money returned to the patient. Invoice
+status is recomputed from (payments − their refunds), so a full refund on a
+`PAID` invoice reverts it to `UNPAID`, unlocking it for edits again; a partial
+refund can move it to `PARTIAL`. The server re-validates the refund amount
+against what's actually still refundable regardless of what the client sends.
+
+**Package pricing** — admins/receptionists manage a `Package` catalog
+(`/staff/billing/packages`: name, optional description, flat price,
+active/inactive). Packages don't create a new relation on invoices; picking
+one from the "Add package" quick-pick on the new-invoice form or on an
+existing invoice's add-item form just pre-fills a normal line item
+(description + price), the same way the ICD-10 quick-pick works for
+diagnoses. Deactivating a package removes it from future quick-picks without
+touching invoices that already used it.
+
 ## Inventory: expiry tracking
 
 Medicines can carry an optional expiry date, settable at creation
