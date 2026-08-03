@@ -1,4 +1,4 @@
-import { CalendarCheck2, CalendarClock, Receipt, HeartPulse } from "lucide-react";
+import { CalendarCheck2, CalendarClock, Receipt, HeartPulse, FlaskConical } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -19,7 +19,10 @@ export default async function PortalDashboardPage() {
   const t = await getTranslations();
   const patientId = session?.user.patientId;
 
-  const [totalAppointments, upcomingAppointments, outstandingInvoices] =
+  const recentCutoff = new Date();
+  recentCutoff.setDate(recentCutoff.getDate() - 30);
+
+  const [totalAppointments, upcomingAppointments, outstandingInvoices, newLabResults] =
     await Promise.all([
       patientId ? prisma.appointment.count({ where: { patientId } }) : 0,
       patientId
@@ -39,6 +42,11 @@ export default async function PortalDashboardPage() {
       patientId
         ? prisma.invoice.count({
             where: { patientId, status: { in: ["UNPAID", "PARTIAL"] } },
+          })
+        : 0,
+      patientId
+        ? prisma.labOrder.count({
+            where: { patientId, status: "COMPLETED", completedAt: { gte: recentCutoff } },
           })
         : 0,
     ]);
@@ -64,7 +72,7 @@ export default async function PortalDashboardPage() {
         }
       />
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatTile icon={CalendarCheck2} value={totalAppointments} label="Total Visits" color="emerald" />
         <StatTile
           icon={CalendarClock}
@@ -73,10 +81,16 @@ export default async function PortalDashboardPage() {
           color="blue"
         />
         <StatTile
+          icon={FlaskConical}
+          value={newLabResults}
+          label="New Lab Results"
+          color="purple"
+        />
+        <StatTile
           icon={Receipt}
           value={outstandingInvoices}
           label={t("nav.myInvoices")}
-          color="purple"
+          color={outstandingInvoices > 0 ? "rose" : "emerald"}
         />
       </div>
 
