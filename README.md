@@ -209,6 +209,27 @@ so it's never confused with a cancellation in the patient's history or the Repor
 appointments-by-status breakdown, and — like Cancel — it's only available while the appointment
 is still `CONFIRMED`.
 
+## Walk-in queue & token numbers
+
+Alongside the appointment-based queue, `/staff/queue` supports true walk-in
+registration: Admin/Receptionist can issue a `WalkIn` token with **zero
+required fields** (name, phone, reason, and preferred doctor are all
+optional) — genuinely anonymous, since front desk shouldn't need a patient's
+identity just to give them a place in line. The token number is a simple
+per-day counter (see [walk-ins.ts](src/lib/walk-ins.ts)).
+
+- **Waiting** → **Called** (`callWalkIn`) → **Start visit**
+  (`convertWalkInToAppointment`, at `/staff/queue/walk-ins/[id]`), where staff
+  pick an existing patient or type a name for a new one, plus a doctor. This
+  creates a normal `CHECKED_IN` `Appointment`, so from that point on the
+  walk-in flows through the exact same doctor-facing queue and consultation
+  workflow as a booked patient — no separate system to learn.
+- A walk-in can be **cancelled** any time before conversion.
+- `/queue-display` is a public, unauthenticated kiosk page (outside
+  `/staff`/`/portal`, so `proxy.ts` never gates it) meant for a waiting-room
+  screen: "now serving" + waiting token numbers only, no names, refreshing
+  itself every 10s via `router.refresh()` rather than a full page reload.
+
 ## Doctor availability
 
 Each doctor has a weekly schedule (working days + optional start/end time override) and a

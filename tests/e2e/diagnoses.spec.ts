@@ -39,15 +39,20 @@ test.describe("Structured diagnosis", () => {
     await page.getByRole("option", { name: /J00 — Acute nasopharyngitis/ }).click();
     await page.fill("#diagnosis-notes", "Advised rest and fluids");
     await page.click('button:has-text("Add diagnosis")');
-    await page.waitForLoadState("networkidle");
+    // Wait for the saved-diagnosis list to re-render (the "Remove" button only
+    // appears there), not just the quick-pick's own selected-value text — that
+    // text is already showing the moment the option is picked, before the
+    // form is even submitted, so it proves nothing about the save completing.
+    await expect(page.getByRole("button", { name: "Remove" })).toBeVisible();
+    // Safe to check now: a successful submit remounts the form (clearing the
+    // quick-pick back to its placeholder), so this can only be the saved list.
+    await expect(page.getByText("J00").first()).toBeVisible();
+    await expect(page.getByText(/Acute nasopharyngitis/).first()).toBeVisible();
 
     const saved = await prisma.diagnosis.findFirstOrThrow({ where: { appointmentId } });
     expect(saved.code).toBe("J00");
     expect(saved.description).toContain("Acute nasopharyngitis");
     expect(saved.notes).toBe("Advised rest and fluids");
-
-    await expect(page.getByText("J00").first()).toBeVisible();
-    await expect(page.getByText(/Acute nasopharyngitis/).first()).toBeVisible();
 
     await loginAs(page, "patient@example.com");
     await page.goto(`/en/portal/appointments/${appointmentId}`);
@@ -62,13 +67,11 @@ test.describe("Structured diagnosis", () => {
     await page.fill("#diagnosis-code", "Z99.9");
     await page.fill("#diagnosis-description", "A custom test condition");
     await page.click('button:has-text("Add diagnosis")');
-    await page.waitForLoadState("networkidle");
+    await expect(page.getByText("A custom test condition")).toBeVisible();
 
     const saved = await prisma.diagnosis.findFirstOrThrow({ where: { appointmentId } });
     expect(saved.code).toBe("Z99.9");
     expect(saved.description).toBe("A custom test condition");
-
-    await expect(page.getByText("A custom test condition")).toBeVisible();
   });
 
   test("a doctor can remove a diagnosis they recorded", async ({ page }) => {
@@ -77,11 +80,9 @@ test.describe("Structured diagnosis", () => {
 
     await page.fill("#diagnosis-description", "Temporary diagnosis to remove");
     await page.click('button:has-text("Add diagnosis")');
-    await page.waitForLoadState("networkidle");
     await expect(page.getByText("Temporary diagnosis to remove")).toBeVisible();
 
     await page.getByRole("button", { name: "Remove" }).click();
-    await page.waitForLoadState("networkidle");
     await expect(page.getByText("Temporary diagnosis to remove")).not.toBeVisible();
 
     const count = await prisma.diagnosis.count({ where: { appointmentId } });

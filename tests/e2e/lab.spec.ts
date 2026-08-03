@@ -59,16 +59,26 @@ test.describe("Laboratory workflow", () => {
     await page.goto(`/en/staff/appointments/${appointmentId}`);
     await page.check('input[name="testIds"]');
     await page.click('button:has-text("Order tests")');
-    await page.waitForLoadState("networkidle");
+    // Wait on the UI reflecting the mutation, not just "networkidle" — a
+    // dev-mode server action's first invocation can be slow enough to
+    // outrace a fixed idle check, and this app has hit that before.
+    await expect(page.getByText("ORDERED", { exact: true })).toBeVisible();
 
     const order = await prisma.labOrder.findFirstOrThrow({ where: { appointmentId } });
     expect(order.status).toBe("ORDERED");
 
-    // Lab tech collects the sample.
+    // Lab tech collects the sample. Scoped to this order's own card by patient
+    // name, since the pending list can also contain unrelated leftover orders.
     await loginAs(page, "lab@nca.clinic");
     await page.goto("/en/staff/lab");
-    await page.click('button:has-text("Collect sample")');
-    await page.waitForLoadState("networkidle");
+    const patient = await prisma.patient.findUniqueOrThrow({ where: { id: patientId } });
+    const orderCard = page
+      .locator("div")
+      .filter({ hasText: patient.name })
+      .filter({ has: page.getByRole("button", { name: "Collect sample" }) })
+      .last();
+    await orderCard.getByRole("button", { name: "Collect sample" }).click();
+    await expect(page.locator(`a[href*="/staff/lab/${order.id}"]`)).toBeVisible();
 
     const collected = await prisma.labOrder.findUniqueOrThrow({ where: { id: order.id } });
     expect(collected.status).toBe("SAMPLE_COLLECTED");
@@ -78,7 +88,7 @@ test.describe("Laboratory workflow", () => {
     await page.goto(`/en/staff/lab/${order.id}`);
     await page.locator('input[id^="result-"]').first().fill("7,200");
     await page.click('button:has-text("Save results")');
-    await page.waitForLoadState("networkidle");
+    await expect(page.getByText(/Result: 7,200/)).toBeVisible();
 
     const completed = await prisma.labOrder.findUniqueOrThrow({
       where: { id: order.id },

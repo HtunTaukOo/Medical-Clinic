@@ -38,14 +38,16 @@ test.describe("Package pricing", () => {
     await page.fill("#package-name", "Full Checkup Package");
     await page.fill("#package-price", "50000");
     await page.click('button:has-text("New package")');
-    await page.waitForLoadState("networkidle");
+    // Wait on the UI reflecting the mutation, not just "networkidle" — a
+    // dev-mode server action's first invocation can be slow enough to
+    // outrace a fixed idle check, and this app has hit that before.
+    await expect(page.getByText("Full Checkup Package")).toBeVisible();
 
     const pkg = await prisma.package.findFirstOrThrow({
       where: { name: "Full Checkup Package" },
     });
     packageIds.push(pkg.id);
     expect(pkg.active).toBe(true);
-    await expect(page.getByText("Full Checkup Package")).toBeVisible();
 
     await page.goto("/en/staff/billing/new");
     await page.locator("#patientId").click();
@@ -58,7 +60,7 @@ test.describe("Package pricing", () => {
       "Full Checkup Package"
     );
     await page.click('button:has-text("New invoice")');
-    await page.waitForLoadState("networkidle");
+    await page.waitForURL("**/staff/billing");
 
     const invoice = await prisma.invoice.findFirstOrThrow({ where: { patientId } });
     invoiceId = invoice.id;

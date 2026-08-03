@@ -73,6 +73,7 @@ model Patient {
   waitlistEntries      Waitlist[]
   diagnoses            Diagnosis[]
   insuranceClaims      InsuranceClaim[]
+  walkIns              WalkIn[]
 }
 
 model TelegramChatMessage {
@@ -99,6 +100,7 @@ model DoctorProfile {
   leaveDays        DoctorLeave[]
   waitlistEntries  Waitlist[]
   diagnoses        Diagnosis[]
+  walkIns          WalkIn[]
 }
 
 enum WaitlistStatus {
@@ -162,9 +164,37 @@ model Appointment {
   prescriptions Prescription[]
   labOrders     LabOrder[]
   diagnoses     Diagnosis[]
+  walkIn        WalkIn?
 
   @@index([doctorId, scheduledAt])
   @@index([patientId])
+}
+
+enum WalkInStatus {
+  WAITING
+  CALLED
+  COMPLETED
+  CANCELLED
+}
+
+model WalkIn {
+  id            String        @id @default(cuid())
+  tokenNumber   Int
+  name          String?
+  phone         String?
+  reason        String?
+  doctorId      String?
+  doctor        DoctorProfile? @relation(fields: [doctorId], references: [id])
+  status        WalkInStatus  @default(WAITING)
+  patientId     String?
+  patient       Patient?      @relation(fields: [patientId], references: [id])
+  appointmentId String?       @unique
+  appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
+  calledAt      DateTime?
+  completedAt   DateTime?
+  createdAt     DateTime      @default(now())
+
+  @@index([status, createdAt])
 }
 
 model Diagnosis {
