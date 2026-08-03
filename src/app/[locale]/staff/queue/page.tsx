@@ -1,4 +1,4 @@
-import { Clock, ListOrdered, Users, Megaphone } from "lucide-react";
+import { Clock, ListOrdered, Megaphone } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
@@ -60,6 +60,33 @@ export default async function QueuePage() {
   const waitingWalkIns = walkIns.filter((w) => w.status === "WAITING");
   const calledWalkIns = walkIns.filter((w) => w.status === "CALLED");
 
+  // Scheduled patients and walk-ins are fundamentally different (a booked
+  // time vs. an arrival token) but staff experience them as one waiting
+  // room, so — for roles that see both — merge them into a single list
+  // ordered by whichever moment put each person in line.
+  type WaitingRow =
+    | { kind: "appointment"; appointment: (typeof waiting)[number]; sortKey: number }
+    | { kind: "walkin"; walkIn: (typeof waitingWalkIns)[number]; sortKey: number };
+
+  const mergedWaiting: WaitingRow[] = canManageWalkIns
+    ? [
+        ...waiting.map(
+          (appointment): WaitingRow => ({
+            kind: "appointment",
+            appointment,
+            sortKey: appointment.scheduledAt.getTime(),
+          })
+        ),
+        ...waitingWalkIns.map(
+          (walkIn): WaitingRow => ({
+            kind: "walkin",
+            walkIn,
+            sortKey: walkIn.createdAt.getTime(),
+          })
+        ),
+      ].sort((a, b) => a.sortKey - b.sortKey)
+    : waiting.map((appointment) => ({ kind: "appointment", appointment, sortKey: 0 }));
+
   return (
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
@@ -81,54 +108,6 @@ export default async function QueuePage() {
           </CardHeader>
           <CardContent>
             <WalkInForm doctors={doctors.map((d) => ({ id: d.id, name: d.user.name }))} />
-          </CardContent>
-        </Card>
-      )}
-
-      {canManageWalkIns && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("walkInsWaiting")}</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {waitingWalkIns.length === 0 && (
-              <EmptyState icon={Users} message={t("noWalkIns")} />
-            )}
-            {waitingWalkIns.map((w, index) => (
-              <div
-                key={w.id}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="text-base">
-                    #{w.tokenNumber}
-                  </Badge>
-                  <div>
-                    <p className="font-medium">{w.name || t("anonymousWalkIn")}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {w.phone && `${w.phone} — `}
-                      {w.reason || t("noReasonGiven")}
-                      {w.doctor && ` — ${w.doctor.user.name}`}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("estimatedWait", { minutes: estimateWaitMinutes(index + 1) })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <form action={callWalkIn.bind(null, w.id)}>
-                    <Button size="sm" type="submit">
-                      {t("callToken")}
-                    </Button>
-                  </form>
-                  <form action={cancelWalkIn.bind(null, w.id)}>
-                    <Button size="sm" variant="outline" type="submit">
-                      {t("cancel")}
-                    </Button>
-                  </form>
-                </div>
-              </div>
-            ))}
           </CardContent>
         </Card>
       )}
@@ -159,43 +138,90 @@ export default async function QueuePage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>{t("waitingToCheckIn")}</CardTitle>
+          <CardTitle>{canManageWalkIns ? t("waiting") : t("waitingToCheckIn")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-2">
-          {waiting.length === 0 && <EmptyState icon={Clock} message={t("noneWaiting")} />}
-          {waiting.map((appt) => (
-            <div
-              key={appt.id}
-              className="flex items-center justify-between rounded-lg border p-3"
-            >
-              <div>
-                <Link href={`/staff/patients/${appt.patientId}`} className="font-medium underline">
-                  {appt.patient.name}
-                </Link>
-                <p className="text-sm text-muted-foreground">
-                  {new Date(appt.scheduledAt).toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                  {showDoctorColumn && ` — ${appt.doctor.user.name}`}
-                </p>
+          {mergedWaiting.length === 0 && (
+            <EmptyState
+              icon={Clock}
+              message={canManageWalkIns ? t("noOneWaiting") : t("noneWaiting")}
+            />
+          )}
+          {mergedWaiting.map((row, index) =>
+            row.kind === "appointment" ? (
+              <div
+                key={`appt-${row.appointment.id}`}
+                className="flex items-center justify-between rounded-lg border p-3"
+              >
+                <div className="flex items-center gap-3">
+                  {canManageWalkIns && <Badge variant="outline">{t("booked")}</Badge>}
+                  <div>
+                    <Link
+                      href={`/staff/patients/${row.appointment.patientId}`}
+                      className="font-medium underline"
+                    >
+                      {row.appointment.patient.name}
+                    </Link>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(row.appointment.scheduledAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      {showDoctorColumn && ` — ${row.appointment.doctor.user.name}`}
+                    </p>
+                  </div>
+                </div>
+                {session.user.role !== "DOCTOR" && (
+                  <div className="flex gap-2">
+                    <form action={checkInAppointment.bind(null, row.appointment.id)}>
+                      <Button size="sm" type="submit">
+                        {t("checkIn")}
+                      </Button>
+                    </form>
+                    <form action={markNoShow.bind(null, row.appointment.id)}>
+                      <Button size="sm" variant="outline" type="submit">
+                        {t("noShow")}
+                      </Button>
+                    </form>
+                  </div>
+                )}
               </div>
-              {session.user.role !== "DOCTOR" && (
+            ) : (
+              <div
+                key={`walkin-${row.walkIn.id}`}
+                className="flex items-center justify-between rounded-lg border p-3"
+              >
+                <div className="flex items-center gap-3">
+                  <Badge variant="secondary" className="text-base">
+                    #{row.walkIn.tokenNumber}
+                  </Badge>
+                  <div>
+                    <p className="font-medium">{row.walkIn.name || t("anonymousWalkIn")}</p>
+                    <p className="text-sm text-muted-foreground">
+                      {row.walkIn.phone && `${row.walkIn.phone} — `}
+                      {row.walkIn.reason || t("noReasonGiven")}
+                      {row.walkIn.doctor && ` — ${row.walkIn.doctor.user.name}`}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {t("estimatedWait", { minutes: estimateWaitMinutes(index + 1) })}
+                    </p>
+                  </div>
+                </div>
                 <div className="flex gap-2">
-                  <form action={checkInAppointment.bind(null, appt.id)}>
+                  <form action={callWalkIn.bind(null, row.walkIn.id)}>
                     <Button size="sm" type="submit">
-                      {t("checkIn")}
+                      {t("callToken")}
                     </Button>
                   </form>
-                  <form action={markNoShow.bind(null, appt.id)}>
+                  <form action={cancelWalkIn.bind(null, row.walkIn.id)}>
                     <Button size="sm" variant="outline" type="submit">
-                      {t("noShow")}
+                      {t("cancel")}
                     </Button>
                   </form>
                 </div>
-              )}
-            </div>
-          ))}
+              </div>
+            )
+          )}
         </CardContent>
       </Card>
 

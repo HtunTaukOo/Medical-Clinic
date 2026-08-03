@@ -118,6 +118,52 @@ test.describe("Walk-in queue (staff)", () => {
     expect(cancelled.status).toBe("CANCELLED");
   });
 
+  test("a receptionist sees booked appointments and walk-ins merged into one Waiting section", async ({
+    page,
+  }) => {
+    const doctor = await prisma.doctorProfile.findFirstOrThrow({
+      where: { user: { email: "doctor@nca.clinic" } },
+    });
+    const patient = await prisma.patient.findFirstOrThrow({
+      where: { email: "patient@example.com" },
+    });
+    const appointment = await prisma.appointment.create({
+      data: {
+        doctorId: doctor.id,
+        patientId: patient.id,
+        scheduledAt: new Date(),
+        status: "CONFIRMED",
+      },
+    });
+    createdAppointmentIds.push(appointment.id);
+
+    const walkIn = await prisma.walkIn.create({
+      data: { tokenNumber: 9003, name: "Merged Walk-in" },
+    });
+    createdWalkInIds.push(walkIn.id);
+
+    await loginAs(page, "receptionist@nca.clinic");
+    await page.goto("/en/staff/queue");
+
+    // One merged "Waiting" card (not the doctor-only "Waiting to check in" title).
+    await expect(page.getByText("Waiting", { exact: true })).toBeVisible();
+    await expect(page.getByText("Waiting to check in")).toHaveCount(0);
+
+    const bookedRow = page
+      .locator("div")
+      .filter({ hasText: patient.name })
+      .filter({ has: page.getByText("Booked", { exact: true }) })
+      .last();
+    await expect(bookedRow).toBeVisible();
+
+    const walkInRow = page
+      .locator("div")
+      .filter({ hasText: "Merged Walk-in" })
+      .filter({ has: page.getByRole("button", { name: "Call" }) })
+      .last();
+    await expect(walkInRow).toBeVisible();
+  });
+
   test("a doctor does not see walk-in registration controls on the queue page", async ({
     page,
   }) => {
@@ -125,7 +171,10 @@ test.describe("Walk-in queue (staff)", () => {
     await page.goto("/en/staff/queue");
 
     await expect(page.getByText("Register walk-in")).toHaveCount(0);
-    await expect(page.getByText("Walk-ins waiting")).toHaveCount(0);
+    // Doctors get the appointment-only waiting list (unmerged) — its title
+    // stays "Waiting to check in" rather than the merged "Waiting".
+    await expect(page.getByText("Waiting to check in", { exact: true })).toBeVisible();
+    await expect(page.getByText("Waiting", { exact: true })).toHaveCount(0);
   });
 });
 
