@@ -1,7 +1,7 @@
 import { CalendarDays, Stethoscope } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { getMonthGrid, dateKey, addMonths, MONTH_NAMES } from "@/lib/calendar";
 import { initials } from "@/lib/format";
 import {
@@ -34,7 +34,7 @@ export default async function AppointmentsPage({
 }: {
   searchParams: Promise<{ view?: string; year?: string; month?: string }>;
 }) {
-  const session = await requireRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
+  const session = await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
   const t = await getTranslations("appointments");
 
   const { view: viewParam, year: yearParam, month: monthParam } = await searchParams;

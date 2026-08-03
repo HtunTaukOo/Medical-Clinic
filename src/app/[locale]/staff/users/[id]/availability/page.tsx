@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { DoctorAvailabilityForm } from "@/components/staff/doctor-availability-form";
 import { DoctorLeaveManager } from "@/components/staff/doctor-leave-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,7 +10,7 @@ export default async function DoctorAvailabilityPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRole(["ADMIN"]);
+  await requirePageRole(["ADMIN"]);
   const { id } = await params;
 
   const doctor = await prisma.doctorProfile.findUnique({

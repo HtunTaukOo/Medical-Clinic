@@ -42,6 +42,7 @@ model User {
   doctorProfile     DoctorProfile?
   medicalRecords    MedicalRecord[]
   attendanceRecords AttendanceRecord[]
+  purchaseOrders    PurchaseOrder[]
 }
 
 model Patient {
@@ -297,8 +298,61 @@ model Medicine {
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
-  prescriptionItems PrescriptionItem[]
-  stockTransactions StockTransaction[]
+  prescriptionItems  PrescriptionItem[]
+  stockTransactions  StockTransaction[]
+  purchaseOrderItems PurchaseOrderItem[]
+}
+
+model Supplier {
+  id          String   @id @default(cuid())
+  name        String
+  contactName String?
+  phone       String?
+  email       String?
+  address     String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  purchaseOrders PurchaseOrder[]
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  ORDERED
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+model PurchaseOrder {
+  id          String              @id @default(cuid())
+  supplierId  String
+  supplier    Supplier            @relation(fields: [supplierId], references: [id])
+  status      PurchaseOrderStatus @default(DRAFT)
+  notes       String?
+  createdById String
+  createdBy   User                @relation(fields: [createdById], references: [id])
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  items PurchaseOrderItem[]
+
+  @@index([supplierId])
+  @@index([status])
+}
+
+model PurchaseOrderItem {
+  id              String        @id @default(cuid())
+  purchaseOrderId String
+  purchaseOrder   PurchaseOrder @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+  medicineId      String
+  medicine        Medicine      @relation(fields: [medicineId], references: [id])
+  quantity        Int
+  unitCost        Decimal       @db.Decimal(10, 2)
+  receivedQty     Int           @default(0)
+
+  @@index([purchaseOrderId])
 }
 
 model Prescription {

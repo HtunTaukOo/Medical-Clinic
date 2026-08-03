@@ -1,7 +1,7 @@
 import { ShieldCheck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 
 export default async function ClaimsPage() {
-  await requireRole(["ADMIN", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "RECEPTIONIST"]);
   const t = await getTranslations("billing");
 
   const claims = await prisma.insuranceClaim.findMany({

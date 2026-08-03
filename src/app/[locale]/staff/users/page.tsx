@@ -1,7 +1,7 @@
 import { UserCog, Mail } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { toggleStaffActive } from "@/actions/staff";
 import { initials } from "@/lib/format";
 import { Link } from "@/i18n/navigation";
@@ -14,7 +14,7 @@ import { DoctorFeeForm } from "@/components/staff/doctor-fee-form";
 import { SetPasswordForm } from "@/components/staff/set-password-form";
 
 export default async function StaffUsersPage() {
-  await requireRole(["ADMIN"]);
+  await requirePageRole(["ADMIN"]);
   const t = await getTranslations("staff");
 
   const staff = await prisma.user.findMany({

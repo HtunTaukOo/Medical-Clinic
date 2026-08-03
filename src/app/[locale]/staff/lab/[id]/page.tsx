@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { collectSample } from "@/actions/lab";
 import { ResultEntryForm } from "@/components/lab/result-entry-form";
 import { Link } from "@/i18n/navigation";
@@ -13,7 +13,7 @@ export default async function LabOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRole(["ADMIN", "LAB_TECH"]);
+  await requirePageRole(["ADMIN", "LAB_TECH"]);
   const { id } = await params;
 
   const order = await prisma.labOrder.findUnique({

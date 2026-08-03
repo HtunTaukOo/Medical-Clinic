@@ -1,6 +1,6 @@
 import { FlaskConical, ClipboardList } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 export default async function LabPage() {
-  await requireRole(["ADMIN", "LAB_TECH"]);
+  await requirePageRole(["ADMIN", "LAB_TECH"]);
 
   const [pendingOrders, tests] = await Promise.all([
     prisma.labOrder.findMany({

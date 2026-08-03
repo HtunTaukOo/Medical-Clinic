@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { ArrowDownCircle, ArrowUpCircle, History } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { getExpiryStatus } from "@/lib/inventory";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -22,7 +22,7 @@ export default async function MedicineHistoryPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireRole(["ADMIN", "PHARMACIST"]);
+  await requirePageRole(["ADMIN", "PHARMACIST"]);
   const { id } = await params;
   const t = await getTranslations("inventory");
 

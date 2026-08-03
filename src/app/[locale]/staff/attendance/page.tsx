@@ -1,7 +1,7 @@
 import { Clock3, Users } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole, STAFF_ROLES } from "@/lib/authz";
+import { requirePageRole, STAFF_ROLES } from "@/lib/authz";
 import { todayRange } from "@/lib/queue";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +25,7 @@ function formatDuration(start: Date, end: Date | null) {
 }
 
 export default async function AttendancePage() {
-  const session = await requireRole(STAFF_ROLES);
+  const session = await requirePageRole(STAFF_ROLES);
   const t = await getTranslations("attendance");
   const { start, end } = todayRange();
 

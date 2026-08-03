@@ -1,5 +1,5 @@
 import { History } from "lucide-react";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
@@ -13,7 +13,7 @@ import {
 } from "@/components/ui/table";
 
 export default async function ActivityLogPage() {
-  await requireRole(["ADMIN"]);
+  await requirePageRole(["ADMIN"]);
 
   const entries = await prisma.activityLog.findMany({
     orderBy: { createdAt: "desc" },

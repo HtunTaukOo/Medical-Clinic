@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Phone, Mail, CalendarDays } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { updatePatient } from "@/actions/patients";
 import { PatientForm } from "@/components/patients/patient-form";
 import { MedicalRecordList } from "@/components/medical-records/medical-record-list";
@@ -19,7 +19,7 @@ export default async function PatientDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requireRole(["ADMIN", "DOCTOR", "RECEPTIONIST", "PHARMACIST"]);
+  const session = await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST", "PHARMACIST"]);
   const { id } = await params;
   const tAppt = await getTranslations("appointments");
   const role = session.user.role;

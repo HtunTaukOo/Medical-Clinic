@@ -304,6 +304,29 @@ claimed/approved amounts, status, submitted date) linking back to each
 invoice. Patients see their own claims' status read-only on their portal
 invoice page.
 
+## Inventory: suppliers & purchase orders
+
+Admin/Pharmacist manage a `Supplier` catalog (`/staff/inventory/suppliers`:
+name, contact, phone, email, address, active/inactive) and place
+`PurchaseOrder`s against them (`/staff/inventory/purchase-orders`), each with
+line items tied to real `Medicine` records (not freeform text, since
+receiving stock needs to know exactly which medicine to credit). A purchase
+order moves through `DRAFT → ORDERED → PARTIALLY_RECEIVED/RECEIVED`, or
+`CANCELLED` any time before it's fully received:
+
+- **Draft** — created with line items (medicine, quantity, unit cost, the
+  latter pre-filled from the medicine's current price but editable);
+  editable/cancellable, nothing has touched stock yet.
+- **Ordered** — a one-way "mark as ordered" transition once it's actually
+  been sent to the supplier.
+- **Receiving** — staff enter a received quantity per item (can be partial,
+  across multiple receiving sessions); each receipt increments
+  `Medicine.stockQty`, writes a `StockTransaction` (reusing the same audit
+  trail as manual stock adjustments), and updates that item's running
+  received count. The order auto-transitions to `PARTIALLY_RECEIVED` or
+  `RECEIVED` depending on whether every item is now fully received (see
+  [purchase-orders.ts](src/actions/purchase-orders.ts)).
+
 ## Billing: refunds & package pricing
 
 **Refunds** — an admin can refund a payment (full or partial) from the invoice

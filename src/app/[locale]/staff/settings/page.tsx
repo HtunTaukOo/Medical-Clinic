@@ -1,10 +1,10 @@
 import { getTranslations } from "next-intl/server";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { getClinicSettings } from "@/lib/clinic-hours";
 import { ClinicSettingsForm } from "@/components/clinic/clinic-settings-form";
 
 export default async function ClinicSettingsPage() {
-  await requireRole(["ADMIN"]);
+  await requirePageRole(["ADMIN"]);
   const t = await getTranslations("clinic");
   const settings = await getClinicSettings();
 

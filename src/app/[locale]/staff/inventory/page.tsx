@@ -1,7 +1,7 @@
 import { Pill, ClipboardList } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { fulfillPrescription } from "@/actions/prescriptions";
 import { getExpiryStatus } from "@/lib/inventory";
 import { Link } from "@/i18n/navigation";
@@ -12,7 +12,7 @@ import { EmptyState } from "@/components/empty-state";
 import { AdjustStockForm } from "@/components/inventory/adjust-stock-form";
 
 export default async function InventoryPage() {
-  await requireRole(["ADMIN", "PHARMACIST"]);
+  await requirePageRole(["ADMIN", "PHARMACIST"]);
   const t = await getTranslations("inventory");
 
   const [medicines, pendingPrescriptions] = await Promise.all([
@@ -32,9 +32,14 @@ export default async function InventoryPage() {
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <Button asChild>
-          <Link href="/staff/inventory/new">{t("newMedicine")}</Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button asChild variant="outline">
+            <Link href="/staff/inventory/purchase-orders">{t("purchaseOrders")}</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/staff/inventory/new">{t("newMedicine")}</Link>
+          </Button>
+        </div>
       </div>
 
       <Card>

@@ -1,7 +1,7 @@
 import { Phone, Mail, Users } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,7 +15,7 @@ export default async function PatientsPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  await requireRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
   const t = await getTranslations("patients");
   const { q } = await searchParams;
 

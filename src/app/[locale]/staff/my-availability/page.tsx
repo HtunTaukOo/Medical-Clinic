@@ -1,12 +1,12 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { WEEKDAY_LABELS } from "@/lib/doctor-availability";
 import { DoctorLeaveManager } from "@/components/staff/doctor-leave-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default async function MyAvailabilityPage() {
-  const session = await requireRole(["DOCTOR"]);
+  const session = await requirePageRole(["DOCTOR"]);
   const doctorId = session.user.doctorId;
   if (!doctorId) notFound();
 

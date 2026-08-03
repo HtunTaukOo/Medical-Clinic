@@ -1,5 +1,5 @@
 import { Wallet, CalendarCheck2, Users, Pill, UserX, Download } from "lucide-react";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { getReportData } from "@/lib/reports";
 import { StatTile } from "@/components/stat-tile";
 import { Button } from "@/components/ui/button";
@@ -16,7 +16,7 @@ const STATUS_BAR_COLORS: Record<string, string> = {
 };
 
 export default async function ReportsPage() {
-  await requireRole(["ADMIN"]);
+  await requirePageRole(["ADMIN"]);
 
   const data = await getReportData();
 

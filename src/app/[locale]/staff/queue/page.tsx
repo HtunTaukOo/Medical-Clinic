@@ -1,7 +1,7 @@
 import { Clock, ListOrdered } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { todayRange } from "@/lib/queue";
 import {
   checkInAppointment,
@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 
 export default async function QueuePage() {
-  const session = await requireRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
+  const session = await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
   const t = await getTranslations("appointments");
   const tNav = await getTranslations("nav");
   const { start, end } = todayRange();

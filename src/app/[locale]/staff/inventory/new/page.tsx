@@ -1,9 +1,9 @@
 import { getTranslations } from "next-intl/server";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { MedicineForm } from "@/components/inventory/medicine-form";
 
 export default async function NewMedicinePage() {
-  await requireRole(["ADMIN", "PHARMACIST"]);
+  await requirePageRole(["ADMIN", "PHARMACIST"]);
   const t = await getTranslations("inventory");
 
   return (

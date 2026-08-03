@@ -1,7 +1,7 @@
 import { PackageIcon } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { togglePackageActive } from "@/actions/packages";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PackageForm } from "@/components/billing/package-form";
 
 export default async function PackagesPage() {
-  await requireRole(["ADMIN", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "RECEPTIONIST"]);
   const t = await getTranslations("billing");
 
   const packages = await prisma.package.findMany({ orderBy: { createdAt: "desc" } });

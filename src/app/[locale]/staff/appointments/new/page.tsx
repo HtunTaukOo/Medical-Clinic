@@ -1,11 +1,11 @@
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { createAppointment } from "@/actions/appointments";
 import { AppointmentForm } from "@/components/appointments/appointment-form";
 
 export default async function NewAppointmentPage() {
-  await requireRole(["ADMIN", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "RECEPTIONIST"]);
   const t = await getTranslations("appointments");
 
   const [patients, doctors] = await Promise.all([

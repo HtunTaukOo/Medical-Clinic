@@ -1,9 +1,9 @@
 import { getTranslations } from "next-intl/server";
-import { requireRole } from "@/lib/authz";
+import { requirePageRole } from "@/lib/authz";
 import { StaffForm } from "@/components/staff/staff-form";
 
 export default async function NewStaffPage() {
-  await requireRole(["ADMIN"]);
+  await requirePageRole(["ADMIN"]);
   const t = await getTranslations("staff");
 
   return (
