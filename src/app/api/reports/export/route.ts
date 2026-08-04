@@ -55,6 +55,35 @@ export async function GET() {
   csv += "No-shows by doctor\n";
   csv += row(["Doctor", "No-shows"]);
   for (const d of data.noShowsByDoctor) csv += row([d.name, d.count]);
+  csv += "\n";
+
+  csv += "Doctor productivity\n";
+  csv += row(["Doctor", "Specialty", "Completed visits", "No-shows", "No-show rate", "Revenue"]);
+  for (const d of data.doctorProductivity) {
+    csv += row([
+      d.name,
+      d.specialty ?? "",
+      d.completed,
+      d.noShows,
+      `${d.noShowRate}%`,
+      d.revenue.toFixed(2),
+    ]);
+  }
+  csv += "\n";
+
+  csv += "Patient age distribution\n";
+  csv += row(["Age group", "Patients"]);
+  for (const b of data.ageDistribution) csv += row([b.label, b.count]);
+  csv += "\n";
+
+  csv += "Patients by gender\n";
+  csv += row(["Gender", "Patients"]);
+  for (const g of data.genderDistribution) csv += row([g.label, g.count]);
+  csv += "\n";
+
+  csv += "New patients by month\n";
+  csv += row(["Month", "New patients"]);
+  for (const m of data.newPatientsByMonth) csv += row([m.label, m.count]);
 
   const filename = `nca-clinic-report-${new Date().toISOString().slice(0, 10)}.csv`;
   return new NextResponse(csv, {

@@ -7,12 +7,20 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 export function SelfProfileForm({
   defaultValues,
 }: {
   defaultValues: {
     name: string;
+    gender: string;
     email: string;
     phone: string;
     dob: string;
@@ -35,6 +43,20 @@ export function SelfProfileForm({
       <div className="grid gap-2">
         <Label htmlFor="name">{t("name")}</Label>
         <Input id="name" name="name" required defaultValue={defaultValues.name} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="gender">{t("gender")}</Label>
+        <Select name="gender" defaultValue={defaultValues.gender || "UNSPECIFIED"}>
+          <SelectTrigger id="gender" className="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="UNSPECIFIED">{t("genderUnspecified")}</SelectItem>
+            <SelectItem value="MALE">{t("genderMale")}</SelectItem>
+            <SelectItem value="FEMALE">{t("genderFemale")}</SelectItem>
+            <SelectItem value="OTHER">{t("genderOther")}</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="email">{t("email")}</Label>

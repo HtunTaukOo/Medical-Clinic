@@ -45,11 +45,18 @@ model User {
   purchaseOrders    PurchaseOrder[]
 }
 
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
 model Patient {
   id             String    @id @default(cuid())
   userId         String?   @unique
   user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
   name           String
+  gender         Gender?
   email          String?
   dob            DateTime?
   phone          String?

@@ -50,6 +50,7 @@ export default async function PortalSettingsPage() {
                 <SelfProfileForm
                   defaultValues={{
                     name: patient.name,
+                    gender: patient.gender ?? "",
                     email: patient.email ?? "",
                     phone: patient.phone ?? "",
                     dob: toDateInputValue(patient.dob),

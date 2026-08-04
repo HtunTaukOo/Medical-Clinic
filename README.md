@@ -251,12 +251,24 @@ Booking respects all of this:
   default hours). Staff booking on a patient's behalf can still override this for flexibility
   (e.g. a genuine exception), same as the existing clinic-hours behavior.
 
-## Reports: no-show tracking & CSV export
+## Reports: no-show tracking, doctor productivity, patient demographics & CSV export
 
 The Reports page (Admin only) includes a **No-show rate** stat and a **No-shows by doctor**
-breakdown, computed from the `NO_SHOW` appointment status above. An **Export CSV** button
-downloads the full report (revenue by month, appointments by status, top medicines, no-shows
-by doctor) as a single CSV file via `GET /api/reports/export` — also Admin-only.
+breakdown, computed from the `NO_SHOW` appointment status above, plus:
+
+- **Doctor productivity** — a full per-doctor table (completed visits, no-shows, no-show
+  rate, revenue). Revenue is attributed by walking `Payment → Invoice → Appointment.doctorId`,
+  summed in JS across every doctor (not just the ones with no-shows), so standalone invoices
+  with no linked appointment simply aren't attributed to anyone — see
+  [reports.ts](src/lib/reports.ts).
+- **Patient demographics** — age distribution (bucketed from `Patient.dob`, with an "Unknown"
+  bucket for patients with no DOB on file), a gender breakdown (`Patient.gender`, optional —
+  "Unspecified" is a distinct choice from simply not answering), and a new-patient
+  registrations trend for the last 6 months, mirroring the existing revenue-by-month chart.
+
+An **Export CSV** button downloads the full report (revenue by month, appointments by status,
+top medicines, no-shows by doctor, doctor productivity, patient demographics) as a single CSV
+file via `GET /api/reports/export` — also Admin-only.
 
 ## Medical records
 

@@ -10,6 +10,7 @@ const PATIENT_EDIT_ROLES = ["ADMIN", "RECEPTIONIST"] as const;
 
 const patientSchema = z.object({
   name: z.string().min(1),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   email: z.union([z.email(), z.literal("")]).optional(),
   phone: z.string().optional(),
   dob: z.string().optional(),
@@ -24,9 +25,17 @@ const patientSchema = z.object({
 
 export type PatientFormState = { error?: string; success?: boolean };
 
+// The gender <Select> uses an "UNSPECIFIED" sentinel item since Radix Select
+// items can't have an empty string value; treat it the same as "not set".
+function readGender(formData: FormData) {
+  const raw = formData.get("gender");
+  return raw && raw !== "UNSPECIFIED" ? raw : undefined;
+}
+
 function parsePatientForm(formData: FormData) {
   return patientSchema.safeParse({
     name: formData.get("name"),
+    gender: readGender(formData),
     email: formData.get("email") || undefined,
     phone: formData.get("phone") || undefined,
     dob: formData.get("dob") || undefined,
@@ -53,6 +62,7 @@ export async function createPatient(
 
   const {
     name,
+    gender,
     email,
     phone,
     dob,
@@ -68,6 +78,7 @@ export async function createPatient(
   await prisma.patient.create({
     data: {
       name,
+      gender,
       email: email || undefined,
       phone,
       address,
@@ -99,6 +110,7 @@ export async function updatePatient(
 
   const {
     name,
+    gender,
     email,
     phone,
     dob,
@@ -115,6 +127,7 @@ export async function updatePatient(
     where: { id: patientId },
     data: {
       name,
+      gender: gender ?? null,
       email: email || null,
       phone,
       address,
@@ -135,6 +148,7 @@ export async function updatePatient(
 
 const selfProfileSchema = z.object({
   name: z.string().min(1),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   email: z.union([z.email(), z.literal("")]).optional(),
   phone: z.string().optional(),
   dob: z.string().optional(),
@@ -156,6 +170,7 @@ export async function updateOwnProfile(
 
   const parsed = selfProfileSchema.safeParse({
     name: formData.get("name"),
+    gender: readGender(formData),
     email: formData.get("email") || undefined,
     phone: formData.get("phone") || undefined,
     dob: formData.get("dob") || undefined,
@@ -172,6 +187,7 @@ export async function updateOwnProfile(
 
   const {
     name,
+    gender,
     email,
     phone,
     dob,
@@ -187,6 +203,7 @@ export async function updateOwnProfile(
     where: { id: patientId },
     data: {
       name,
+      gender: gender ?? null,
       email: email || null,
       phone,
       address,

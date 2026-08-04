@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
 import { Phone, Mail, CalendarDays } from "lucide-react";
+import { GENDER_LABELS } from "@/lib/patients";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
@@ -56,6 +57,7 @@ export default async function PatientDetailPage({
           action={boundUpdate}
           defaultValues={{
             name: patient.name,
+            gender: patient.gender ?? "",
             email: patient.email ?? "",
             phone: patient.phone ?? "",
             dob: patient.dob ? patient.dob.toISOString().slice(0, 10) : "",
@@ -71,6 +73,7 @@ export default async function PatientDetailPage({
       ) : (
         <Card>
           <CardContent className="grid gap-2 text-sm text-muted-foreground">
+            {patient.gender && <p>{GENDER_LABELS[patient.gender]}</p>}
             {patient.phone && (
               <div className="flex items-center gap-2">
                 <Phone className="size-4" />

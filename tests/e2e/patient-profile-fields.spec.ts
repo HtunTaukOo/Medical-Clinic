@@ -14,6 +14,8 @@ test.describe("Allergies, insurance, and emergency contact fields", () => {
       await loginAs(page, "patient@example.com");
       await page.goto("/en/portal/settings");
 
+      await page.locator("#gender").click();
+      await page.getByRole("option", { name: "Female" }).click();
       await page.fill("#allergies", "Penicillin");
       await page.fill("#insuranceProvider", "Grand Guardian");
       await page.fill("#insurancePolicyNumber", "GG-12345");
@@ -23,6 +25,7 @@ test.describe("Allergies, insurance, and emergency contact fields", () => {
       await expect(page.getByText("Saved.")).toBeVisible();
 
       const updated = await prisma.patient.findUniqueOrThrow({ where: { id: patient.id } });
+      expect(updated.gender).toBe("FEMALE");
       expect(updated.allergies).toBe("Penicillin");
       expect(updated.insuranceProvider).toBe("Grand Guardian");
       expect(updated.insurancePolicyNumber).toBe("GG-12345");
@@ -30,12 +33,14 @@ test.describe("Allergies, insurance, and emergency contact fields", () => {
       expect(updated.emergencyContactPhone).toBe("09-123456789");
 
       await page.reload();
+      await expect(page.locator("#gender")).toContainText("Female");
       await expect(page.locator("#allergies")).toHaveValue("Penicillin");
       await expect(page.locator("#insuranceProvider")).toHaveValue("Grand Guardian");
     } finally {
       await prisma.patient.update({
         where: { id: patient.id },
         data: {
+          gender: null,
           allergies: null,
           insuranceProvider: null,
           insurancePolicyNumber: null,
@@ -56,6 +61,7 @@ test.describe("Allergies, insurance, and emergency contact fields", () => {
     await prisma.patient.update({
       where: { id: patient.id },
       data: {
+        gender: "FEMALE",
         allergies: "Latex",
         emergencyContactName: "John Doe",
         dob: new Date("1990-05-15"),
@@ -67,6 +73,7 @@ test.describe("Allergies, insurance, and emergency contact fields", () => {
       await loginAs(page, "doctor@nca.clinic");
       await page.goto(`/en/staff/patients/${patient.id}`);
 
+      await expect(page.getByText("Female", { exact: true })).toBeVisible();
       await expect(page.getByText(/Allergies:/)).toBeVisible();
       await expect(page.getByText("Latex")).toBeVisible();
       await expect(page.getByText(/Emergency contact:/)).toBeVisible();
@@ -78,6 +85,7 @@ test.describe("Allergies, insurance, and emergency contact fields", () => {
       await prisma.patient.update({
         where: { id: patient.id },
         data: {
+          gender: null,
           allergies: null,
           emergencyContactName: null,
           dob: original.dob,

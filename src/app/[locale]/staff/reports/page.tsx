@@ -1,9 +1,17 @@
-import { Wallet, CalendarCheck2, Users, Pill, UserX, Download } from "lucide-react";
+import { Wallet, CalendarCheck2, Users, Pill, UserX, Download, Stethoscope, UserPlus } from "lucide-react";
 import { requirePageRole } from "@/lib/authz";
 import { getReportData } from "@/lib/reports";
 import { StatTile } from "@/components/stat-tile";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { BarList } from "@/components/reports/bar-list";
 
 const STATUS_BAR_COLORS: Record<string, string> = {
@@ -79,6 +87,126 @@ export default async function ReportsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Stethoscope className="size-4" />
+            Doctor productivity
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {data.doctorProductivity.length === 0 ? (
+            <p className="text-sm text-muted-foreground">No doctors on staff yet.</p>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Doctor</TableHead>
+                  <TableHead>Completed visits</TableHead>
+                  <TableHead>No-shows</TableHead>
+                  <TableHead>No-show rate</TableHead>
+                  <TableHead>Revenue</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {data.doctorProductivity.map((d) => (
+                  <TableRow key={d.doctorId}>
+                    <TableCell>
+                      <p className="font-medium">{d.name}</p>
+                      {d.specialty && (
+                        <p className="text-sm text-muted-foreground">{d.specialty}</p>
+                      )}
+                    </TableCell>
+                    <TableCell>{d.completed}</TableCell>
+                    <TableCell>{d.noShows}</TableCell>
+                    <TableCell>{d.noShowRate}%</TableCell>
+                    <TableCell>{d.revenue.toFixed(2)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="size-4" />
+              Patient age distribution
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.patientCount === 0 ? (
+              <p className="text-sm text-muted-foreground">No patients yet.</p>
+            ) : (
+              <BarList
+                items={data.ageDistribution
+                  .filter((b) => b.count > 0)
+                  .map((b) => ({
+                    label: b.label,
+                    value: b.count,
+                    displayValue: `${b.count} (${Math.round((b.count / data.patientCount) * 100)}%)`,
+                  }))}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Users className="size-4" />
+              Patients by gender
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {data.patientCount === 0 ? (
+              <p className="text-sm text-muted-foreground">No patients yet.</p>
+            ) : (
+              <BarList
+                items={data.genderDistribution
+                  .filter((g) => g.count > 0)
+                  .map((g) => ({
+                    label: g.label,
+                    value: g.count,
+                    displayValue: `${g.count} (${Math.round((g.count / data.patientCount) * 100)}%)`,
+                  }))}
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <UserPlus className="size-4" />
+              New patients by month
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex h-40 items-end gap-4">
+              {(() => {
+                const max = Math.max(1, ...data.newPatientsByMonth.map((m) => m.count));
+                return data.newPatientsByMonth.map((m) => (
+                  <div key={m.key} className="flex flex-1 flex-col items-center gap-2">
+                    <span className="text-xs text-muted-foreground">{m.count}</span>
+                    <div className="flex w-full flex-1 items-end">
+                      <div
+                        className="w-full rounded-t-md bg-primary"
+                        style={{ height: `${Math.max(2, (m.count / max) * 100)}%` }}
+                      />
+                    </div>
+                    <span className="text-xs font-medium">{m.label}</span>
+                  </div>
+                ));
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+      </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
