@@ -13,7 +13,7 @@ import {
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getClinicSettings, isWithinOpeningHours, formatTime } from "@/lib/clinic-hours";
+import { getClinicSettings, isWithinOpeningHours, formatClinicDateTime, formatTime } from "@/lib/clinic-hours";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -418,13 +418,13 @@ export default async function PortalDashboardPage() {
                           </p>
                         ) : (
                           <p className="text-sm text-muted-foreground">
-                            {new Date(appt.scheduledAt).toLocaleString(undefined, {
+                            {formatClinicDateTime(appt.scheduledAt, {
                               month: "short",
                               day: "numeric",
                               year: "numeric",
                             })}
                             <br />
-                            {new Date(appt.scheduledAt).toLocaleTimeString(undefined, {
+                            {formatClinicDateTime(appt.scheduledAt, {
                               hour: "numeric",
                               minute: "2-digit",
                             })}

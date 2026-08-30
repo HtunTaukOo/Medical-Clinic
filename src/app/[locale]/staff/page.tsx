@@ -33,6 +33,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { getDisplayFirstName, initials, calculateAge, formatRelativeTime } from "@/lib/format";
 import { todayRange } from "@/lib/queue";
+import { formatClinicDateTime } from "@/lib/clinic-hours";
 import { getExpiryStatus } from "@/lib/inventory";
 import { getVitalsAlertMessage } from "@/lib/clinical-alerts";
 import { HeroBanner } from "@/components/hero-banner";
@@ -623,7 +624,7 @@ export default async function StaffDashboardPage() {
                       <AppointmentRow
                         key={appt.id}
                         href={`/staff/appointments/${appt.id}`}
-                        time={appt.scheduledAt.toLocaleTimeString([], {
+                        time={formatClinicDateTime(appt.scheduledAt, {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}

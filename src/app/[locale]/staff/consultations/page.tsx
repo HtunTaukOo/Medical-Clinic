@@ -2,6 +2,7 @@ import { Clock, CheckCircle2, AlertTriangle } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { todayRange } from "@/lib/queue";
+import { formatClinicDateTime } from "@/lib/clinic-hours";
 import { initials, calculateAge } from "@/lib/format";
 import { isAppointmentUrgent } from "@/lib/clinical-alerts";
 import { Link } from "@/i18n/navigation";
@@ -183,7 +184,7 @@ export default async function ConsultationsPage() {
                           )}
                         </p>
                         <span className="text-sm text-muted-foreground">
-                          {appt.scheduledAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                          {formatClinicDateTime(appt.scheduledAt, { hour: "2-digit", minute: "2-digit" })}
                         </span>
                         <Badge variant="outline" className="bg-indigo-100 text-indigo-700">
                           Completed

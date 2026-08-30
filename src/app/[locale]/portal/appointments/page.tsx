@@ -4,8 +4,9 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
 import { checkInAppointment, cancelAppointment } from "@/actions/appointments";
+import { clinicDateKey, clinicDateParts, formatClinicDateTime } from "@/lib/clinic-hours";
 import { leaveWaitlist } from "@/actions/waitlist";
-import { getMonthGrid, dateKey, addMonths, MONTH_NAMES } from "@/lib/calendar";
+import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,8 +48,9 @@ export default async function PortalAppointmentsPage({
     : "upcoming";
 
   const now = new Date();
-  const year = yearParam ? Number(yearParam) : now.getFullYear();
-  const month = monthParam ? Number(monthParam) : now.getMonth() + 1;
+  const clinicToday = clinicDateParts(now);
+  const year = yearParam ? Number(yearParam) : clinicToday.year;
+  const month = monthParam ? Number(monthParam) : clinicToday.month;
 
   const appointments = patientId
     ? await prisma.appointment.findMany({
@@ -92,14 +94,14 @@ export default async function PortalAppointmentsPage({
   const weeks = getMonthGrid(year, month);
   const byDay = new Map<string, typeof appointments>();
   for (const appt of appointments) {
-    const key = dateKey(new Date(appt.scheduledAt));
+    const key = clinicDateKey(appt.scheduledAt);
     const list = byDay.get(key) ?? [];
     list.push(appt);
     byDay.set(key, list);
   }
   const prev = addMonths(year, month, -1);
   const next = addMonths(year, month, 1);
-  const todayKey = dateKey(now);
+  const todayKey = clinicDateKey(now);
 
   const gridStart = weeks[0][0];
   const gridEnd = new Date(weeks[weeks.length - 1][6]);
@@ -115,7 +117,7 @@ export default async function PortalAppointmentsPage({
 
   const remindersByDay = new Map<string, typeof pillReminders>();
   for (const reminder of pillReminders) {
-    const key = dateKey(new Date(reminder.scheduledFor));
+    const key = clinicDateKey(reminder.scheduledFor);
     const list = remindersByDay.get(key) ?? [];
     list.push(reminder);
     remindersByDay.set(key, list);
@@ -142,7 +144,7 @@ export default async function PortalAppointmentsPage({
                 <div>
                   <p className="font-medium">{entry.doctor.user.name}</p>
                   <p className="text-muted-foreground">
-                    Requested around {new Date(entry.requestedAt).toLocaleString()}
+                    Requested around {formatClinicDateTime(entry.requestedAt)}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -213,7 +215,7 @@ export default async function PortalAppointmentsPage({
                       className="flex items-center gap-2 text-sm text-muted-foreground hover:underline"
                     >
                       <CalendarDays className="size-4" />
-                      {new Date(appt.scheduledAt).toLocaleString()}
+                      {formatClinicDateTime(appt.scheduledAt)}
                     </Link>
                     {position !== undefined && (
                       <p className="text-sm font-medium text-primary">
@@ -256,7 +258,7 @@ export default async function PortalAppointmentsPage({
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link
-                  href={`/portal/appointments?view=calendar&year=${now.getFullYear()}&month=${now.getMonth() + 1}`}
+                  href={`/portal/appointments?view=calendar&year=${clinicToday.year}&month=${clinicToday.month}`}
                 >
                   Today
                 </Link>
@@ -277,7 +279,7 @@ export default async function PortalAppointmentsPage({
                 </div>
               ))}
               {weeks.flat().map((day) => {
-                const key = dateKey(day);
+                const key = clinicDateKey(day);
                 const inMonth = day.getMonth() === month - 1;
                 const dayAppointments = byDay.get(key) ?? [];
                 const dayReminders = remindersByDay.get(key) ?? [];

@@ -58,6 +58,20 @@ export function clinicDateParts(date: Date) {
   return { year: get("year"), month: get("month"), day: get("day") };
 }
 
+// Use this for appointment grouping and calendar comparisons. Native Date
+// getters use the deployment host's timezone, which may not be the clinic's.
+export function clinicDateKey(date: Date) {
+  const { year, month, day } = clinicDateParts(date);
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+export function formatClinicDateTime(date: Date, options: Intl.DateTimeFormatOptions = {}) {
+  return new Intl.DateTimeFormat(undefined, {
+    timeZone: CLINIC_TIMEZONE,
+    ...options,
+  }).format(date);
+}
+
 // The instant corresponding to 00:00 clinic-local time on the given Y-M-D.
 export function clinicMidnightForYMD(year: number, month: number, day: number) {
   return new Date(Date.UTC(year, month - 1, day) - CLINIC_UTC_OFFSET_MINUTES * 60 * 1000);

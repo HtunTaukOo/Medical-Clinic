@@ -2,8 +2,9 @@ import { CalendarDays, Stethoscope } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
-import { getMonthGrid, dateKey, addMonths, MONTH_NAMES } from "@/lib/calendar";
+import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
 import { todayRange } from "@/lib/queue";
+import { clinicDateKey, clinicDateParts, formatClinicDateTime } from "@/lib/clinic-hours";
 import { initials, calculateAge } from "@/lib/format";
 import { isAppointmentUrgent } from "@/lib/clinical-alerts";
 import {
@@ -69,8 +70,9 @@ export default async function AppointmentsPage({
     : "today";
 
   const now = new Date();
-  const year = yearParam ? Number(yearParam) : now.getFullYear();
-  const month = monthParam ? Number(monthParam) : now.getMonth() + 1;
+  const clinicToday = clinicDateParts(now);
+  const year = yearParam ? Number(yearParam) : clinicToday.year;
+  const month = monthParam ? Number(monthParam) : clinicToday.month;
 
   const appointments = await prisma.appointment.findMany({
     where: isDoctor ? { doctorId: session.user.doctorId } : undefined,
@@ -130,14 +132,14 @@ export default async function AppointmentsPage({
   const weeks = getMonthGrid(year, month);
   const byDay = new Map<string, typeof appointments>();
   for (const appt of appointments) {
-    const key = dateKey(new Date(appt.scheduledAt));
+    const key = clinicDateKey(appt.scheduledAt);
     const list = byDay.get(key) ?? [];
     list.push(appt);
     byDay.set(key, list);
   }
   const prev = addMonths(year, month, -1);
   const next = addMonths(year, month, 1);
-  const todayKey = dateKey(now);
+  const todayKey = clinicDateKey(now);
 
   return (
     <div className="grid gap-4">
@@ -259,7 +261,7 @@ export default async function AppointmentsPage({
                       className="flex items-center gap-2 hover:underline"
                     >
                       <CalendarDays className="size-4" />
-                      {new Date(appt.scheduledAt).toLocaleString()}
+                      {formatClinicDateTime(appt.scheduledAt)}
                     </Link>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -328,7 +330,7 @@ export default async function AppointmentsPage({
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link
-                  href={`/staff/appointments?view=calendar&year=${now.getFullYear()}&month=${now.getMonth() + 1}`}
+                  href={`/staff/appointments?view=calendar&year=${clinicToday.year}&month=${clinicToday.month}`}
                 >
                   Today
                 </Link>
@@ -349,7 +351,7 @@ export default async function AppointmentsPage({
                 </div>
               ))}
               {weeks.flat().map((day) => {
-                const key = dateKey(day);
+                const key = clinicDateKey(day);
                 const inMonth = day.getMonth() === month - 1;
                 const dayAppointments = byDay.get(key) ?? [];
                 return (
