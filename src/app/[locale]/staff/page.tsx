@@ -33,7 +33,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { getDisplayFirstName, initials, calculateAge, formatRelativeTime } from "@/lib/format";
 import { todayRange } from "@/lib/queue";
-import { formatClinicDateTime } from "@/lib/clinic-hours";
+import { clinicLocalMinutes, formatClinicDateTime } from "@/lib/clinic-hours";
 import { getExpiryStatus } from "@/lib/inventory";
 import { getVitalsAlertMessage } from "@/lib/clinical-alerts";
 import { HeroBanner } from "@/components/hero-banner";
@@ -287,7 +287,8 @@ export default async function StaffDashboardPage() {
 
   const firstName = session?.user.name ? getDisplayFirstName(session.user.name) : "";
   const now = new Date();
-  const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
+  const clinicHour = Math.floor(clinicLocalMinutes(now) / 60);
+  const greeting = clinicHour < 12 ? "Good morning" : clinicHour < 18 ? "Good afternoon" : "Good evening";
 
   let subtitle = "";
   if (role === "ADMIN") {
@@ -443,7 +444,7 @@ export default async function StaffDashboardPage() {
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
               <p className="text-sm text-muted-foreground">
-                {now.toLocaleDateString(undefined, {
+                {formatClinicDateTime(now, {
                   weekday: "long",
                   year: "numeric",
                   month: "long",
@@ -740,7 +741,7 @@ export default async function StaffDashboardPage() {
                       <p className="font-medium">{row.appointment.patient.name}</p>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                      {row.appointment.scheduledAt.toLocaleTimeString([], {
+                      {formatClinicDateTime(row.appointment.scheduledAt, {
                         hour: "2-digit",
                         minute: "2-digit",
                       })}{" "}

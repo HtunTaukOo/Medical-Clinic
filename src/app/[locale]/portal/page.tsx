@@ -13,7 +13,13 @@ import {
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getClinicSettings, isWithinOpeningHours, formatClinicDateTime, formatTime } from "@/lib/clinic-hours";
+import {
+  clinicLocalMinutes,
+  formatClinicDateTime,
+  formatTime,
+  getClinicSettings,
+  isWithinOpeningHours,
+} from "@/lib/clinic-hours";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -145,8 +151,8 @@ export default async function PortalDashboardPage() {
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`
     : null;
 
-  const greeting = getGreeting(now.getHours());
-  const dateLabel = now.toLocaleDateString(undefined, {
+  const greeting = getGreeting(Math.floor(clinicLocalMinutes(now) / 60));
+  const dateLabel = formatClinicDateTime(now, {
     weekday: "long",
     year: "numeric",
     month: "long",
