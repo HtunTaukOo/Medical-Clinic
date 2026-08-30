@@ -1,5 +1,5 @@
 import { Stethoscope } from "lucide-react";
-import { deleteDiagnosis } from "@/actions/diagnoses";
+import { deleteDiagnosis, setDiagnosisStatus } from "@/actions/diagnoses";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/empty-state";
@@ -9,8 +9,16 @@ type DiagnosisItem = {
   code: string | null;
   description: string;
   notes: string | null;
+  status: "ACTIVE" | "RESOLVED";
+  severity: "MILD" | "MODERATE" | "SEVERE" | null;
   createdAt: Date;
   doctor?: { user: { name: string } };
+};
+
+const SEVERITY_LABELS: Record<string, string> = {
+  MILD: "Mild",
+  MODERATE: "Moderate",
+  SEVERE: "Severe",
 };
 
 export function DiagnosisList({
@@ -34,6 +42,10 @@ export function DiagnosisList({
             <div className="flex flex-wrap items-center gap-2">
               {d.code && <Badge variant="outline">{d.code}</Badge>}
               <span className="font-medium">{d.description}</span>
+              <Badge variant={d.status === "ACTIVE" ? "default" : "success"}>
+                {d.status === "ACTIVE" ? "Active" : "Resolved"}
+              </Badge>
+              {d.severity && <Badge variant="outline">{SEVERITY_LABELS[d.severity]}</Badge>}
             </div>
             {d.notes && <p className="mt-1 text-sm text-muted-foreground">{d.notes}</p>}
             <p className="mt-1 text-xs text-muted-foreground">
@@ -42,11 +54,24 @@ export function DiagnosisList({
             </p>
           </div>
           {canDelete && (
-            <form action={deleteDiagnosis.bind(null, d.id)}>
-              <Button size="sm" variant="destructive" type="submit">
-                Remove
-              </Button>
-            </form>
+            <div className="flex shrink-0 items-center gap-2">
+              <form
+                action={setDiagnosisStatus.bind(
+                  null,
+                  d.id,
+                  d.status === "ACTIVE" ? "RESOLVED" : "ACTIVE"
+                )}
+              >
+                <Button size="sm" variant="outline" type="submit">
+                  {d.status === "ACTIVE" ? "Mark resolved" : "Reopen"}
+                </Button>
+              </form>
+              <form action={deleteDiagnosis.bind(null, d.id)}>
+                <Button size="sm" variant="destructive" type="submit">
+                  Remove
+                </Button>
+              </form>
+            </div>
           )}
         </div>
       ))}

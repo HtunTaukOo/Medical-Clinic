@@ -79,7 +79,7 @@ export async function uploadMedicalDocument(
   });
 
   revalidatePath(`/staff/patients/${targetPatientId}`);
-  revalidatePath("/portal/settings");
+  revalidatePath("/portal/medical-records");
   return { success: true };
 }
 
@@ -94,5 +94,5 @@ export async function deleteMedicalRecord(recordId: string) {
   await prisma.medicalRecord.delete({ where: { id: recordId } });
 
   revalidatePath(`/staff/patients/${record.patientId}`);
-  revalidatePath("/portal/settings");
+  revalidatePath("/portal/medical-records");
 }

@@ -70,6 +70,8 @@ export async function createStaff(
 
 const feeSchema = z.object({
   consultationFee: z.coerce.number().nonnegative(),
+  experienceYears: z.coerce.number().int().nonnegative().optional(),
+  qualifications: z.string().optional(),
 });
 
 export type DoctorFeeFormState = { error?: string; success?: boolean };
@@ -83,6 +85,8 @@ export async function updateDoctorFee(
 
   const parsed = feeSchema.safeParse({
     consultationFee: formData.get("consultationFee"),
+    experienceYears: formData.get("experienceYears") || undefined,
+    qualifications: formData.get("qualifications") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -90,7 +94,11 @@ export async function updateDoctorFee(
 
   await prisma.doctorProfile.update({
     where: { id: doctorId },
-    data: { consultationFee: parsed.data.consultationFee },
+    data: {
+      consultationFee: parsed.data.consultationFee,
+      experienceYears: parsed.data.experienceYears ?? null,
+      qualifications: parsed.data.qualifications ?? null,
+    },
   });
 
   revalidatePath("/staff/users");

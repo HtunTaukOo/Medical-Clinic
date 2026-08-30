@@ -22,6 +22,7 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/doctor-availability";
 import { notifyPatient, notifyStaff } from "@/lib/telegram";
+import { createNotification } from "@/lib/notifications";
 import { notifyWaitlistOfOpening } from "@/actions/waitlist";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
@@ -126,8 +127,24 @@ export async function requestAppointment(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const scheduledAt = new Date(parsed.data.scheduledAt);
+  return submitAppointmentRequest(
+    patientId,
+    parsed.data.doctorId,
+    new Date(parsed.data.scheduledAt),
+    parsed.data.reason
+  );
+}
 
+// Shared by the free-form request form (which parses a datetime-local string
+// in the browser's own timezone) and the slot-picker booking wizard (which
+// computes `scheduledAt` precisely in clinic-local time server-side) — both
+// end up here once they have a concrete doctorId + absolute instant.
+export async function submitAppointmentRequest(
+  patientId: string,
+  doctorId: string,
+  scheduledAt: Date,
+  reason?: string
+): Promise<AppointmentFormState> {
   const settings = await getClinicSettings();
   if (!settings.isOpen) {
     return { error: "The clinic is currently closed for bookings. Please check back later." };
@@ -139,7 +156,7 @@ export async function requestAppointment(
   }
 
   const doctor = await prisma.doctorProfile.findUnique({
-    where: { id: parsed.data.doctorId },
+    where: { id: doctorId },
   });
   if (!doctor) {
     return { error: "Doctor not found" };
@@ -160,14 +177,14 @@ export async function requestAppointment(
     };
   }
 
-  const conflict = await findConflictingAppointment(parsed.data.doctorId, scheduledAt);
+  const conflict = await findConflictingAppointment(doctorId, scheduledAt);
   if (conflict) {
     return {
       error: CONFLICT_MESSAGE,
       conflict: {
-        doctorId: parsed.data.doctorId,
-        scheduledAt: parsed.data.scheduledAt,
-        reason: parsed.data.reason,
+        doctorId,
+        scheduledAt: scheduledAt.toISOString(),
+        reason,
       },
     };
   }
@@ -175,9 +192,9 @@ export async function requestAppointment(
   const appointment = await prisma.appointment.create({
     data: {
       patientId,
-      doctorId: parsed.data.doctorId,
+      doctorId,
       scheduledAt,
-      reason: parsed.data.reason,
+      reason,
       status: "REQUESTED",
     },
     include: { patient: true, doctor: { include: { user: true } } },
@@ -214,9 +231,19 @@ export async function confirmAppointment(appointmentId: string) {
     appointment.patientId,
     `✅ Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} has been confirmed.\n\nReply CANCEL to cancel it.`
   );
+  await createNotification({
+    patientId: appointment.patientId,
+    category: "APPOINTMENT",
+    tone: "SUCCESS",
+    title: "Appointment Confirmed",
+    body: `Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} has been confirmed.`,
+    href: `/portal/appointments/${appointment.id}`,
+    relatedId: `appt-confirm-${appointment.id}`,
+  });
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
+  revalidatePath("/portal/notifications");
 }
 
 export async function checkInAppointment(appointmentId: string) {

@@ -37,7 +37,7 @@ export default async function SuppliersPage() {
               <CardContent className="grid gap-3">
                 <div className="flex items-center justify-between gap-2">
                   <p className="font-semibold">{supplier.name}</p>
-                  <Badge variant={supplier.active ? "default" : "outline"}>
+                  <Badge variant={supplier.active ? "success" : "outline"}>
                     {supplier.active ? t("active") : t("inactive")}
                   </Badge>
                 </div>

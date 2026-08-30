@@ -42,7 +42,7 @@ export default async function PackagesPage() {
                       {Number(pkg.price).toFixed(2)}
                     </p>
                   </div>
-                  <Badge variant={pkg.active ? "default" : "outline"}>
+                  <Badge variant={pkg.active ? "success" : "outline"}>
                     {pkg.active ? t("active") : t("inactive")}
                   </Badge>
                 </div>

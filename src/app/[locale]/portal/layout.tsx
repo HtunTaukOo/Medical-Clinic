@@ -1,15 +1,7 @@
 import { auth } from "@/auth";
 import { redirect } from "@/i18n/navigation";
 import { AppShell, type NavItem } from "@/components/app-shell";
-
-const NAV_ITEMS: NavItem[] = [
-  { href: "/portal", labelKey: "dashboard" },
-  { href: "/portal/doctors", labelKey: "findDoctors" },
-  { href: "/portal/appointments", labelKey: "myAppointments" },
-  { href: "/portal/lab-results", labelKey: "labResults" },
-  { href: "/portal/invoices", labelKey: "myInvoices" },
-  { href: "/portal/settings", labelKey: "settings" },
-];
+import { getUnreadNotificationCount } from "@/lib/notifications";
 
 export default async function PortalLayout({
   children,
@@ -26,12 +18,28 @@ export default async function PortalLayout({
     return;
   }
 
+  const unreadCount = session.user.patientId
+    ? await getUnreadNotificationCount(session.user.patientId)
+    : 0;
+
+  const NAV_ITEMS: NavItem[] = [
+    { href: "/portal", labelKey: "home" },
+    { href: "/portal/book", labelKey: "bookAppointment" },
+    { href: "/portal/appointments", labelKey: "myAppointments" },
+    { href: "/portal/medical-records", labelKey: "medicalRecords" },
+    { href: "/portal/invoices", labelKey: "billsPayments" },
+    { href: "/portal/notifications", labelKey: "notifications", badge: unreadCount },
+    { href: "/portal/settings", labelKey: "profile" },
+  ];
+
   return (
     <AppShell
       locale={locale}
       userName={session.user.name ?? ""}
       roleLabel="Patient Portal"
       navItems={NAV_ITEMS}
+      contentClassName="mx-auto w-full max-w-5xl"
+      sidebarDark
     >
       {children}
     </AppShell>

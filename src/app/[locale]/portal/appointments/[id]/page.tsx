@@ -85,7 +85,7 @@ export default async function PortalAppointmentDetailPage({
                   <span className="text-sm text-muted-foreground">
                     {new Date(rx.createdAt).toLocaleString()}
                   </span>
-                  <Badge variant={rx.fulfilled ? "default" : "outline"}>
+                  <Badge variant={rx.fulfilled ? "success" : "outline"}>
                     {rx.fulfilled ? "Fulfilled" : "Pending"}
                   </Badge>
                 </div>

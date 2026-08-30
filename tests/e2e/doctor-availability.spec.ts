@@ -28,11 +28,15 @@ function futureWeekday(daysAhead: number) {
   return clinicMidnightForYMD(year, month, day);
 }
 
-function toDatetimeLocal(date: Date, hours: number, minutes: number) {
-  const d = new Date(date);
-  d.setHours(hours, minutes, 0, 0);
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+// The calendar starts on the current month and doesn't auto-navigate, so hop
+// forward with the "›" control until the target date's button appears.
+async function navigateToDate(page: import("@playwright/test").Page, isoDate: string) {
+  for (let i = 0; i < 12; i++) {
+    const btn = page.getByRole("button", { name: isoDate, exact: true });
+    if ((await btn.count()) > 0) return btn;
+    await page.getByRole("button", { name: "›", exact: true }).click();
+  }
+  throw new Error(`Could not find calendar date ${isoDate} within 12 months`);
 }
 
 test.describe("Doctor availability", () => {
@@ -88,11 +92,14 @@ test.describe("Doctor availability", () => {
     }
   });
 
-  test("a patient cannot book an appointment on a doctor's leave day", async ({ page }) => {
+  test("the booking wizard calendar disables a doctor's leave day", async ({ page }) => {
     const doctor = await prisma.doctorProfile.findFirstOrThrow({
       where: { user: { email: "doctor@nca.clinic" } },
+      include: { user: true },
     });
-    const leaveDate = futureWeekday(46);
+    // A small, in-window offset (the wizard's calendar starts on the current month).
+    const leaveDate = futureWeekday(2);
+    const isoDate = `${leaveDate.getFullYear()}-${String(leaveDate.getMonth() + 1).padStart(2, "0")}-${String(leaveDate.getDate()).padStart(2, "0")}`;
 
     await prisma.doctorLeave.create({
       data: { doctorId: doctor.id, date: leaveDate, reason: "Test leave" },
@@ -100,11 +107,14 @@ test.describe("Doctor availability", () => {
 
     try {
       await loginAs(page, "patient@example.com");
-      await page.goto(`/en/portal/appointments/new?doctorId=${doctor.id}`);
-      await page.fill('input[name="scheduledAt"]', toDatetimeLocal(leaveDate, 10, 0));
-      await page.click('button:has-text("New appointment")');
+      await page.goto("/en/portal/book");
+      await page.getByRole("button", { name: new RegExp(doctor.specialty ?? "General Medicine") }).click();
+      await page.getByRole("button", { name: "Continue" }).click();
+      await page.getByRole("button", { name: new RegExp(doctor.user.name) }).click();
+      await page.getByRole("button", { name: "Continue" }).click();
 
-      await expect(page.getByText(/unavailable on the selected date/i)).toBeVisible();
+      // The leave day is disabled outright in the calendar — it should never be clickable.
+      await expect(await navigateToDate(page, isoDate)).toBeDisabled();
 
       const created = await prisma.appointment.findFirst({
         where: { doctorId: doctor.id, scheduledAt: toDateStrict(leaveDate, 10, 0) },
@@ -115,11 +125,15 @@ test.describe("Doctor availability", () => {
     }
   });
 
-  test("a patient cannot book outside a doctor's overridden working hours", async ({ page }) => {
+  test("the booking wizard only offers times inside a doctor's overridden working hours", async ({
+    page,
+  }) => {
     const doctor = await prisma.doctorProfile.findFirstOrThrow({
       where: { user: { email: "doctor@nca.clinic" } },
+      include: { user: true },
     });
-    const bookingDate = futureWeekday(47);
+    const bookingDate = futureWeekday(2);
+    const isoDate = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, "0")}-${String(bookingDate.getDate()).padStart(2, "0")}`;
 
     await prisma.doctorProfile.update({
       where: { id: doctor.id },
@@ -128,12 +142,16 @@ test.describe("Doctor availability", () => {
 
     try {
       await loginAs(page, "patient@example.com");
-      await page.goto(`/en/portal/appointments/new?doctorId=${doctor.id}`);
-      // 14:00 is within the clinic's default 09:00-17:00 hours but outside this doctor's 09:00-11:00 override.
-      await page.fill('input[name="scheduledAt"]', toDatetimeLocal(bookingDate, 14, 0));
-      await page.click('button:has-text("New appointment")');
+      await page.goto("/en/portal/book");
+      await page.getByRole("button", { name: new RegExp(doctor.specialty ?? "General Medicine") }).click();
+      await page.getByRole("button", { name: "Continue" }).click();
+      await page.getByRole("button", { name: new RegExp(doctor.user.name) }).click();
+      await page.getByRole("button", { name: "Continue" }).click();
+      await (await navigateToDate(page, isoDate)).click();
 
-      await expect(page.getByText(/for this doctor/i)).toBeVisible();
+      // 2:00 PM is within the clinic's default 9 AM-5 PM hours but outside this doctor's 9-11 AM override.
+      await expect(page.getByRole("button", { name: "2:00 PM", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("button", { name: "9:00 AM", exact: true })).toBeVisible();
 
       const created = await prisma.appointment.findFirst({
         where: { doctorId: doctor.id, scheduledAt: toDateStrict(bookingDate, 14, 0) },

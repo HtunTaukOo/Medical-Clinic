@@ -61,6 +61,8 @@ export default async function StaffUsersPage() {
                     <DoctorFeeForm
                       doctorId={user.doctorProfile.id}
                       currentFee={Number(user.doctorProfile.consultationFee)}
+                      currentExperienceYears={user.doctorProfile.experienceYears}
+                      currentQualifications={user.doctorProfile.qualifications}
                     />
                     <Button asChild size="sm" variant="outline" className="w-fit">
                       <Link href={`/staff/users/${user.doctorProfile.id}/availability`}>
@@ -71,7 +73,7 @@ export default async function StaffUsersPage() {
                 )}
                 <SetPasswordForm userId={user.id} />
                 <div className="flex items-center justify-between gap-2">
-                  <Badge variant={user.active ? "default" : "outline"}>
+                  <Badge variant={user.active ? "success" : "outline"}>
                     {user.active ? t("active") : "Inactive"}
                   </Badge>
                   <form action={toggleStaffActive.bind(null, user.id)}>

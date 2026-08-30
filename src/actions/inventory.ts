@@ -73,6 +73,43 @@ export async function setMedicineExpiry(
   return { success: true };
 }
 
+const promoSchema = z.object({
+  featured: z.enum(["on", "off"]).transform((v) => v === "on"),
+  brand: z.string().optional(),
+  category: z.string().optional(),
+  description: z.string().optional(),
+});
+
+export type MedicinePromoState = { error?: string; success?: boolean };
+
+export async function updateMedicinePromo(
+  medicineId: string,
+  _prevState: MedicinePromoState,
+  formData: FormData
+): Promise<MedicinePromoState> {
+  await requireRole([...INVENTORY_ROLES]);
+
+  const parsed = promoSchema.safeParse({
+    featured: formData.get("featured") ? "on" : "off",
+    brand: formData.get("brand") || undefined,
+    category: formData.get("category") || undefined,
+    description: formData.get("description") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.medicine.update({
+    where: { id: medicineId },
+    data: parsed.data,
+  });
+
+  revalidatePath("/staff/inventory");
+  revalidatePath(`/staff/inventory/${medicineId}`);
+  revalidatePath("/portal");
+  return { success: true };
+}
+
 const adjustSchema = z.object({
   type: z.enum(["IN", "OUT"]),
   quantity: z.coerce.number().int().positive(),

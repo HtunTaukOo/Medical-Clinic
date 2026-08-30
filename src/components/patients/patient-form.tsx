@@ -33,11 +33,22 @@ export function PatientForm({
     dob: string;
     address: string;
     notes: string;
-    allergies: string;
+    bloodType: string;
+    nationality: string;
+    nrcNumber: string;
+    heightCm: string;
+    weightKg: string;
     insuranceProvider: string;
     insurancePolicyNumber: string;
+    insuranceGroupNumber: string;
+    insuranceCoverageType: string;
+    insurancePolicyHolder: string;
+    insuranceExpiryDate: string;
     emergencyContactName: string;
+    emergencyContactRelationship: string;
     emergencyContactPhone: string;
+    emergencyContactAltPhone: string;
+    emergencyContactAddress: string;
   };
   redirectOnSuccess?: string;
 }) {
@@ -90,9 +101,41 @@ export function PatientForm({
         <Label htmlFor="address">{t("address")}</Label>
         <Input id="address" name="address" defaultValue={defaultValues?.address} />
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="allergies">{t("allergies")}</Label>
-        <Textarea id="allergies" name="allergies" defaultValue={defaultValues?.allergies} />
+      <div className="grid grid-cols-3 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="bloodType">Blood Type</Label>
+          <Input id="bloodType" name="bloodType" defaultValue={defaultValues?.bloodType} />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="nationality">Nationality</Label>
+          <Input id="nationality" name="nationality" defaultValue={defaultValues?.nationality} />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="nrcNumber">NRC / ID Number</Label>
+          <Input id="nrcNumber" name="nrcNumber" defaultValue={defaultValues?.nrcNumber} />
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="heightCm">Height (cm)</Label>
+          <Input
+            id="heightCm"
+            name="heightCm"
+            type="number"
+            step="0.1"
+            defaultValue={defaultValues?.heightCm}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="weightKg">Weight (kg)</Label>
+          <Input
+            id="weightKg"
+            name="weightKg"
+            type="number"
+            step="0.1"
+            defaultValue={defaultValues?.weightKg}
+          />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
@@ -111,6 +154,39 @@ export function PatientForm({
             defaultValue={defaultValues?.insurancePolicyNumber}
           />
         </div>
+        <div className="grid gap-2">
+          <Label htmlFor="insuranceGroupNumber">Group Number</Label>
+          <Input
+            id="insuranceGroupNumber"
+            name="insuranceGroupNumber"
+            defaultValue={defaultValues?.insuranceGroupNumber}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="insuranceCoverageType">Coverage Type</Label>
+          <Input
+            id="insuranceCoverageType"
+            name="insuranceCoverageType"
+            defaultValue={defaultValues?.insuranceCoverageType}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="insurancePolicyHolder">Policy Holder</Label>
+          <Input
+            id="insurancePolicyHolder"
+            name="insurancePolicyHolder"
+            defaultValue={defaultValues?.insurancePolicyHolder}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="insuranceExpiryDate">Expiry Date</Label>
+          <Input
+            id="insuranceExpiryDate"
+            name="insuranceExpiryDate"
+            type="date"
+            defaultValue={defaultValues?.insuranceExpiryDate}
+          />
+        </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
@@ -122,11 +198,35 @@ export function PatientForm({
           />
         </div>
         <div className="grid gap-2">
+          <Label htmlFor="emergencyContactRelationship">Relationship</Label>
+          <Input
+            id="emergencyContactRelationship"
+            name="emergencyContactRelationship"
+            defaultValue={defaultValues?.emergencyContactRelationship}
+          />
+        </div>
+        <div className="grid gap-2">
           <Label htmlFor="emergencyContactPhone">{t("emergencyContactPhone")}</Label>
           <Input
             id="emergencyContactPhone"
             name="emergencyContactPhone"
             defaultValue={defaultValues?.emergencyContactPhone}
+          />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="emergencyContactAltPhone">Alternate Phone</Label>
+          <Input
+            id="emergencyContactAltPhone"
+            name="emergencyContactAltPhone"
+            defaultValue={defaultValues?.emergencyContactAltPhone}
+          />
+        </div>
+        <div className="col-span-2 grid gap-2">
+          <Label htmlFor="emergencyContactAddress">Emergency Contact Address</Label>
+          <Input
+            id="emergencyContactAddress"
+            name="emergencyContactAddress"
+            defaultValue={defaultValues?.emergencyContactAddress}
           />
         </div>
       </div>

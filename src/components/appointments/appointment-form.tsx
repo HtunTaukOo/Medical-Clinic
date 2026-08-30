@@ -29,7 +29,7 @@ export function AppointmentForm({
     formData: FormData
   ) => Promise<AppointmentFormState>;
   patients?: { id: string; name: string }[];
-  doctors: { id: string; name: string; specialty: string | null }[];
+  doctors?: { id: string; name: string; specialty: string | null }[];
   redirectOnSuccess: string;
   defaultDoctorId?: string;
 }) {
@@ -94,7 +94,7 @@ export function AppointmentForm({
             <SelectValue placeholder={t("doctor")} />
           </SelectTrigger>
           <SelectContent>
-            {doctors.map((d) => (
+            {doctors?.map((d) => (
               <SelectItem key={d.id} value={d.id}>
                 {d.name}
                 {d.specialty ? ` (${d.specialty})` : ""}
@@ -151,7 +151,7 @@ export function AppointmentForm({
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending}>
-        {t("new")}
+        {t(isStaffBooking ? "new" : "requestNew")}
       </Button>
       </form>
 

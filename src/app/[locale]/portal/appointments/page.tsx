@@ -102,7 +102,7 @@ export default async function PortalAppointmentsPage({
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <Button asChild>
-          <Link href="/portal/appointments/new">{t("requestNew")}</Link>
+          <Link href="/portal/book">{t("requestNew")}</Link>
         </Button>
       </div>
 
@@ -122,7 +122,7 @@ export default async function PortalAppointmentsPage({
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Badge variant={entry.status === "NOTIFIED" ? "default" : "outline"}>
+                  <Badge variant={entry.status === "NOTIFIED" ? "success" : "outline"}>
                     {entry.status === "NOTIFIED" ? "Opening available!" : "Waiting"}
                   </Badge>
                   <form action={leaveWaitlist.bind(null, entry.id)}>

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, UnauthorizedError } from "@/lib/authz";
 import { notifyIfLowStock } from "@/lib/telegram";
 import { generateReminderSchedule } from "@/lib/pill-reminders";
+import { createNotification } from "@/lib/notifications";
 
 const itemsSchema = z
   .array(
@@ -15,6 +16,9 @@ const itemsSchema = z
       quantity: z.coerce.number().int().positive(),
       timesPerDay: z.coerce.number().int().positive().optional(),
       durationDays: z.coerce.number().int().positive().optional(),
+      frequency: z.string().optional(),
+      instructions: z.string().optional(),
+      refillsLeft: z.coerce.number().int().nonnegative().optional(),
     })
   )
   .min(1);
@@ -55,6 +59,9 @@ export async function createPrescription(
           quantity: item.quantity,
           timesPerDay: item.timesPerDay,
           durationDays: item.durationDays,
+          frequency: item.frequency,
+          instructions: item.instructions,
+          refillsLeft: item.refillsLeft,
         })),
       },
     },
@@ -122,6 +129,7 @@ export async function createPrescription(
 
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/portal/appointments");
+  revalidatePath("/portal/medical-records");
   return { success: true };
 }
 
@@ -129,6 +137,8 @@ export async function fulfillPrescription(prescriptionId: string) {
   await requireRole(["PHARMACIST"]);
 
   const medicineIds: string[] = [];
+  let notifyPatientId: string | null = null;
+  let medicineNames = "";
 
   await prisma.$transaction(async (tx) => {
     const prescription = await tx.prescription.findUnique({
@@ -140,6 +150,8 @@ export async function fulfillPrescription(prescriptionId: string) {
     });
     if (!prescription) throw new Error("Prescription not found");
     if (prescription.fulfilled) return;
+    notifyPatientId = prescription.patientId;
+    medicineNames = prescription.items.map((i) => i.medicine.name).join(", ");
 
     if (prescription.appointment.invoice?.status !== "PAID") {
       throw new Error(
@@ -177,6 +189,19 @@ export async function fulfillPrescription(prescriptionId: string) {
 
   for (const medicineId of medicineIds) {
     await notifyIfLowStock(medicineId);
+  }
+
+  if (notifyPatientId) {
+    await createNotification({
+      patientId: notifyPatientId,
+      category: "PRESCRIPTION",
+      tone: "SUCCESS",
+      title: "Prescription Ready",
+      body: `Your prescription for ${medicineNames} has been processed. Collect from the pharmacy at NCA Clinic.`,
+      href: "/portal/medical-records",
+      relatedId: `rx-ready-${prescriptionId}`,
+    });
+    revalidatePath("/portal/notifications");
   }
 
   revalidatePath("/staff/inventory");

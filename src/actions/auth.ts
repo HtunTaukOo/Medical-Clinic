@@ -6,6 +6,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { logActivity } from "@/lib/audit";
+import { generatePatientCode } from "@/lib/patients";
+import { requireSession } from "@/lib/authz";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
 
@@ -41,6 +43,7 @@ export async function registerPatient(
   }
 
   const passwordHash = await bcrypt.hash(password, 10);
+  const patientCode = await generatePatientCode(prisma);
 
   await prisma.user.create({
     data: {
@@ -48,7 +51,7 @@ export async function registerPatient(
       email: email.toLowerCase(),
       passwordHash,
       role: "PATIENT",
-      patient: { create: { name, email: email.toLowerCase(), phone } },
+      patient: { create: { name, email: email.toLowerCase(), phone, patientCode } },
     },
   });
 
@@ -133,6 +136,54 @@ export async function resetPassword(
     actorName: user.name,
     actorRole: user.role,
     action: "Reset own password via reset link",
+    target: `${user.name} (${user.email})`,
+  });
+
+  return { success: true };
+}
+
+const changePasswordSchema = z
+  .object({
+    currentPassword: z.string().min(1),
+    newPassword: z.string().min(8),
+    confirmPassword: z.string().min(1),
+  })
+  .refine((data) => data.newPassword === data.confirmPassword, {
+    error: "New passwords don't match",
+    path: ["confirmPassword"],
+  });
+
+export type ChangePasswordState = { error?: string; success?: boolean };
+
+export async function changeOwnPassword(
+  _prevState: ChangePasswordState,
+  formData: FormData
+): Promise<ChangePasswordState> {
+  const session = await requireSession();
+
+  const parsed = changePasswordSchema.safeParse({
+    currentPassword: formData.get("currentPassword"),
+    newPassword: formData.get("newPassword"),
+    confirmPassword: formData.get("confirmPassword"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: session.user.id } });
+  const valid = await bcrypt.compare(parsed.data.currentPassword, user.passwordHash);
+  if (!valid) {
+    return { error: "Current password is incorrect" };
+  }
+
+  const passwordHash = await bcrypt.hash(parsed.data.newPassword, 10);
+  await prisma.user.update({ where: { id: user.id }, data: { passwordHash } });
+
+  await logActivity({
+    actorId: user.id,
+    actorName: user.name,
+    actorRole: user.role,
+    action: "Changed own password",
     target: `${user.name} (${user.email})`,
   });
 

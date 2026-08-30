@@ -65,7 +65,7 @@ export default async function ClaimsPage() {
                         : "—"}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={claim.status === "PAID" ? "default" : "outline"}>
+                      <Badge variant={claim.status === "PAID" ? "success" : "outline"}>
                         {claim.status}
                       </Badge>
                     </TableCell>

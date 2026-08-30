@@ -6,13 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { AuthShell } from "@/components/auth/auth-shell";
 
 export default async function LoginPage({
   params,
@@ -45,43 +39,35 @@ export default async function LoginPage({
   }
 
   return (
-    <div className="flex flex-1 items-center justify-center p-6">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>{t("loginTitle")}</CardTitle>
-          {error && (
-            <CardDescription className="text-destructive">
-              {t("invalidCredentials")}
-            </CardDescription>
-          )}
-        </CardHeader>
-        <CardContent>
-          <form action={loginAction} className="grid gap-4">
-            <div className="grid gap-2">
-              <Label htmlFor="email">{t("email")}</Label>
-              <Input id="email" name="email" type="email" required />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="password">{t("password")}</Label>
-              <Input id="password" name="password" type="password" required />
-            </div>
-            <Button type="submit" className="w-full">
-              {t("login")}
-            </Button>
-          </form>
-          <p className="mt-4 text-sm text-muted-foreground">
-            <Link href="/forgot-password" className="underline">
-              Forgot your password?
-            </Link>
-          </p>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {t("noAccount")}{" "}
-            <Link href="/register" className="underline">
-              {t("register")}
-            </Link>
-          </p>
-        </CardContent>
-      </Card>
-    </div>
+    <AuthShell>
+      <div className="grid gap-1.5">
+        <h1 className="text-xl font-semibold">{t("loginTitle")}</h1>
+        {error && <p className="text-sm text-destructive">{t("invalidCredentials")}</p>}
+      </div>
+      <form action={loginAction} className="mt-6 grid gap-4">
+        <div className="grid gap-2">
+          <Label htmlFor="email">{t("email")}</Label>
+          <Input id="email" name="email" type="email" required />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor="password">{t("password")}</Label>
+          <Input id="password" name="password" type="password" required />
+        </div>
+        <Button type="submit" className="w-full">
+          {t("login")}
+        </Button>
+      </form>
+      <p className="mt-4 text-sm text-muted-foreground">
+        <Link href="/forgot-password" className="underline">
+          Forgot your password?
+        </Link>
+      </p>
+      <p className="mt-2 text-sm text-muted-foreground">
+        {t("noAccount")}{" "}
+        <Link href="/register" className="underline">
+          {t("register")}
+        </Link>
+      </p>
+    </AuthShell>
   );
 }

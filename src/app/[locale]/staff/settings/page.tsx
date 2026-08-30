@@ -16,6 +16,8 @@ export default async function ClinicSettingsPage() {
         openingTime={settings.openingTime}
         closingTime={settings.closingTime}
         staffTelegramChatId={settings.staffTelegramChatId}
+        phones={settings.phones}
+        address={settings.address}
       />
     </div>
   );

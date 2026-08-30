@@ -10,6 +10,9 @@ import { MedicalRecordList } from "@/components/medical-records/medical-record-l
 import { NoteForm } from "@/components/medical-records/note-form";
 import { DocumentUploadForm } from "@/components/medical-records/document-upload-form";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
+import { AllergyList } from "@/components/allergies/allergy-list";
+import { AllergyForm } from "@/components/allergies/allergy-form";
+import { addAllergy } from "@/actions/allergies";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
@@ -40,13 +43,16 @@ export default async function PatientDetailPage({
         orderBy: { createdAt: "desc" },
         include: { doctor: { include: { user: true } } },
       },
+      allergyRecords: { orderBy: { createdAt: "desc" } },
     },
   });
 
   if (!patient) notFound();
 
   const boundUpdate = updatePatient.bind(null, patient.id);
+  const boundAddAllergy = addAllergy.bind(null, patient.id);
   const canEditPatient = role === "ADMIN" || role === "RECEPTIONIST";
+  const canManageAllergies = role === "ADMIN" || role === "DOCTOR" || role === "RECEPTIONIST";
 
   return (
     <div className="grid gap-6">
@@ -63,11 +69,24 @@ export default async function PatientDetailPage({
             dob: patient.dob ? patient.dob.toISOString().slice(0, 10) : "",
             address: patient.address ?? "",
             notes: patient.notes ?? "",
-            allergies: patient.allergies ?? "",
+            bloodType: patient.bloodType ?? "",
+            nationality: patient.nationality ?? "",
+            nrcNumber: patient.nrcNumber ?? "",
+            heightCm: patient.heightCm?.toString() ?? "",
+            weightKg: patient.weightKg?.toString() ?? "",
             insuranceProvider: patient.insuranceProvider ?? "",
             insurancePolicyNumber: patient.insurancePolicyNumber ?? "",
+            insuranceGroupNumber: patient.insuranceGroupNumber ?? "",
+            insuranceCoverageType: patient.insuranceCoverageType ?? "",
+            insurancePolicyHolder: patient.insurancePolicyHolder ?? "",
+            insuranceExpiryDate: patient.insuranceExpiryDate
+              ? patient.insuranceExpiryDate.toISOString().slice(0, 10)
+              : "",
             emergencyContactName: patient.emergencyContactName ?? "",
+            emergencyContactRelationship: patient.emergencyContactRelationship ?? "",
             emergencyContactPhone: patient.emergencyContactPhone ?? "",
+            emergencyContactAltPhone: patient.emergencyContactAltPhone ?? "",
+            emergencyContactAddress: patient.emergencyContactAddress ?? "",
           }}
         />
       ) : (
@@ -97,11 +116,6 @@ export default async function PatientDetailPage({
               <p>
                 <span className="font-medium text-foreground">Medical notes:</span>{" "}
                 {patient.notes}
-              </p>
-            )}
-            {patient.allergies && (
-              <p className="text-destructive">
-                <span className="font-medium">Allergies:</span> {patient.allergies}
               </p>
             )}
             {(patient.insuranceProvider || patient.insurancePolicyNumber) && (
@@ -167,6 +181,18 @@ export default async function PatientDetailPage({
           </CardHeader>
           <CardContent>
             <DiagnosisList diagnoses={patient.diagnoses} showDoctor />
+          </CardContent>
+        </Card>
+      )}
+
+      {role !== "PHARMACIST" && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Allergies</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-4">
+            <AllergyList allergies={patient.allergyRecords} canDelete={canManageAllergies} />
+            {canManageAllergies && <AllergyForm action={boundAddAllergy} />}
           </CardContent>
         </Card>
       )}

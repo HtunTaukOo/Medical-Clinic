@@ -22,11 +22,15 @@ export function ClinicSettingsForm({
   openingTime,
   closingTime,
   staffTelegramChatId,
+  phones,
+  address,
 }: {
   isOpen: boolean;
   openingTime: string;
   closingTime: string;
   staffTelegramChatId?: string | null;
+  phones?: string[];
+  address?: string | null;
 }) {
   const t = useTranslations("clinic");
   const [state, formAction, pending] = useActionState<
@@ -67,6 +71,30 @@ export function ClinicSettingsForm({
           defaultValue={closingTime}
           required
         />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="phones">Phone numbers</Label>
+        <Input
+          id="phones"
+          name="phones"
+          placeholder="e.g. 067-341-4897, 09 429202228"
+          defaultValue={phones?.join(", ") ?? ""}
+        />
+        <p className="text-xs text-muted-foreground">
+          Comma-separated. Shown on the patient portal home page.
+        </p>
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor="address">Address</Label>
+        <Input
+          id="address"
+          name="address"
+          placeholder="e.g. 123 Pyay Road, Yangon"
+          defaultValue={address ?? ""}
+        />
+        <p className="text-xs text-muted-foreground">
+          Powers the &quot;Get Directions&quot; link on the patient portal.
+        </p>
       </div>
       <div className="grid gap-2">
         <Label htmlFor="staffTelegramChatId">Staff Telegram chat ID</Label>

@@ -48,7 +48,7 @@ export default async function PurchaseOrderDetailPage({
             {new Date(order.createdAt).toLocaleString()} &mdash; {order.createdBy.name}
           </p>
         </div>
-        <Badge variant={order.status === "RECEIVED" ? "default" : "outline"}>
+        <Badge variant={order.status === "RECEIVED" ? "success" : "outline"}>
           {order.status}
         </Badge>
       </div>

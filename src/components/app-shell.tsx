@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AppSidebar, type SidebarNavItem } from "@/components/app-sidebar";
 import { SignOutButton } from "@/components/sign-out-button";
+import { cn } from "@/lib/utils";
 import {
   SidebarInset,
   SidebarProvider,
@@ -14,27 +15,33 @@ export async function AppShell({
   userName,
   roleLabel,
   navItems,
+  contentClassName,
+  sidebarDark,
   children,
 }: {
   locale: string;
   userName: string;
   roleLabel: string;
   navItems: SidebarNavItem[];
+  contentClassName?: string;
+  sidebarDark?: boolean;
   children: ReactNode;
 }) {
   return (
     <SidebarProvider>
-      <AppSidebar
-        navItems={navItems}
-        userName={userName}
-        roleLabel={roleLabel}
-        signOutSlot={<SignOutButton locale={locale} />}
-      />
-      <SidebarInset>
-        <header className="flex items-center justify-between border-b px-4 py-3 md:hidden">
+      <div className={sidebarDark ? "sidebar-dark contents" : "contents"}>
+        <AppSidebar
+          navItems={navItems}
+          userName={userName}
+          roleLabel={roleLabel}
+          signOutSlot={<SignOutButton locale={locale} />}
+        />
+      </div>
+      <SidebarInset className="bg-transparent">
+        <header className="flex items-center justify-between border-b border-border/60 bg-card/40 px-4 py-3 backdrop-blur-md md:px-6">
           <SidebarTrigger />
         </header>
-        <main className="flex-1 p-4 md:p-8">{children}</main>
+        <main className={cn("flex-1 p-4 md:p-8", contentClassName)}>{children}</main>
       </SidebarInset>
     </SidebarProvider>
   );

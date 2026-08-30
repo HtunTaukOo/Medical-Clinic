@@ -12,6 +12,8 @@ model ClinicSettings {
   isOpen              Boolean  @default(true)
   openingTime         String   @default("09:00")
   closingTime         String   @default("17:00")
+  phones              String[] @default([])
+  address             String?
   staffTelegramChatId String?
   updatedAt           DateTime @updatedAt
 }
@@ -43,6 +45,7 @@ model User {
   medicalRecords    MedicalRecord[]
   attendanceRecords AttendanceRecord[]
   purchaseOrders    PurchaseOrder[]
+  announcements     Announcement[]
 }
 
 enum Gender {
@@ -55,6 +58,8 @@ model Patient {
   id             String    @id @default(cuid())
   userId         String?   @unique
   user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  patientCode    String?   @unique
+  active         Boolean   @default(true)
   name           String
   gender         Gender?
   email          String?
@@ -62,11 +67,29 @@ model Patient {
   phone          String?
   address        String?
   notes          String?
-  allergies             String?
+  bloodType      String?
+  nationality    String?
+  nrcNumber      String?
+  heightCm       Float?
+  weightKg       Float?
   insuranceProvider     String?
   insurancePolicyNumber String?
-  emergencyContactName  String?
-  emergencyContactPhone String?
+  insuranceGroupNumber  String?
+  insuranceCoverageType String?
+  insurancePolicyHolder String?
+  insuranceExpiryDate   DateTime?
+  emergencyContactName         String?
+  emergencyContactPhone        String?
+  emergencyContactRelationship String?
+  emergencyContactAltPhone     String?
+  emergencyContactAddress      String?
+  notifyAppointmentReminders  Boolean @default(true)
+  notifyLabResults            Boolean @default(true)
+  notifyPrescriptionRenewals  Boolean @default(true)
+  notifyAnnouncements         Boolean @default(false)
+  notifyPromotions            Boolean @default(false)
+  shareRecordsWithSpecialist  Boolean @default(true)
+  allowAnalytics               Boolean @default(false)
   telegramChatId String?
   createdAt      DateTime  @default(now())
 
@@ -81,6 +104,35 @@ model Patient {
   diagnoses            Diagnosis[]
   insuranceClaims      InsuranceClaim[]
   walkIns              WalkIn[]
+  allergyRecords       Allergy[]
+  notifications        Notification[]
+}
+
+enum AllergyCategory {
+  DRUG
+  FOOD
+  ENVIRONMENTAL
+  OTHER
+}
+
+enum AllergySeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
+model Allergy {
+  id         String          @id @default(cuid())
+  patientId  String
+  patient    Patient         @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  name       String
+  category   AllergyCategory @default(OTHER)
+  reaction   String?
+  severity   AllergySeverity @default(MILD)
+  firstNoted DateTime?
+  createdAt  DateTime        @default(now())
+
+  @@index([patientId])
 }
 
 model TelegramChatMessage {
@@ -100,6 +152,8 @@ model DoctorProfile {
   workingDays      Int[]   @default([1, 2, 3, 4, 5])
   workStartTime    String?
   workEndTime      String?
+  experienceYears  Int?
+  qualifications   String?
 
   appointments     Appointment[]
   prescriptions    Prescription[]
@@ -204,18 +258,31 @@ model WalkIn {
   @@index([status, createdAt])
 }
 
+enum DiagnosisStatus {
+  ACTIVE
+  RESOLVED
+}
+
+enum DiagnosisSeverity {
+  MILD
+  MODERATE
+  SEVERE
+}
+
 model Diagnosis {
-  id            String        @id @default(cuid())
+  id            String            @id @default(cuid())
   appointmentId String
-  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointment   Appointment       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   patientId     String
-  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient       Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
   doctorId      String
-  doctor        DoctorProfile @relation(fields: [doctorId], references: [id])
+  doctor        DoctorProfile     @relation(fields: [doctorId], references: [id])
   code          String?
   description   String
   notes         String?
-  createdAt     DateTime      @default(now())
+  status        DiagnosisStatus   @default(ACTIVE)
+  severity      DiagnosisSeverity?
+  createdAt     DateTime          @default(now())
 
   @@index([patientId])
   @@index([appointmentId])
@@ -324,6 +391,51 @@ model Package {
   updatedAt   DateTime @updatedAt
 }
 
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  body      String
+  category  String   @default("General")
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([active, createdAt])
+}
+
+enum NotificationCategory {
+  APPOINTMENT
+  LAB_RESULT
+  PRESCRIPTION
+  ANNOUNCEMENT
+}
+
+enum NotificationTone {
+  INFO
+  SUCCESS
+  WARNING
+}
+
+model Notification {
+  id        String               @id @default(cuid())
+  patientId String
+  patient   Patient              @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  category  NotificationCategory
+  tone      NotificationTone     @default(INFO)
+  title     String
+  body      String
+  href      String?
+  relatedId String
+  read      Boolean              @default(false)
+  createdAt DateTime             @default(now())
+
+  @@unique([patientId, relatedId])
+  @@index([patientId, read])
+  @@index([patientId, category])
+}
+
 model Medicine {
   id           String    @id @default(cuid())
   name         String
@@ -332,6 +444,10 @@ model Medicine {
   reorderLevel Int       @default(10)
   price        Decimal   @db.Decimal(10, 2)
   expiryDate   DateTime?
+  featured     Boolean   @default(false)
+  brand        String?
+  category     String?
+  description  String?
   createdAt    DateTime  @default(now())
   updatedAt    DateTime  @updatedAt
 
@@ -419,6 +535,9 @@ model PrescriptionItem {
   quantity       Int
   timesPerDay    Int?
   durationDays   Int?
+  frequency      String?
+  instructions   String?
+  refillsLeft    Int?
 
   reminders PillReminder[]
 }
@@ -539,14 +658,22 @@ model LabOrder {
   @@index([status])
 }
 
+enum LabResultStatus {
+  NORMAL
+  BORDERLINE
+  LOW
+  HIGH
+}
+
 model LabOrderItem {
-  id              String    @id @default(cuid())
+  id              String           @id @default(cuid())
   labOrderId      String
-  labOrder        LabOrder  @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
+  labOrder        LabOrder         @relation(fields: [labOrderId], references: [id], onDelete: Cascade)
   labTestId       String
-  labTest         LabTest   @relation(fields: [labTestId], references: [id])
-  price           Decimal   @db.Decimal(10, 2)
+  labTest         LabTest          @relation(fields: [labTestId], references: [id])
+  price           Decimal          @db.Decimal(10, 2)
   resultValue     String?
   resultNote      String?
+  resultStatus    LabResultStatus?
   resultEnteredAt DateTime?
 }

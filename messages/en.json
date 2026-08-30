@@ -22,7 +22,17 @@
     "labResults": "Lab Results",
     "myAvailability": "My Availability",
     "attendance": "Attendance",
-    "signOut": "Sign out"
+    "signOut": "Sign out",
+    "sectionOverview": "Overview",
+    "sectionCare": "Patient Care",
+    "sectionOperations": "Operations",
+    "sectionAdmin": "Administration",
+    "home": "Home",
+    "bookAppointment": "Book Appointment",
+    "billsPayments": "Bills & Payments",
+    "notifications": "Notifications",
+    "profile": "Profile",
+    "announcements": "Announcements"
   },
   "auth": {
     "login": "Log in",
@@ -36,7 +46,11 @@
     "phone": "Phone number",
     "haveAccount": "Already have an account?",
     "noAccount": "Need a patient account?",
-    "registerSuccess": "Account created. Please log in."
+    "registerSuccess": "Account created. Please log in.",
+    "tagline": "Trusted care for you and your family.",
+    "featureRecords": "Secure digital medical records",
+    "featureAppointments": "Book and track appointments online",
+    "featureCare": "Connect with doctors, pharmacy, and lab results"
   },
   "patients": {
     "title": "Patients",
@@ -64,6 +78,7 @@
     "title": "Appointments",
     "new": "New appointment",
     "requestNew": "Request appointment",
+    "backToProfile": "Back to doctor profile",
     "patient": "Patient",
     "doctor": "Doctor",
     "scheduledAt": "Date & time",

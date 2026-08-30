@@ -5,6 +5,13 @@ import { enterResults, type EnterResultsState } from "@/actions/lab";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 type Item = {
   id: string;
@@ -35,7 +42,7 @@ export function ResultEntryForm({
               {item.labTest.unit && ` ${item.labTest.unit}`}
             </p>
           )}
-          <div className="grid gap-2 sm:grid-cols-2">
+          <div className="grid gap-2 sm:grid-cols-3">
             <div className="grid gap-1">
               <Label htmlFor={`result-${item.id}`}>Result value</Label>
               <Input
@@ -43,6 +50,20 @@ export function ResultEntryForm({
                 name={`result-${item.id}`}
                 placeholder={item.labTest.unit ?? "Value"}
               />
+            </div>
+            <div className="grid gap-1">
+              <Label htmlFor={`status-${item.id}`}>Status</Label>
+              <Select name={`status-${item.id}`}>
+                <SelectTrigger id={`status-${item.id}`} className="w-full">
+                  <SelectValue placeholder="Not specified" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="NORMAL">Normal</SelectItem>
+                  <SelectItem value="BORDERLINE">Borderline</SelectItem>
+                  <SelectItem value="LOW">Low</SelectItem>
+                  <SelectItem value="HIGH">High</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
             <div className="grid gap-1">
               <Label htmlFor={`note-${item.id}`}>Note (optional)</Label>

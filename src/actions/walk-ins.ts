@@ -8,6 +8,7 @@ import { requireRole } from "@/lib/authz";
 import { redirect } from "@/i18n/navigation";
 import { getNextTokenNumber } from "@/lib/walk-ins";
 import { logActivity } from "@/lib/audit";
+import { generatePatientCode } from "@/lib/patients";
 
 const QUEUE_STAFF_ROLES = ["ADMIN", "RECEPTIONIST"] as const;
 
@@ -125,7 +126,11 @@ export async function convertWalkInToAppointment(
       ? parsed.data.patientId
       : (
           await tx.patient.create({
-            data: { name: parsed.data.newPatientName!, phone: walkIn.phone ?? undefined },
+            data: {
+              name: parsed.data.newPatientName!,
+              phone: walkIn.phone ?? undefined,
+              patientCode: await generatePatientCode(tx),
+            },
           })
         ).id;
 

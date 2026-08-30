@@ -495,7 +495,7 @@ export default async function StaffDashboardPage() {
                         {rx.items.map((item) => item.medicine.name).join(", ")}
                       </p>
                     </div>
-                    <Badge variant={isPaid ? "default" : "destructive"}>
+                    <Badge variant={isPaid ? "success" : "destructive"}>
                       {isPaid ? "Ready to fulfill" : "Payment required"}
                     </Badge>
                   </Link>

@@ -141,7 +141,7 @@ export default async function AppointmentDetailPage({
                     {tBilling("total")}: {Number(appointment.invoice.total).toFixed(2)}
                   </span>
                   <div className="flex items-center gap-2">
-                    <Badge variant={appointment.invoice.status === "PAID" ? "default" : "outline"}>
+                    <Badge variant={appointment.invoice.status === "PAID" ? "success" : "outline"}>
                       {appointment.invoice.status}
                     </Badge>
                     <Button asChild size="sm" variant="outline">
@@ -197,7 +197,7 @@ export default async function AppointmentDetailPage({
                   <span className="text-sm text-muted-foreground">
                     {new Date(rx.createdAt).toLocaleString()}
                   </span>
-                  <Badge variant={rx.fulfilled ? "default" : "outline"}>
+                  <Badge variant={rx.fulfilled ? "success" : "outline"}>
                     {rx.fulfilled ? "Fulfilled" : "Pending"}
                   </Badge>
                 </div>
@@ -256,7 +256,7 @@ export default async function AppointmentDetailPage({
                   <span className="text-sm text-muted-foreground">
                     {new Date(order.createdAt).toLocaleString()}
                   </span>
-                  <Badge variant={order.status === "COMPLETED" ? "default" : "outline"}>
+                  <Badge variant={order.status === "COMPLETED" ? "success" : "outline"}>
                     {order.status.replace("_", " ")}
                   </Badge>
                 </div>

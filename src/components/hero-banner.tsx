@@ -12,11 +12,13 @@ export function HeroBanner({
   subtitle,
   icon: Icon,
   actions,
+  topSlot,
 }: {
   name: string;
   subtitle?: string;
   icon?: LucideIcon;
   actions?: ReactNode;
+  topSlot?: ReactNode;
 }) {
   const now = new Date();
   const greeting = getGreeting(now.getHours());
@@ -38,6 +40,7 @@ export function HeroBanner({
         />
       )}
       <div className="relative grid gap-4">
+        {topSlot}
         <div>
           <p className="text-sm text-primary-foreground/70">{dateLabel}</p>
           <h1 className="mt-1 text-3xl font-bold">

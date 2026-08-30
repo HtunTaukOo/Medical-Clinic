@@ -20,6 +20,9 @@ type Row = {
   quantity: string;
   timesPerDay: string;
   durationDays: string;
+  frequency: string;
+  instructions: string;
+  refillsLeft: string;
 };
 
 export function PrescriptionForm({
@@ -34,7 +37,16 @@ export function PrescriptionForm({
 }) {
   const t = useTranslations("appointments");
   const [rows, setRows] = useState<Row[]>([
-    { medicineId: "", dosage: "", quantity: "1", timesPerDay: "", durationDays: "" },
+    {
+      medicineId: "",
+      dosage: "",
+      quantity: "1",
+      timesPerDay: "",
+      durationDays: "",
+      frequency: "",
+      instructions: "",
+      refillsLeft: "",
+    },
   ]);
   const [state, formAction, pending] = useActionState<
     PrescriptionFormState,
@@ -54,6 +66,9 @@ export function PrescriptionForm({
       quantity: row.quantity,
       timesPerDay: row.timesPerDay || undefined,
       durationDays: row.durationDays || undefined,
+      frequency: row.frequency || undefined,
+      instructions: row.instructions || undefined,
+      refillsLeft: row.refillsLeft || undefined,
     }));
     formData.set("items", JSON.stringify(items));
     return formAction(formData);
@@ -140,6 +155,35 @@ export function PrescriptionForm({
                 Optional — sends Telegram reminders to the patient once fulfilled
               </p>
             </div>
+            <div className="flex flex-wrap items-end gap-2">
+              <div className="grid min-w-44 gap-1">
+                <Label className="text-xs text-muted-foreground">Frequency (shown to patient)</Label>
+                <Input
+                  placeholder="e.g. 1 tablet daily"
+                  value={row.frequency}
+                  onChange={(e) => updateRow(index, { frequency: e.target.value })}
+                />
+              </div>
+              <div className="grid gap-1">
+                <Label className="text-xs text-muted-foreground">Refills</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  placeholder="e.g. 2"
+                  value={row.refillsLeft}
+                  onChange={(e) => updateRow(index, { refillsLeft: e.target.value })}
+                  className="w-24"
+                />
+              </div>
+              <div className="grid min-w-52 flex-1 gap-1">
+                <Label className="text-xs text-muted-foreground">Instructions (optional)</Label>
+                <Input
+                  placeholder="e.g. Take with food"
+                  value={row.instructions}
+                  onChange={(e) => updateRow(index, { instructions: e.target.value })}
+                />
+              </div>
+            </div>
           </div>
         ))}
         <Button
@@ -156,6 +200,9 @@ export function PrescriptionForm({
                 quantity: "1",
                 timesPerDay: "",
                 durationDays: "",
+                frequency: "",
+                instructions: "",
+                refillsLeft: "",
               },
             ])
           }

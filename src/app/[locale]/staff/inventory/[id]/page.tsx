@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { ExpiryForm } from "@/components/inventory/expiry-form";
+import { MedicinePromoForm } from "@/components/inventory/medicine-promo-form";
 import {
   Table,
   TableBody,
@@ -75,6 +76,21 @@ export default async function MedicineHistoryPage({
             currentExpiryDate={
               medicine.expiryDate ? medicine.expiryDate.toISOString().slice(0, 10) : null
             }
+          />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Patient portal pharmacy promo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <MedicinePromoForm
+            medicineId={medicine.id}
+            featured={medicine.featured}
+            brand={medicine.brand}
+            category={medicine.category}
+            description={medicine.description}
           />
         </CardContent>
       </Card>

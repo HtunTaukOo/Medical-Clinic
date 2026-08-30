@@ -73,6 +73,19 @@ export function DiagnosisForm({ appointmentId }: { appointmentId: string }) {
           />
         </div>
       </div>
+      <div className="grid gap-2">
+        <Label htmlFor="diagnosis-severity">Severity (optional)</Label>
+        <Select name="severity">
+          <SelectTrigger id="diagnosis-severity" className="w-full">
+            <SelectValue placeholder="Not specified" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="MILD">Mild</SelectItem>
+            <SelectItem value="MODERATE">Moderate</SelectItem>
+            <SelectItem value="SEVERE">Severe</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
       <div className="grid gap-1.5">
         <Label htmlFor="diagnosis-notes">Notes (optional)</Label>
         <Textarea id="diagnosis-notes" name="notes" rows={2} />

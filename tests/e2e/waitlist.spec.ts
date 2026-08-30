@@ -2,20 +2,52 @@ import { test, expect } from "@playwright/test";
 import { loginAs } from "./helpers";
 import { prisma } from "./db";
 
-function futureWeekdayAt(daysAhead: number, hours: number, minutes: number) {
-  let cursor = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
-  let weekday = cursor.getUTCDay();
-  while (weekday === 0 || weekday === 6) {
-    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
-    weekday = cursor.getUTCDay();
-  }
-  cursor.setHours(hours, minutes, 0, 0);
-  return cursor;
+// Matches CLINIC_UTC_OFFSET_MINUTES in src/lib/clinic-hours.ts (Asia/Yangon, fixed, no DST).
+const CLINIC_UTC_OFFSET_MINUTES = 6 * 60 + 30;
+
+function clinicMidnightForYMD(year: number, month: number, day: number) {
+  return new Date(Date.UTC(year, month - 1, day) - CLINIC_UTC_OFFSET_MINUTES * 60 * 1000);
 }
 
-function toDatetimeLocal(date: Date) {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+function futureWeekday(daysAhead: number) {
+  let cursor = new Date(Date.now() + daysAhead * 24 * 60 * 60 * 1000);
+  let year = cursor.getUTCFullYear();
+  let month = cursor.getUTCMonth() + 1;
+  let day = cursor.getUTCDate();
+  let weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  while (weekday === 0 || weekday === 6) {
+    cursor = new Date(cursor.getTime() + 24 * 60 * 60 * 1000);
+    year = cursor.getUTCFullYear();
+    month = cursor.getUTCMonth() + 1;
+    day = cursor.getUTCDate();
+    weekday = new Date(Date.UTC(year, month - 1, day)).getUTCDay();
+  }
+  return { year, month, day };
+}
+
+// The calendar starts on the current month and doesn't auto-navigate, so hop
+// forward with the "›" control until the target date's button appears.
+async function navigateToDate(page: import("@playwright/test").Page, isoDate: string) {
+  for (let i = 0; i < 12; i++) {
+    const btn = page.getByRole("button", { name: isoDate, exact: true });
+    if ((await btn.count()) > 0) return btn;
+    await page.getByRole("button", { name: "›", exact: true }).click();
+  }
+  throw new Error(`Could not find calendar date ${isoDate} within 12 months`);
+}
+
+// Reverses the wizard's "9:00 AM" / "11:30 PM" display format back to 24h.
+function parseTimeLabel(label: string) {
+  const m = label.match(/^(\d{1,2}):(\d{2}) (AM|PM)$/);
+  if (!m) throw new Error(`Unrecognized time label: ${label}`);
+  let hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (m[3] === "AM") {
+    if (hh === 12) hh = 0;
+  } else if (hh !== 12) {
+    hh += 12;
+  }
+  return { hh, mm };
 }
 
 test.describe("Waitlist", () => {
@@ -24,11 +56,29 @@ test.describe("Waitlist", () => {
   }) => {
     const doctor = await prisma.doctorProfile.findFirstOrThrow({
       where: { user: { email: "doctor@nca.clinic" } },
+      include: { user: true },
     });
-    const scheduledAt = futureWeekdayAt(60, 10, 0);
-    // The requested time is within the 30-minute conflict window of the existing appointment.
-    const requestedAt = new Date(scheduledAt.getTime() + 10 * 60 * 1000);
+    // A small, in-window offset (the wizard's calendar starts on the current month).
+    const { year, month, day } = futureWeekday(3);
+    const isoDate = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 
+    await loginAs(page, "patient@example.com");
+    await page.goto("/en/portal/book");
+    await page.getByRole("button", { name: new RegExp(doctor.specialty ?? "General Medicine") }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: new RegExp(doctor.user.name) }).click();
+    await page.getByRole("button", { name: "Continue" }).click();
+    await (await navigateToDate(page, isoDate)).click();
+
+    const firstSlot = page.locator("button:not([disabled])").filter({ hasText: /(AM|PM)/ }).first();
+    await expect(firstSlot).toBeVisible();
+    const label = (await firstSlot.textContent())!.trim();
+    const { hh, mm } = parseTimeLabel(label);
+    const scheduledAt = new Date(clinicMidnightForYMD(year, month, day).getTime() + (hh * 60 + mm) * 60 * 1000);
+    const requestedAt = scheduledAt;
+
+    // Simulate a race: another booking lands on this exact slot after we fetched
+    // availability but before we confirm, so our confirm hits the real conflict path.
     const occupyingAppointment = await prisma.appointment.create({
       data: {
         doctorId: doctor.id,
@@ -39,12 +89,13 @@ test.describe("Waitlist", () => {
     });
 
     try {
-      await loginAs(page, "patient@example.com");
-      await page.goto(`/en/portal/appointments/new?doctorId=${doctor.id}`);
-      await page.fill('input[name="scheduledAt"]', toDatetimeLocal(requestedAt));
-      await page.click('button:has-text("New appointment")');
+      await firstSlot.click();
+      await page.getByRole("button", { name: "Continue" }).click();
+      await page.getByRole("button", { name: "Routine Check-up" }).click();
+      await page.getByRole("button", { name: "Continue" }).click();
+      await page.getByRole("button", { name: "Confirm Booking" }).click();
 
-      await expect(page.getByText(/already has an appointment within/i)).toBeVisible();
+      await expect(page.getByText(/that time was just taken/i)).toBeVisible();
       await page.click('button:has-text("Join waitlist for this time")');
       await page.waitForLoadState("networkidle");
       await expect(page.getByText(/on the waitlist/i)).toBeVisible();

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, UnauthorizedError } from "@/lib/authz";
 import { notifyStaff, notifyPatient } from "@/lib/telegram";
+import { createNotification } from "@/lib/notifications";
 
 const LAB_STAFF_ROLES = ["ADMIN", "LAB_TECH"] as const;
 
@@ -116,7 +117,7 @@ export async function enterResults(
   const order = await prisma.labOrder.findUnique({
     where: { id: labOrderId },
     include: {
-      items: true,
+      items: { include: { labTest: true } },
       patient: true,
       doctor: { include: { user: true } },
     },
@@ -128,14 +129,20 @@ export async function enterResults(
     return { error: "Collect the sample before entering results" };
   }
 
+  const validStatuses = new Set(["NORMAL", "BORDERLINE", "LOW", "HIGH"]);
   for (const item of order.items) {
     const value = formData.get(`result-${item.id}`);
     const note = formData.get(`note-${item.id}`);
+    const status = formData.get(`status-${item.id}`);
     await prisma.labOrderItem.update({
       where: { id: item.id },
       data: {
         resultValue: typeof value === "string" && value ? value : null,
         resultNote: typeof note === "string" && note ? note : null,
+        resultStatus:
+          typeof status === "string" && validStatuses.has(status)
+            ? (status as "NORMAL" | "BORDERLINE" | "LOW" | "HIGH")
+            : null,
         resultEnteredAt: new Date(),
       },
     });
@@ -153,9 +160,20 @@ export async function enterResults(
     order.patientId,
     `🧪 Your lab results are ready. Please check your patient portal or contact the clinic.`
   );
+  const testNames = order.items.map((i) => i.labTest.name).join(", ");
+  await createNotification({
+    patientId: order.patientId,
+    category: "LAB_RESULT",
+    tone: "SUCCESS",
+    title: "Lab Results Ready",
+    body: `Your ${testNames} results are now available. View in Medical Records.`,
+    href: "/portal/medical-records",
+    relatedId: `lab-${order.id}`,
+  });
 
   revalidatePath("/staff/lab");
   revalidatePath(`/staff/lab/${labOrderId}`);
-  revalidatePath("/portal/lab-results");
+  revalidatePath("/portal/medical-records");
+  revalidatePath("/portal/notifications");
   return { success: true };
 }

@@ -36,7 +36,7 @@ export default async function PortalInvoiceDetailPage({
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("invoices")}</h1>
-        <Badge variant={invoice.status === "PAID" ? "default" : "outline"}>
+        <Badge variant={invoice.status === "PAID" ? "success" : "outline"}>
           {invoice.status}
         </Badge>
       </div>
@@ -91,7 +91,7 @@ export default async function PortalInvoiceDetailPage({
               <span>
                 {claim.insuranceProvider} &mdash; {Number(claim.claimedAmount).toFixed(2)}
               </span>
-              <Badge variant={claim.status === "PAID" ? "default" : "outline"}>
+              <Badge variant={claim.status === "PAID" ? "success" : "outline"}>
                 {claim.status}
               </Badge>
             </div>

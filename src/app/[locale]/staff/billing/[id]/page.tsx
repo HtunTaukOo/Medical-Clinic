@@ -55,7 +55,7 @@ export default async function InvoiceDetailPage({
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{invoice.patient.name}</h1>
-        <Badge variant={invoice.status === "PAID" ? "default" : "outline"}>
+        <Badge variant={invoice.status === "PAID" ? "success" : "outline"}>
           {invoice.status}
         </Badge>
       </div>
@@ -166,7 +166,7 @@ export default async function InvoiceDetailPage({
                 <span className="font-medium">
                   {claim.insuranceProvider} &mdash; {claim.policyNumber}
                 </span>
-                <Badge variant={claim.status === "PAID" ? "default" : "outline"}>
+                <Badge variant={claim.status === "PAID" ? "success" : "outline"}>
                   {claim.status}
                 </Badge>
               </div>

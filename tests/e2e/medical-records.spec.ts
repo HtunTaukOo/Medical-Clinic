@@ -35,7 +35,8 @@ test.describe("Patient medical record self-removal", () => {
 
     try {
       await loginAs(page, "patient@example.com");
-      await page.goto("/en/portal/settings");
+      await page.goto("/en/portal/medical-records");
+      await page.getByRole("tab", { name: "Documents" }).click();
 
       await expect(page.getByText("My own self-added note")).toBeVisible();
       await expect(page.getByText("Clinic-authored note")).toBeVisible();

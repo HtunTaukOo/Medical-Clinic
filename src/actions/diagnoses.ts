@@ -9,6 +9,7 @@ const diagnosisSchema = z.object({
   code: z.string().optional(),
   description: z.string().min(1),
   notes: z.string().optional(),
+  severity: z.enum(["MILD", "MODERATE", "SEVERE"]).optional(),
 });
 
 export type DiagnosisFormState = { error?: string; success?: boolean };
@@ -29,6 +30,7 @@ export async function addDiagnosis(
     code: formData.get("code") || undefined,
     description: formData.get("description"),
     notes: formData.get("notes") || undefined,
+    severity: formData.get("severity") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -42,11 +44,13 @@ export async function addDiagnosis(
       code: parsed.data.code,
       description: parsed.data.description,
       notes: parsed.data.notes,
+      severity: parsed.data.severity,
     },
   });
 
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath(`/portal/appointments/${appointmentId}`);
+  revalidatePath("/portal/medical-records");
   return { success: true };
 }
 
@@ -62,4 +66,21 @@ export async function deleteDiagnosis(diagnosisId: string) {
 
   revalidatePath(`/staff/appointments/${diagnosis.appointmentId}`);
   revalidatePath(`/portal/appointments/${diagnosis.appointmentId}`);
+  revalidatePath("/portal/medical-records");
+}
+
+export async function setDiagnosisStatus(diagnosisId: string, status: "ACTIVE" | "RESOLVED") {
+  const session = await requireRole(["DOCTOR"]);
+
+  const diagnosis = await prisma.diagnosis.findUniqueOrThrow({ where: { id: diagnosisId } });
+  if (diagnosis.doctorId !== session.user.doctorId) {
+    throw new UnauthorizedError("Not your diagnosis");
+  }
+
+  await prisma.diagnosis.update({ where: { id: diagnosisId }, data: { status } });
+
+  revalidatePath(`/staff/appointments/${diagnosis.appointmentId}`);
+  revalidatePath(`/staff/patients/${diagnosis.patientId}`);
+  revalidatePath(`/portal/appointments/${diagnosis.appointmentId}`);
+  revalidatePath("/portal/medical-records");
 }

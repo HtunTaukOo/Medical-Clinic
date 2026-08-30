@@ -2,10 +2,11 @@
 
 import type { LucideIcon } from "lucide-react";
 import {
-  HeartPulse,
+  Home,
   LayoutDashboard,
   Users,
   CalendarDays,
+  CalendarPlus,
   Receipt,
   Pill,
   UserCog,
@@ -19,6 +20,9 @@ import {
   History,
   FlaskConical,
   CalendarOff,
+  Bell,
+  CircleUserRound,
+  Megaphone,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -26,17 +30,23 @@ import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
+  SidebarGroup,
+  SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { ClinicLogo } from "@/components/clinic-logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 
 export type SidebarNavItem = {
   href: string;
   labelKey: string;
+  group?: string;
+  badge?: number;
 };
 
 const ICONS: Record<string, LucideIcon> = {
@@ -57,6 +67,12 @@ const ICONS: Record<string, LucideIcon> = {
   lab: FlaskConical,
   labResults: FlaskConical,
   myAvailability: CalendarOff,
+  home: Home,
+  bookAppointment: CalendarPlus,
+  billsPayments: Receipt,
+  notifications: Bell,
+  profile: CircleUserRound,
+  announcements: Megaphone,
 };
 
 function initials(name: string) {
@@ -83,44 +99,61 @@ export function AppSidebar({
   const tApp = useTranslations("app");
   const pathname = usePathname();
 
+  const groupKeys: (string | undefined)[] = [];
+  for (const item of navItems) {
+    if (!groupKeys.includes(item.group)) groupKeys.push(item.group);
+  }
+
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="gap-3 px-3 py-4">
-        <div className="flex items-center gap-2 px-1">
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
-            <HeartPulse className="size-5" />
-          </div>
+      <SidebarHeader className="gap-3 px-3 py-4 group-data-[collapsible=icon]:px-2">
+        <div className="flex items-center gap-2 px-1 group-data-[collapsible=icon]:px-0">
+          <ClinicLogo className="size-10 shrink-0 rounded-lg shadow-[0_0_0_1px_rgba(21,101,192,0.12),0_6px_18px_-4px_rgba(21,101,192,0.45)] group-data-[collapsible=icon]:size-8" />
           <div className="grid text-sm leading-tight group-data-[collapsible=icon]:hidden">
             <span className="font-semibold">{tApp("shortName")}</span>
-            <span className="text-xs text-muted-foreground">{roleLabel}</span>
+            <span className="text-xs text-sidebar-foreground/60">{roleLabel}</span>
           </div>
         </div>
       </SidebarHeader>
       <SidebarContent className="px-2">
-        <SidebarMenu>
-          {navItems.map((item) => {
-            const isActive =
-              pathname === item.href ||
-              (item.href !== "/staff" &&
-                item.href !== "/portal" &&
-                pathname.startsWith(item.href));
-            const Icon = ICONS[item.labelKey] ?? LayoutDashboard;
-            return (
-              <SidebarMenuItem key={item.href}>
-                <SidebarMenuButton
-                  asChild
-                  isActive={isActive}
-                  className="data-[active=true]:bg-sidebar-primary data-[active=true]:text-sidebar-primary-foreground data-[active=true]:hover:bg-sidebar-primary data-[active=true]:hover:text-sidebar-primary-foreground"
-                >
-                  <Link href={item.href}>
-                    <Icon />
-                    <span>{t(item.labelKey)}</span>
-                  </Link>
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            );
-          })}
-        </SidebarMenu>
+        {groupKeys.map((group) => (
+          <SidebarGroup key={group ?? "_"} className="p-0 py-1">
+            {group && <SidebarGroupLabel>{t(group)}</SidebarGroupLabel>}
+            <SidebarGroupContent>
+              <SidebarMenu>
+                {navItems
+                  .filter((item) => item.group === group)
+                  .map((item) => {
+                    const isActive =
+                      pathname === item.href ||
+                      (item.href !== "/staff" &&
+                        item.href !== "/portal" &&
+                        pathname.startsWith(item.href));
+                    const Icon = ICONS[item.labelKey] ?? LayoutDashboard;
+                    return (
+                      <SidebarMenuItem key={item.href}>
+                        <SidebarMenuButton
+                          asChild
+                          isActive={isActive}
+                          className="data-[active=true]:bg-sidebar-active data-[active=true]:text-sidebar-primary data-[active=true]:hover:bg-sidebar-active data-[active=true]:hover:text-sidebar-primary"
+                        >
+                          <Link href={item.href}>
+                            <Icon />
+                            <span>{t(item.labelKey)}</span>
+                            {!!item.badge && (
+                              <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-destructive text-xs font-medium text-white">
+                                {item.badge}
+                              </span>
+                            )}
+                          </Link>
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    );
+                  })}
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ))}
       </SidebarContent>
       <SidebarFooter className="gap-3 px-3 py-4">
         <div className="flex items-center gap-2 px-1 group-data-[collapsible=icon]:hidden">

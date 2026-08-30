@@ -4,51 +4,70 @@ import { STAFF_ROLES } from "@/lib/authz";
 import { AppShell, type NavItem } from "@/components/app-shell";
 
 const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
-  { href: "/staff", labelKey: "dashboard", roles: STAFF_ROLES },
+  { href: "/staff", labelKey: "dashboard", roles: STAFF_ROLES, group: "sectionOverview" },
   {
     href: "/staff/patients",
     labelKey: "patients",
     roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
+    group: "sectionCare",
   },
   {
     href: "/staff/appointments",
     labelKey: "appointments",
     roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
+    group: "sectionCare",
   },
   {
     href: "/staff/queue",
     labelKey: "queue",
     roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
+    group: "sectionCare",
   },
   {
     href: "/staff/my-availability",
     labelKey: "myAvailability",
     roles: ["DOCTOR"],
+    group: "sectionCare",
   },
   {
     href: "/staff/attendance",
     labelKey: "attendance",
     roles: STAFF_ROLES,
+    group: "sectionOperations",
   },
   {
     href: "/staff/billing",
     labelKey: "billing",
     roles: ["ADMIN", "RECEPTIONIST"],
+    group: "sectionOperations",
   },
   {
     href: "/staff/inventory",
     labelKey: "inventory",
     roles: ["ADMIN", "PHARMACIST"],
+    group: "sectionOperations",
   },
   {
     href: "/staff/lab",
     labelKey: "lab",
     roles: ["ADMIN", "LAB_TECH"],
+    group: "sectionOperations",
   },
-  { href: "/staff/users", labelKey: "staff", roles: ["ADMIN"] },
-  { href: "/staff/reports", labelKey: "reports", roles: ["ADMIN"] },
-  { href: "/staff/activity-log", labelKey: "activityLog", roles: ["ADMIN"] },
-  { href: "/staff/settings", labelKey: "settings", roles: ["ADMIN"] },
+  { href: "/staff/users", labelKey: "staff", roles: ["ADMIN"], group: "sectionAdmin" },
+  { href: "/staff/reports", labelKey: "reports", roles: ["ADMIN"], group: "sectionAdmin" },
+  {
+    href: "/staff/announcements",
+    labelKey: "announcements",
+    roles: ["ADMIN", "RECEPTIONIST"],
+    group: "sectionAdmin",
+  },
+  {
+    href: "/staff/activity-log",
+    labelKey: "activityLog",
+    roles: ["ADMIN"],
+    group: "sectionAdmin",
+  },
+  { href: "/staff/settings", labelKey: "settings", roles: ["ADMIN"], group: "sectionAdmin" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {

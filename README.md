@@ -238,10 +238,10 @@ list of specific leave days. The weekly schedule is Admin-managed from **Staff �
 (e.g. consultation fee). Leave days are the time-sensitive case, so a doctor can also manage
 their own from **My Availability** in their own console — no Admin needed to block off a sick
 day or vacation. Both surfaces edit the same data; a doctor can only add/remove their own leave
-days, not another doctor's. Patients can see a doctor's specialty, consultation fee, and
-working days/hours themselves — click through from **Find Doctors** to a doctor's profile
-(`/portal/doctors/[id]`), which also links straight to requesting an appointment with them.
-Booking respects all of this:
+days, not another doctor's. Patients pick a doctor as part of the **Book Appointment** wizard
+(`/portal/book`) — choose a specialty, then a doctor (shown with years of experience and next
+available day), then an open time slot; the slot picker only ever shows times that are actually
+bookable, computed from the same availability rules below. Booking respects all of this:
 
 - **Leave days** are a hard block for everyone — neither a patient requesting an appointment
   nor staff booking one directly can schedule a doctor on a day they're marked as on leave.
@@ -311,8 +311,8 @@ A full lab workflow, run by the **Lab Technician** role (also usable by Admin):
   note per test at `/staff/lab/[id]`, which marks the order `COMPLETED`.
 - **Report printing** — a shared, chrome-free report view at `/lab-report/[id]`
   (with a Print button) is reachable by the ordering doctor, Admin/Receptionist/Lab
-  Tech, and the patient themselves (via **Lab Results** in their portal) — anyone
-  else gets a 404.
+  Tech, and the patient themselves (via the **Lab Results** tab of **Medical Records**
+  in their portal) — anyone else gets a 404.
 - **Doctor notifications** — completing an order sends a Telegram message to the
   shared staff chat (naming the ordering doctor) and to the patient directly, via
   the same Telegram setup used elsewhere in this app.

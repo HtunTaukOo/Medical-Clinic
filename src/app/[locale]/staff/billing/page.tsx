@@ -53,7 +53,7 @@ export default async function BillingPage() {
                       </Avatar>
                       <p className="font-semibold">{invoice.patient.name}</p>
                     </div>
-                    <Badge variant={invoice.status === "PAID" ? "default" : "outline"}>
+                    <Badge variant={invoice.status === "PAID" ? "success" : "outline"}>
                       {invoice.status}
                     </Badge>
                   </div>
