@@ -146,9 +146,6 @@ export async function submitAppointmentRequest(
   reason?: string
 ): Promise<AppointmentFormState> {
   const settings = await getClinicSettings();
-  if (!settings.isOpen) {
-    return { error: "The clinic is currently closed for bookings. Please check back later." };
-  }
   if (!isWithinOpeningHours(scheduledAt, settings.openingTime, settings.closingTime)) {
     return {
       error: `Please choose a time between ${formatTime(settings.openingTime)} and ${formatTime(settings.closingTime)}.`,
@@ -372,22 +369,29 @@ export async function completeAppointment(appointmentId: string) {
   revalidatePath("/staff/queue");
 }
 
-const vitalsSchema = z.object({
+const consultationSchema = z.object({
   bpSystolic: z.coerce.number().int().positive().optional(),
   bpDiastolic: z.coerce.number().int().positive().optional(),
   heartRateBpm: z.coerce.number().int().positive().optional(),
   temperatureC: z.coerce.number().positive().optional(),
-  respiratoryRate: z.coerce.number().int().positive().optional(),
   spo2Percent: z.coerce.number().int().min(0).max(100).optional(),
+  weightKg: z.coerce.number().positive().optional(),
+  heightCm: z.coerce.number().positive().optional(),
+  chiefComplaint: z.string().optional(),
+  symptoms: z.array(z.string()).optional(),
+  physicalExam: z.string().optional(),
+  clinicalNotes: z.string().optional(),
+  treatmentPlan: z.string().optional(),
 });
 
-export type VitalsFormState = { error?: string; success?: boolean };
+export type ConsultationFormState = { error?: string; success?: boolean };
 
-export async function updateVitals(
+export async function updateConsultation(
   appointmentId: string,
-  _prevState: VitalsFormState,
+  _prevState: ConsultationFormState,
   formData: FormData
-): Promise<VitalsFormState> {
+): Promise<ConsultationFormState> {
+  const complete = formData.get("intent") === "complete";
   const session = await requireRole(["DOCTOR"]);
 
   const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId } });
@@ -395,13 +399,19 @@ export async function updateVitals(
     throw new UnauthorizedError("Not your appointment");
   }
 
-  const parsed = vitalsSchema.safeParse({
+  const parsed = consultationSchema.safeParse({
     bpSystolic: formData.get("bpSystolic") || undefined,
     bpDiastolic: formData.get("bpDiastolic") || undefined,
     heartRateBpm: formData.get("heartRateBpm") || undefined,
     temperatureC: formData.get("temperatureC") || undefined,
-    respiratoryRate: formData.get("respiratoryRate") || undefined,
     spo2Percent: formData.get("spo2Percent") || undefined,
+    weightKg: formData.get("weightKg") || undefined,
+    heightCm: formData.get("heightCm") || undefined,
+    chiefComplaint: formData.get("chiefComplaint") || undefined,
+    symptoms: formData.getAll("symptoms").map(String),
+    physicalExam: formData.get("physicalExam") || undefined,
+    clinicalNotes: formData.get("clinicalNotes") || undefined,
+    treatmentPlan: formData.get("treatmentPlan") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -414,11 +424,21 @@ export async function updateVitals(
       bpDiastolic: parsed.data.bpDiastolic ?? null,
       heartRateBpm: parsed.data.heartRateBpm ?? null,
       temperatureC: parsed.data.temperatureC ?? null,
-      respiratoryRate: parsed.data.respiratoryRate ?? null,
       spo2Percent: parsed.data.spo2Percent ?? null,
+      weightKg: parsed.data.weightKg ?? null,
+      heightCm: parsed.data.heightCm ?? null,
+      chiefComplaint: parsed.data.chiefComplaint ?? null,
+      symptoms: parsed.data.symptoms ?? [],
+      physicalExam: parsed.data.physicalExam ?? null,
+      notes: parsed.data.clinicalNotes ?? null,
+      treatmentPlan: parsed.data.treatmentPlan ?? null,
+      ...(complete ? { status: "COMPLETED" as const } : {}),
     },
   });
 
   revalidatePath(`/staff/appointments/${appointmentId}`);
+  revalidatePath("/staff/appointments");
+  revalidatePath("/staff/consultations");
+  revalidatePath("/staff");
   return { success: true };
 }

@@ -231,6 +231,13 @@ model Appointment {
   temperatureC    Decimal?       @db.Decimal(4, 1)
   respiratoryRate Int?
   spo2Percent     Int?
+  weightKg        Float?
+  heightCm        Float?
+
+  chiefComplaint String?
+  symptoms       String[] @default([])
+  physicalExam   String?
+  treatmentPlan  String?
 
   invoice       Invoice?
   prescriptions Prescription[]

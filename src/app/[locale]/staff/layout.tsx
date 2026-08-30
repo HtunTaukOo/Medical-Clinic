@@ -2,6 +2,8 @@ import { auth } from "@/auth";
 import { redirect } from "@/i18n/navigation";
 import { STAFF_ROLES } from "@/lib/authz";
 import { AppShell, type NavItem } from "@/components/app-shell";
+import { prisma } from "@/lib/prisma";
+import { todayRange } from "@/lib/queue";
 
 const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
   { href: "/staff", labelKey: "dashboard", roles: STAFF_ROLES, group: "sectionOverview" },
@@ -113,8 +115,26 @@ export default async function StaffLayout({
   }
 
   const role = session.user.role;
-  const navItems = ALL_NAV_ITEMS.filter((item) => item.roles.includes(role));
   const isDoctor = role === "DOCTOR";
+  const doctorId = session.user.doctorId;
+
+  const { start: todayStart, end: todayEnd } = todayRange();
+  const consultationsBadge =
+    isDoctor && doctorId
+      ? await prisma.appointment.count({
+          where: {
+            doctorId,
+            status: "CHECKED_IN",
+            scheduledAt: { gte: todayStart, lt: todayEnd },
+          },
+        })
+      : 0;
+
+  const navItems = ALL_NAV_ITEMS.filter((item) => item.roles.includes(role)).map((item) =>
+    item.labelKey === "consultations" && consultationsBadge > 0
+      ? { ...item, badge: consultationsBadge }
+      : item
+  );
 
   return (
     <AppShell

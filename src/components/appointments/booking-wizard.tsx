@@ -280,7 +280,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
                               Next available: {d.nextAvailability.label}
                             </span>
                           ) : (
-                            <span className="text-muted-foreground">Fully booked</span>
+                            <span className="text-muted-foreground">No upcoming availability</span>
                           )}
                         </p>
                       </div>

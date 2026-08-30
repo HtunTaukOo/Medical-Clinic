@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { getMonthGrid, dateKey, addMonths, MONTH_NAMES } from "@/lib/calendar";
 import { todayRange } from "@/lib/queue";
-import { initials } from "@/lib/format";
+import { initials, calculateAge } from "@/lib/format";
+import { isAppointmentUrgent } from "@/lib/clinical-alerts";
 import {
   confirmAppointment,
   checkInAppointment,
@@ -18,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
+import { AppointmentRow, GENDER_LETTER } from "@/components/appointments/appointment-row";
 
 const STATUS_STYLES: Record<string, string> = {
   REQUESTED: "bg-amber-100 text-amber-800",
@@ -30,8 +32,25 @@ const STATUS_STYLES: Record<string, string> = {
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const DOCTOR_TABS = ["today", "upcoming", "completed", "cancelled"] as const;
-type DoctorTab = (typeof DOCTOR_TABS)[number];
+const DOCTOR_TABS = [
+  { value: "today", label: "Today" },
+  { value: "upcoming", label: "Upcoming" },
+  { value: "completed", label: "Completed" },
+  { value: "cancelled", label: "Cancelled" },
+] as const;
+type DoctorTab = (typeof DOCTOR_TABS)[number]["value"];
+
+function getRowDisplay(
+  status: string,
+  { isInProgress, isWaiting }: { isInProgress: boolean; isWaiting: boolean }
+) {
+  if (status === "COMPLETED") return { label: "Completed", className: "bg-indigo-100 text-indigo-700" };
+  if (status === "CANCELLED") return { label: "Cancelled", className: "bg-rose-100 text-rose-700" };
+  if (status === "NO_SHOW") return { label: "No-show", className: "bg-rose-100 text-rose-700" };
+  if (isInProgress) return { label: "In Progress", className: "bg-blue-100 text-blue-700" };
+  if (isWaiting) return { label: "Waiting", className: "bg-amber-100 text-amber-700" };
+  return { label: "Scheduled", className: "bg-slate-100 text-slate-700" };
+}
 
 export default async function AppointmentsPage({
   searchParams,
@@ -44,8 +63,8 @@ export default async function AppointmentsPage({
 
   const { view: viewParam, year: yearParam, month: monthParam, tab: tabParam } =
     await searchParams;
-  const view = viewParam === "calendar" ? "calendar" : "list";
-  const tab: DoctorTab = DOCTOR_TABS.includes(tabParam as DoctorTab)
+  const view = isDoctor ? "list" : viewParam === "calendar" ? "calendar" : "list";
+  const tab: DoctorTab = DOCTOR_TABS.some(({ value }) => value === tabParam)
     ? (tabParam as DoctorTab)
     : "today";
 
@@ -56,30 +75,57 @@ export default async function AppointmentsPage({
   const appointments = await prisma.appointment.findMany({
     where: isDoctor ? { doctorId: session.user.doctorId } : undefined,
     orderBy: { scheduledAt: "desc" },
-    include: { patient: true, doctor: { include: { user: true } } },
+    include: {
+      patient: {
+        include: {
+          allergyRecords: { where: { severity: "SEVERE" }, take: 1 },
+          diagnoses: { where: { severity: "SEVERE", status: "ACTIVE" }, take: 1 },
+        },
+      },
+      doctor: { include: { user: true } },
+    },
   });
 
   const { start: todayStart, end: todayEnd } = todayRange();
-  const visibleAppointments =
-    isDoctor && view === "list"
-      ? appointments.filter((appt) => {
-          if (tab === "today") {
-            return (
-              appt.scheduledAt >= todayStart &&
-              appt.scheduledAt < todayEnd &&
-              appt.status !== "CANCELLED"
-            );
-          }
-          if (tab === "upcoming") {
-            return (
-              appt.scheduledAt >= todayEnd &&
-              (appt.status === "REQUESTED" || appt.status === "CONFIRMED")
-            );
-          }
-          if (tab === "completed") return appt.status === "COMPLETED";
-          return appt.status === "CANCELLED" || appt.status === "NO_SHOW";
-        })
-      : appointments;
+
+  function matchesTab(appt: (typeof appointments)[number], value: DoctorTab) {
+    if (value === "today") {
+      return (
+        appt.scheduledAt >= todayStart &&
+        appt.scheduledAt < todayEnd &&
+        appt.status !== "CANCELLED"
+      );
+    }
+    if (value === "upcoming") {
+      return (
+        appt.scheduledAt >= todayEnd &&
+        (appt.status === "REQUESTED" || appt.status === "CONFIRMED")
+      );
+    }
+    if (value === "completed") return appt.status === "COMPLETED";
+    return appt.status === "CANCELLED" || appt.status === "NO_SHOW";
+  }
+
+  const tabCounts: Record<DoctorTab, number> = {
+    today: appointments.filter((a) => matchesTab(a, "today")).length,
+    upcoming: appointments.filter((a) => matchesTab(a, "upcoming")).length,
+    completed: appointments.filter((a) => matchesTab(a, "completed")).length,
+    cancelled: appointments.filter((a) => matchesTab(a, "cancelled")).length,
+  };
+
+  const checkedInToday = appointments
+    .filter((a) => matchesTab(a, "today") && a.status === "CHECKED_IN")
+    .sort((a, b) => (a.checkedInAt?.getTime() ?? 0) - (b.checkedInAt?.getTime() ?? 0));
+  const inProgressApptId = checkedInToday[0]?.id ?? null;
+  const waitingApptIds = new Set(checkedInToday.slice(1).map((a) => a.id));
+
+  const doctorVisibleAppointments = appointments
+    .filter((a) => matchesTab(a, tab))
+    .sort((a, b) =>
+      tab === "completed" || tab === "cancelled"
+        ? b.scheduledAt.getTime() - a.scheduledAt.getTime()
+        : a.scheduledAt.getTime() - b.scheduledAt.getTime()
+    );
 
   const weeks = getMonthGrid(year, month);
   const byDay = new Map<string, typeof appointments>();
@@ -95,47 +141,98 @@ export default async function AppointmentsPage({
 
   return (
     <div className="grid gap-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        {session.user.role !== "DOCTOR" && (
-          <Button asChild>
-            <Link href="/staff/appointments/new">{t("new")}</Link>
-          </Button>
+      <div>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          {session.user.role !== "DOCTOR" && (
+            <Button asChild>
+              <Link href="/staff/appointments/new">{t("new")}</Link>
+            </Button>
+          )}
+        </div>
+        {isDoctor && (
+          <p className="text-sm text-muted-foreground">
+            Manage your patient appointments and consultations.
+          </p>
         )}
       </div>
 
-      <div className="flex items-center gap-2">
-        <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
-          <Link href="/staff/appointments?view=list">List</Link>
-        </Button>
-        <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
-          <Link href="/staff/appointments?view=calendar">Calendar</Link>
-        </Button>
-      </div>
+      {!isDoctor && (
+        <div className="flex items-center gap-2">
+          <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
+            <Link href="/staff/appointments?view=list">List</Link>
+          </Button>
+          <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
+            <Link href="/staff/appointments?view=calendar">Calendar</Link>
+          </Button>
+        </div>
+      )}
 
-      {isDoctor && view === "list" && (
+      {isDoctor && (
         <div className="flex flex-wrap items-center gap-2">
-          {DOCTOR_TABS.map((value) => (
-            <Button
-              key={value}
-              asChild
-              variant={tab === value ? "default" : "outline"}
-              size="sm"
-            >
-              <Link href={`/staff/appointments?view=list&tab=${value}`} className="capitalize">
-                {value}
+          {DOCTOR_TABS.map(({ value, label }) => (
+            <Button key={value} asChild variant={tab === value ? "default" : "outline"} className="gap-2">
+              <Link href={`/staff/appointments?tab=${value}`}>
+                {label}
+                <Badge
+                  variant="secondary"
+                  className={tab === value ? "bg-white/20 text-white" : undefined}
+                >
+                  {tabCounts[value]}
+                </Badge>
               </Link>
             </Button>
           ))}
         </div>
       )}
 
-      {view === "list" ? (
-        visibleAppointments.length === 0 ? (
+      {isDoctor ? (
+        <div className="grid gap-2">
+          {doctorVisibleAppointments.length === 0 ? (
+            <EmptyState icon={CalendarDays} message={t("noResults")} />
+          ) : (
+            doctorVisibleAppointments.map((appt, index) => {
+              const isInProgress = tab === "today" && appt.id === inProgressApptId;
+              const isWaiting = tab === "today" && waitingApptIds.has(appt.id);
+              const { label, className } = getRowDisplay(appt.status, { isInProgress, isWaiting });
+              const isUrgent = tab === "today" && isAppointmentUrgent(appt);
+              const age = calculateAge(appt.patient.dob);
+              const genderLetter = appt.patient.gender ? GENDER_LETTER[appt.patient.gender] : null;
+              return (
+                <AppointmentRow
+                  key={appt.id}
+                  href={`/staff/appointments/${appt.id}`}
+                  time={appt.scheduledAt.toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                  dateLabel={
+                    tab === "today"
+                      ? undefined
+                      : appt.scheduledAt.toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                        })
+                  }
+                  avatarIndex={index}
+                  patientName={appt.patient.name}
+                  age={age}
+                  genderLetter={genderLetter}
+                  reason={appt.reason ?? ""}
+                  isUrgent={isUrgent}
+                  statusLabel={label}
+                  statusClassName={className}
+                />
+              );
+            })
+          )}
+        </div>
+      ) : view === "list" ? (
+        appointments.length === 0 ? (
           <EmptyState icon={CalendarDays} message={t("noResults")} />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleAppointments.map((appt) => (
+            {appointments.map((appt) => (
               <Card key={appt.id}>
                 <CardContent className="grid gap-3">
                   <div className="flex items-start justify-between gap-2">

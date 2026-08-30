@@ -16,13 +16,37 @@ import { OrderLabTestsForm } from "@/components/lab/order-lab-tests-form";
 import { DiagnosisForm } from "@/components/diagnoses/diagnosis-form";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
 import { AllergyList } from "@/components/allergies/allergy-list";
-import { VitalSignsForm } from "@/components/appointments/vital-signs-form";
+import { ConsultationForm, CONSULTATION_FORM_ID } from "@/components/consultations/consultation-form";
+import { ConsultationSidebar } from "@/components/consultations/consultation-sidebar";
+import { ConsultationQuickActions } from "@/components/consultations/consultation-quick-actions";
 import { dateKey } from "@/lib/calendar";
+import { calculateAge } from "@/lib/format";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "@/i18n/navigation";
-import { CalendarPlus } from "lucide-react";
+import { CalendarPlus, ChevronLeft } from "lucide-react";
+import { initials } from "@/lib/format";
+import { GENDER_LETTER, AVATAR_COLORS } from "@/components/appointments/appointment-row";
+
+const CONSULTATION_STATUS_LABEL: Record<string, string> = {
+  REQUESTED: "Requested",
+  CONFIRMED: "Confirmed",
+  CHECKED_IN: "In Progress",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  NO_SHOW: "No-show",
+};
+
+const CONSULTATION_STATUS_CLASS: Record<string, string> = {
+  REQUESTED: "bg-slate-100 text-slate-700",
+  CONFIRMED: "bg-slate-100 text-slate-700",
+  CHECKED_IN: "bg-blue-100 text-blue-700",
+  COMPLETED: "bg-indigo-100 text-indigo-700",
+  CANCELLED: "bg-rose-100 text-rose-700",
+  NO_SHOW: "bg-rose-100 text-rose-700",
+};
 
 export default async function AppointmentDetailPage({
   params,
@@ -37,7 +61,22 @@ export default async function AppointmentDetailPage({
   const appointment = await prisma.appointment.findUnique({
     where: { id },
     include: {
-      patient: { include: { allergyRecords: { orderBy: { createdAt: "desc" } } } },
+      patient: {
+        include: {
+          allergyRecords: { orderBy: { createdAt: "desc" } },
+          diagnoses: { where: { status: "ACTIVE" }, orderBy: { createdAt: "desc" } },
+          prescriptions: {
+            orderBy: { createdAt: "desc" },
+            include: { items: { include: { medicine: true } } },
+          },
+          appointments: {
+            where: { status: "COMPLETED", NOT: { id } },
+            orderBy: { scheduledAt: "desc" },
+            take: 1,
+            select: { scheduledAt: true, notes: true },
+          },
+        },
+      },
       doctor: { include: { user: true } },
       prescriptions: { include: { items: { include: { medicine: true } } } },
       invoice: true,
@@ -70,6 +109,218 @@ export default async function AppointmentDetailPage({
     : [];
 
   const boundCreatePrescription = createPrescription.bind(null, appointment.id);
+
+  if (isOwnDoctor && canWriteNote) {
+    const age = calculateAge(appointment.patient.dob);
+    const genderLetter = appointment.patient.gender ? GENDER_LETTER[appointment.patient.gender] : null;
+    const now = new Date();
+    const activeMedications = appointment.patient.prescriptions
+      .filter((rx) => {
+        const maxDuration = Math.max(0, ...rx.items.map((i) => i.durationDays ?? 0));
+        if (maxDuration === 0) return false;
+        const start = rx.fulfilledAt ?? rx.createdAt;
+        return start.getTime() + maxDuration * 86400000 > now.getTime();
+      })
+      .flatMap((rx) => rx.items);
+    const lastVisit = appointment.patient.appointments[0];
+    const lastVisitNote = lastVisit?.notes
+      ? { note: lastVisit.notes, date: lastVisit.scheduledAt }
+      : null;
+    const isCompleted = appointment.status === "COMPLETED";
+
+    return (
+      <div className="grid gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Link
+              href="/staff/consultations"
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+            >
+              <ChevronLeft className="size-4" />
+              Back
+            </Link>
+            <Avatar className="size-9">
+              <AvatarFallback className={AVATAR_COLORS[0]}>
+                {initials(appointment.patient.name)}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-semibold">{appointment.patient.name}</span>
+                <Badge variant="outline" className={CONSULTATION_STATUS_CLASS[appointment.status]}>
+                  {CONSULTATION_STATUS_LABEL[appointment.status]}
+                </Badge>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                {[age != null ? `${age}yo` : null, genderLetter, appointment.patient.bloodType]
+                  .filter(Boolean)
+                  .join(" · ")}
+                {appointment.reason ? ` · ${appointment.reason}` : ""}
+              </p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button
+              type="submit"
+              form={CONSULTATION_FORM_ID}
+              name="intent"
+              value="draft"
+              variant="outline"
+            >
+              Save Draft
+            </Button>
+            {!isCompleted && (
+              <Button type="submit" form={CONSULTATION_FORM_ID} name="intent" value="complete">
+                Complete
+              </Button>
+            )}
+          </div>
+        </div>
+
+        <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
+          <ConsultationSidebar
+            allergies={appointment.patient.allergyRecords}
+            activeConditions={appointment.patient.diagnoses}
+            currentMedications={activeMedications}
+            lastVisitNote={lastVisitNote}
+          />
+
+          <div className="grid gap-8">
+            <ConsultationForm
+              appointmentId={appointment.id}
+              defaultValues={{
+                bpSystolic: appointment.bpSystolic,
+                bpDiastolic: appointment.bpDiastolic,
+                heartRateBpm: appointment.heartRateBpm,
+                temperatureC: appointment.temperatureC ? Number(appointment.temperatureC) : null,
+                spo2Percent: appointment.spo2Percent,
+                weightKg: appointment.weightKg,
+                heightCm: appointment.heightCm,
+                chiefComplaint: appointment.chiefComplaint,
+                symptoms: appointment.symptoms,
+                physicalExam: appointment.physicalExam,
+                clinicalNotes: appointment.notes,
+                treatmentPlan: appointment.treatmentPlan,
+              }}
+              diagnosisSlot={
+                <section>
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                      5
+                    </span>
+                    <h2 className="font-semibold">Diagnosis</h2>
+                  </div>
+                  <div className="grid gap-4">
+                    <DiagnosisList diagnoses={appointment.diagnoses} canDelete={canPrescribe} />
+                    {canPrescribe && <DiagnosisForm appointmentId={appointment.id} />}
+                  </div>
+                </section>
+              }
+            />
+
+            {appointment.prescriptions.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-semibold">Prescriptions on this visit</p>
+                <div className="grid gap-3">
+                  {appointment.prescriptions.map((rx) => (
+                    <div key={rx.id} className="rounded-md border p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(rx.createdAt).toLocaleString()}
+                        </span>
+                        <Badge variant={rx.fulfilled ? "success" : "outline"}>
+                          {rx.fulfilled ? "Fulfilled" : "Pending"}
+                        </Badge>
+                      </div>
+                      <ul className="text-sm">
+                        {rx.items.map((item) => (
+                          <li key={item.id}>
+                            {item.medicine.name} &mdash; {item.dosage} x{item.quantity}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {appointment.labOrders.length > 0 && (
+              <div>
+                <p className="mb-2 text-sm font-semibold">Lab orders on this visit</p>
+                <div className="grid gap-3">
+                  {appointment.labOrders.map((order) => (
+                    <div key={order.id} className="rounded-md border p-3">
+                      <div className="mb-2 flex items-center justify-between">
+                        <span className="text-sm text-muted-foreground">
+                          {new Date(order.createdAt).toLocaleString()}
+                        </span>
+                        <Badge variant={order.status === "COMPLETED" ? "success" : "outline"}>
+                          {order.status.replace("_", " ")}
+                        </Badge>
+                      </div>
+                      <ul className="text-sm">
+                        {order.items.map((item) => (
+                          <li key={item.id}>{item.labTest.name}</li>
+                        ))}
+                      </ul>
+                      {order.status === "COMPLETED" && (
+                        <Link
+                          href={`/lab-report/${order.id}`}
+                          className="text-sm underline text-muted-foreground"
+                        >
+                          View report
+                        </Link>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {canPrescribe && (
+              <ConsultationQuickActions
+                followUpHref={`/staff/appointments/new?patientId=${appointment.patientId}`}
+                prescribeSlot={
+                  <PrescriptionForm
+                    action={boundCreatePrescription}
+                    medicines={medicines.map((m) => ({ id: m.id, name: m.name, unit: m.unit }))}
+                  />
+                }
+                labSlot={
+                  <OrderLabTestsForm
+                    appointmentId={appointment.id}
+                    tests={labTests.map((test) => ({
+                      id: test.id,
+                      name: test.name,
+                      price: Number(test.price),
+                    }))}
+                  />
+                }
+              />
+            )}
+
+            <div className="flex flex-wrap justify-end gap-2 border-t pt-4">
+              <Button
+                type="submit"
+                form={CONSULTATION_FORM_ID}
+                name="intent"
+                value="draft"
+                variant="outline"
+              >
+                Save Draft
+              </Button>
+              {!isCompleted && (
+                <Button type="submit" form={CONSULTATION_FORM_ID} name="intent" value="complete">
+                  Complete Consultation
+                </Button>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid gap-6">
@@ -190,29 +441,14 @@ export default async function AppointmentDetailPage({
             <CardTitle>Vital Signs</CardTitle>
           </CardHeader>
           <CardContent>
-            {canWriteNote ? (
-              <VitalSignsForm
-                appointmentId={appointment.id}
-                defaultValues={{
-                  bpSystolic: appointment.bpSystolic,
-                  bpDiastolic: appointment.bpDiastolic,
-                  heartRateBpm: appointment.heartRateBpm,
-                  temperatureC: appointment.temperatureC ? Number(appointment.temperatureC) : null,
-                  respiratoryRate: appointment.respiratoryRate,
-                  spo2Percent: appointment.spo2Percent,
-                }}
-              />
-            ) : (
-              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
-                {appointment.bpSystolic && appointment.bpDiastolic && (
-                  <p>BP: {appointment.bpSystolic}/{appointment.bpDiastolic} mmHg</p>
-                )}
-                {appointment.heartRateBpm && <p>HR: {appointment.heartRateBpm} bpm</p>}
-                {appointment.temperatureC && <p>Temp: {Number(appointment.temperatureC)}°C</p>}
-                {appointment.respiratoryRate && <p>RR: {appointment.respiratoryRate}/min</p>}
-                {appointment.spo2Percent && <p>SpO2: {appointment.spo2Percent}%</p>}
-              </div>
-            )}
+            <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+              {appointment.bpSystolic && appointment.bpDiastolic && (
+                <p>BP: {appointment.bpSystolic}/{appointment.bpDiastolic} mmHg</p>
+              )}
+              {appointment.heartRateBpm && <p>HR: {appointment.heartRateBpm} bpm</p>}
+              {appointment.temperatureC && <p>Temp: {Number(appointment.temperatureC)}°C</p>}
+              {appointment.spo2Percent && <p>SpO2: {appointment.spo2Percent}%</p>}
+            </div>
           </CardContent>
         </Card>
       )}

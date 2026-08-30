@@ -21,9 +21,6 @@ export async function isDayBookable(
   month: number,
   day: number
 ): Promise<boolean> {
-  const settings = await getClinicSettings();
-  if (!settings.isOpen) return false;
-
   const dayStart = clinicMidnightForYMD(year, month, day);
   if (await isDoctorOnLeave(doctor.id, dayStart)) return false;
   if (!isWorkingDay(doctor.workingDays, dayStart)) return false;

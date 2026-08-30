@@ -49,14 +49,27 @@ export default async function PrescriptionsPage() {
 
       <Tabs defaultValue="create">
         <TabsList>
-          <TabsTrigger value="create">Create Prescription</TabsTrigger>
-          <TabsTrigger value="active">
+          <TabsTrigger
+            value="create"
+            className="data-active:bg-primary data-active:text-primary-foreground"
+          >
+            Create Prescription
+          </TabsTrigger>
+          <TabsTrigger
+            value="active"
+            className="data-active:bg-primary data-active:text-primary-foreground"
+          >
             Active
             <Badge variant="secondary" className="ml-1">
               {active.length}
             </Badge>
           </TabsTrigger>
-          <TabsTrigger value="history">History</TabsTrigger>
+          <TabsTrigger
+            value="history"
+            className="data-active:bg-primary data-active:text-primary-foreground"
+          >
+            History
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="create">
