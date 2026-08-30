@@ -23,17 +23,28 @@ const STATUS_STYLES: Record<string, string> = {
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const APPOINTMENT_TABS = ["upcoming", "completed", "cancelled"] as const;
+type AppointmentTab = (typeof APPOINTMENT_TABS)[number];
+
 export default async function PortalAppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; year?: string; month?: string }>;
+  searchParams: Promise<{ view?: string; year?: string; month?: string; tab?: string }>;
 }) {
   const session = await auth();
   const t = await getTranslations("appointments");
   const patientId = session?.user.patientId;
 
-  const { view: viewParam, year: yearParam, month: monthParam } = await searchParams;
+  const {
+    view: viewParam,
+    year: yearParam,
+    month: monthParam,
+    tab: tabParam,
+  } = await searchParams;
   const view = viewParam === "calendar" ? "calendar" : "list";
+  const tab: AppointmentTab = APPOINTMENT_TABS.includes(tabParam as AppointmentTab)
+    ? (tabParam as AppointmentTab)
+    : "upcoming";
 
   const now = new Date();
   const year = yearParam ? Number(yearParam) : now.getFullYear();
@@ -46,6 +57,19 @@ export default async function PortalAppointmentsPage({
         include: { doctor: { include: { user: true } } },
       })
     : [];
+
+  const visibleAppointments =
+    view === "list"
+      ? appointments.filter((appt) => {
+          if (tab === "completed") return appt.status === "COMPLETED";
+          if (tab === "cancelled") return appt.status === "CANCELLED" || appt.status === "NO_SHOW";
+          return (
+            appt.status === "REQUESTED" ||
+            appt.status === "CONFIRMED" ||
+            appt.status === "CHECKED_IN"
+          );
+        })
+      : appointments;
 
   const waitlistEntries = patientId
     ? await prisma.waitlist.findMany({
@@ -146,12 +170,29 @@ export default async function PortalAppointmentsPage({
         </Button>
       </div>
 
+      {view === "list" && (
+        <div className="flex flex-wrap items-center gap-2">
+          {APPOINTMENT_TABS.map((value) => (
+            <Button
+              key={value}
+              asChild
+              variant={tab === value ? "default" : "outline"}
+              size="sm"
+            >
+              <Link href={`/portal/appointments?view=list&tab=${value}`} className="capitalize">
+                {value}
+              </Link>
+            </Button>
+          ))}
+        </div>
+      )}
+
       {view === "list" ? (
-        appointments.length === 0 ? (
+        visibleAppointments.length === 0 ? (
           <EmptyState icon={CalendarDays} message={t("noResults")} />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {appointments.map((appt) => {
+            {visibleAppointments.map((appt) => {
               const position = queuePositions.get(appt.id);
               const canSelfCheckIn =
                 appt.status === "CONFIRMED" && isWithinSelfCheckInWindow(appt.scheduledAt);

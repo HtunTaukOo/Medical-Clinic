@@ -15,20 +15,32 @@ export default async function PatientsPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
+  const session = await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
   const t = await getTranslations("patients");
   const { q } = await searchParams;
+  const doctorId = session.user.doctorId;
 
-  const patients = await prisma.patient.findMany({
-    where: q
+  const searchFilter = q
+    ? {
+        OR: [
+          { name: { contains: q, mode: "insensitive" as const } },
+          { phone: { contains: q, mode: "insensitive" as const } },
+          { email: { contains: q, mode: "insensitive" as const } },
+        ],
+      }
+    : {};
+  const scopeFilter =
+    session.user.role === "DOCTOR" && doctorId
       ? {
           OR: [
-            { name: { contains: q, mode: "insensitive" } },
-            { phone: { contains: q, mode: "insensitive" } },
-            { email: { contains: q, mode: "insensitive" } },
+            { appointments: { some: { doctorId } } },
+            { walkIns: { some: { doctorId } } },
           ],
         }
-      : undefined,
+      : {};
+
+  const patients = await prisma.patient.findMany({
+    where: { AND: [searchFilter, scopeFilter] },
     orderBy: { createdAt: "desc" },
   });
 

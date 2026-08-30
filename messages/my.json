@@ -32,7 +32,11 @@
     "billsPayments": "ငွေတောင်းခံမှုနှင့် ငွေပေးချေမှု",
     "notifications": "အသိပေးချက်များ",
     "profile": "ကိုယ်ရေးအချက်အလက်",
-    "announcements": "ကြေညာချက်များ"
+    "announcements": "ကြေညာချက်များ",
+    "myPatients": "ကျွန်ုပ်၏လူနာများ",
+    "consultations": "ဆေးဆွေးနွေးမှုများ",
+    "prescriptions": "ဆေးညွှန်းများ",
+    "schedule": "အချိန်ဇယား"
   },
   "auth": {
     "login": "ဝင်ရောက်ရန်",

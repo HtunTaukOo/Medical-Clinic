@@ -167,7 +167,7 @@ export async function addDoctorLeave(
   });
 
   revalidatePath(`/staff/users/${doctorId}/availability`);
-  revalidatePath("/staff/my-availability");
+  revalidatePath("/staff/schedule");
   return { success: true };
 }
 
@@ -177,7 +177,7 @@ export async function removeDoctorLeave(leaveId: string) {
 
   await prisma.doctorLeave.delete({ where: { id: leaveId } });
   revalidatePath(`/staff/users/${leave.doctorId}/availability`);
-  revalidatePath("/staff/my-availability");
+  revalidatePath("/staff/schedule");
 }
 
 const setPasswordSchema = z.object({
@@ -237,4 +237,87 @@ export async function toggleStaffActive(userId: string) {
   });
 
   revalidatePath("/staff/users");
+}
+
+const ownNameSchema = z.object({ name: z.string().min(1) });
+
+export type UpdateOwnNameState = { error?: string; success?: boolean };
+
+export async function updateOwnName(
+  _prevState: UpdateOwnNameState,
+  formData: FormData
+): Promise<UpdateOwnNameState> {
+  const session = await requireRole(["DOCTOR"]);
+
+  const parsed = ownNameSchema.safeParse({ name: formData.get("name") });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { name: parsed.data.name },
+  });
+
+  revalidatePath("/staff/profile");
+  return { success: true };
+}
+
+const ownDoctorProfileSchema = z.object({
+  specialty: z.string().optional(),
+  qualifications: z.string().optional(),
+  experienceYears: z.coerce.number().int().nonnegative().optional(),
+});
+
+export type UpdateOwnDoctorProfileState = { error?: string; success?: boolean };
+
+export async function updateOwnDoctorProfile(
+  _prevState: UpdateOwnDoctorProfileState,
+  formData: FormData
+): Promise<UpdateOwnDoctorProfileState> {
+  const session = await requireRole(["DOCTOR"]);
+  const doctorId = session.user.doctorId;
+  if (!doctorId) throw new UnauthorizedError("No doctor profile");
+
+  const parsed = ownDoctorProfileSchema.safeParse({
+    specialty: formData.get("specialty") || undefined,
+    qualifications: formData.get("qualifications") || undefined,
+    experienceYears: formData.get("experienceYears") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.doctorProfile.update({
+    where: { id: doctorId },
+    data: {
+      specialty: parsed.data.specialty ?? null,
+      qualifications: parsed.data.qualifications ?? null,
+      experienceYears: parsed.data.experienceYears ?? null,
+    },
+  });
+
+  revalidatePath("/staff/profile");
+  return { success: true };
+}
+
+export type DoctorNotificationField =
+  | "notifyNewAppointments"
+  | "notifyLabResults"
+  | "notifyAnnouncements";
+
+export async function updateDoctorNotificationSetting(
+  field: DoctorNotificationField,
+  value: boolean
+) {
+  const session = await requireRole(["DOCTOR"]);
+  const doctorId = session.user.doctorId;
+  if (!doctorId) throw new UnauthorizedError("No doctor profile");
+
+  await prisma.doctorProfile.update({
+    where: { id: doctorId },
+    data: { [field]: value },
+  });
+
+  revalidatePath("/staff/profile");
 }

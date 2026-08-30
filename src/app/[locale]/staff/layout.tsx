@@ -8,7 +8,7 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
   {
     href: "/staff/patients",
     labelKey: "patients",
-    roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
+    roles: ["ADMIN", "RECEPTIONIST"],
     group: "sectionCare",
   },
   {
@@ -18,15 +18,33 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
     group: "sectionCare",
   },
   {
-    href: "/staff/queue",
-    labelKey: "queue",
-    roles: ["ADMIN", "DOCTOR", "RECEPTIONIST"],
+    href: "/staff/patients",
+    labelKey: "myPatients",
+    roles: ["DOCTOR"],
     group: "sectionCare",
   },
   {
-    href: "/staff/my-availability",
-    labelKey: "myAvailability",
+    href: "/staff/consultations",
+    labelKey: "consultations",
     roles: ["DOCTOR"],
+    group: "sectionCare",
+  },
+  {
+    href: "/staff/prescriptions",
+    labelKey: "prescriptions",
+    roles: ["DOCTOR"],
+    group: "sectionCare",
+  },
+  {
+    href: "/staff/schedule",
+    labelKey: "schedule",
+    roles: ["DOCTOR"],
+    group: "sectionCare",
+  },
+  {
+    href: "/staff/queue",
+    labelKey: "queue",
+    roles: ["ADMIN", "RECEPTIONIST"],
     group: "sectionCare",
   },
   {
@@ -68,6 +86,7 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
     group: "sectionAdmin",
   },
   { href: "/staff/settings", labelKey: "settings", roles: ["ADMIN"], group: "sectionAdmin" },
+  { href: "/staff/profile", labelKey: "profile", roles: ["DOCTOR"], group: "sectionAdmin" },
 ];
 
 const ROLE_LABELS: Record<string, string> = {
@@ -95,6 +114,7 @@ export default async function StaffLayout({
 
   const role = session.user.role;
   const navItems = ALL_NAV_ITEMS.filter((item) => item.roles.includes(role));
+  const isDoctor = role === "DOCTOR";
 
   return (
     <AppShell
@@ -102,6 +122,8 @@ export default async function StaffLayout({
       userName={session.user.name ?? ""}
       roleLabel={ROLE_LABELS[role] ?? "Staff"}
       navItems={navItems}
+      sidebarDark={isDoctor}
+      contentClassName={isDoctor ? "mx-auto w-full max-w-5xl" : undefined}
     >
       {children}
     </AppShell>

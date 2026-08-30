@@ -17,6 +17,9 @@ import {
   TestTube,
   CheckCircle2,
   Megaphone,
+  AlertTriangle,
+  Phone,
+  ClipboardPlus,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
@@ -29,8 +32,10 @@ import { EmptyState } from "@/components/empty-state";
 import { getDisplayFirstName } from "@/lib/format";
 import { todayRange } from "@/lib/queue";
 import { getExpiryStatus } from "@/lib/inventory";
+import { getClinicSettings, isWithinOpeningHours, formatTime } from "@/lib/clinic-hours";
 import { HeroBanner } from "@/components/hero-banner";
 import { StatTile } from "@/components/stat-tile";
+import { ClinicLogo } from "@/components/clinic-logo";
 
 const ROLE_ICON: Record<string, LucideIcon> = {
   ADMIN: ShieldCheck,
@@ -64,6 +69,9 @@ export default async function StaffDashboardPage() {
     upNextMine,
     myPatientsSeen,
     pendingLabOrdersMine,
+    completedTodayMine,
+    urgentPatientsMine,
+    clinicSettings,
     waitingAppointments,
     waitingWalkIns,
     checkedInNow,
@@ -119,6 +127,35 @@ export default async function StaffDashboardPage() {
           where: { doctorId, status: { in: ["ORDERED", "SAMPLE_COLLECTED"] } },
         })
       : Promise.resolve(0),
+    role === "DOCTOR" && doctorId
+      ? prisma.appointment.count({
+          where: {
+            doctorId,
+            scheduledAt: { gte: todayStart, lt: todayEnd },
+            status: "COMPLETED",
+          },
+        })
+      : Promise.resolve(0),
+    role === "DOCTOR" && doctorId
+      ? prisma.patient.findMany({
+          where: {
+            appointments: {
+              some: {
+                doctorId,
+                scheduledAt: { gte: todayStart, lt: todayEnd },
+                status: { not: "CANCELLED" },
+              },
+            },
+            OR: [
+              { allergyRecords: { some: { severity: "SEVERE" } } },
+              { diagnoses: { some: { severity: "SEVERE", status: "ACTIVE" } } },
+            ],
+          },
+          select: { id: true, name: true },
+          take: 5,
+        })
+      : Promise.resolve([]),
+    role === "DOCTOR" ? getClinicSettings() : Promise.resolve(null),
     role === "RECEPTIONIST"
       ? prisma.appointment.findMany({
           where: { status: "CONFIRMED", scheduledAt: { gte: todayStart, lt: todayEnd } },
@@ -216,6 +253,12 @@ export default async function StaffDashboardPage() {
     .slice(0, 5);
 
   const firstName = session?.user.name ? getDisplayFirstName(session.user.name) : "";
+  const now = new Date();
+  const greeting = now.getHours() < 12 ? "Good morning" : now.getHours() < 18 ? "Good afternoon" : "Good evening";
+  const openNow =
+    !!clinicSettings &&
+    clinicSettings.isOpen &&
+    isWithinOpeningHours(now, clinicSettings.openingTime, clinicSettings.closingTime);
 
   let subtitle = "";
   if (role === "ADMIN") {
@@ -232,6 +275,8 @@ export default async function StaffDashboardPage() {
 
   return (
     <div className="grid gap-6">
+      {role !== "DOCTOR" && (
+      <>
       <HeroBanner
         name={firstName}
         subtitle={subtitle}
@@ -258,16 +303,6 @@ export default async function StaffDashboardPage() {
                 <Link href="/staff/reports">{t("nav.reports")}</Link>
               </Button>
             )}
-            {role === "DOCTOR" && (
-              <>
-                <Button asChild variant="secondary">
-                  <Link href="/staff/appointments">{t("appointments.title")}</Link>
-                </Button>
-                <Button asChild variant="outline" className={OUTLINE_ON_PRIMARY}>
-                  <Link href="/staff/queue">{t("nav.queue")}</Link>
-                </Button>
-              </>
-            )}
             {role === "PHARMACIST" && (
               <>
                 <Button asChild variant="secondary">
@@ -289,24 +324,6 @@ export default async function StaffDashboardPage() {
         }
       />
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {role === "DOCTOR" && (
-          <>
-            <StatTile icon={Users} value={myPatientsCount} label="My Patients" color="blue" />
-            <StatTile
-              icon={CalendarDays}
-              value={todaysAppointmentsMine}
-              label="Today's Appointments"
-              color="emerald"
-            />
-            <StatTile icon={Clock} value={upNextMine.length} label="Waiting Now" color="amber" />
-            <StatTile
-              icon={TestTube}
-              value={pendingLabOrdersMine}
-              label="Pending Lab Results"
-              color="purple"
-            />
-          </>
-        )}
         {role === "RECEPTIONIST" && (
           <>
             <StatTile
@@ -389,6 +406,176 @@ export default async function StaffDashboardPage() {
           </>
         )}
       </div>
+      </>
+      )}
+
+      {role === "DOCTOR" && (
+        <>
+          <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary-mid via-primary to-navy p-6 text-white shadow-sm sm:p-8">
+            <Stethoscope
+              strokeWidth={1.5}
+              className="pointer-events-none absolute top-1/2 -right-10 size-56 -translate-y-1/2 text-white/5"
+            />
+            <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-start">
+              <div className="flex items-center gap-4">
+                <ClinicLogo className="size-16 shrink-0 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.25)]" />
+                <div className="grid gap-2">
+                  <Badge
+                    className={
+                      openNow
+                        ? "w-fit gap-1.5 border-emerald-300/30 bg-emerald-500/20 text-emerald-300"
+                        : "w-fit gap-1.5 border-red-300/30 bg-red-500/20 text-red-300"
+                    }
+                  >
+                    <span className={`size-1.5 rounded-full ${openNow ? "bg-emerald-400" : "bg-red-400"}`} />
+                    {openNow ? "Open Now" : "Closed Now"}
+                  </Badge>
+                  <h1 className="text-2xl font-bold">{t("app.shortName")}</h1>
+                  {clinicSettings && (
+                    <p className="text-sm text-white/80">
+                      Hours today: {formatTime(clinicSettings.openingTime)} –{" "}
+                      {formatTime(clinicSettings.closingTime)}
+                    </p>
+                  )}
+                  {clinicSettings && clinicSettings.phones.length > 0 && (
+                    <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/80">
+                      {clinicSettings.phones.map((phone) => (
+                        <span key={phone} className="flex items-center gap-1.5">
+                          <Phone className="size-3.5" />
+                          {phone}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="flex shrink-0 flex-col gap-2 sm:w-48">
+                <Button asChild className="bg-white text-blue-900 hover:bg-white/90">
+                  <Link href="/staff/appointments">{t("appointments.title")}</Link>
+                </Button>
+                <Button
+                  asChild
+                  variant="outline"
+                  className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                >
+                  <Link href="/staff/consultations">Consultations</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div>
+              <p className="text-sm text-muted-foreground">
+                {now.toLocaleDateString(undefined, {
+                  weekday: "long",
+                  month: "long",
+                  day: "numeric",
+                })}
+              </p>
+              <h2 className="text-2xl font-bold">
+                {greeting}
+                {firstName ? `, ${firstName}` : ""} 👋
+              </h2>
+              <p className="text-sm text-muted-foreground">{subtitle}</p>
+            </div>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            <Card className="border-none bg-blue-50 shadow-none dark:bg-blue-950/40">
+              <CardContent className="flex items-start justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
+                    {myPatientsCount}
+                  </p>
+                  <p className="text-sm text-blue-900/70 dark:text-blue-100/70">My Patients</p>
+                </div>
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
+                  <Users className="size-4" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-none bg-emerald-50 shadow-none dark:bg-emerald-950/40">
+              <CardContent className="flex items-start justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
+                    {todaysAppointmentsMine}
+                  </p>
+                  <p className="text-sm text-emerald-900/70 dark:text-emerald-100/70">
+                    Today&apos;s Appointments
+                  </p>
+                </div>
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                  <CalendarDays className="size-4" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-none bg-amber-50 shadow-none dark:bg-amber-950/40">
+              <CardContent className="flex items-start justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-amber-900 dark:text-amber-100">
+                    {upNextMine.length}
+                  </p>
+                  <p className="text-sm text-amber-900/70 dark:text-amber-100/70">Waiting Now</p>
+                </div>
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-600 text-white">
+                  <Clock className="size-4" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-none bg-emerald-50 shadow-none dark:bg-emerald-950/40">
+              <CardContent className="flex items-start justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
+                    {completedTodayMine}
+                  </p>
+                  <p className="text-sm text-emerald-900/70 dark:text-emerald-100/70">
+                    Completed Consultations
+                  </p>
+                </div>
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
+                  <CheckCircle2 className="size-4" />
+                </div>
+              </CardContent>
+            </Card>
+            <Card className="border-none bg-purple-50 shadow-none dark:bg-purple-950/40">
+              <CardContent className="flex items-start justify-between">
+                <div>
+                  <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
+                    {pendingLabOrdersMine}
+                  </p>
+                  <p className="text-sm text-purple-900/70 dark:text-purple-100/70">
+                    Pending Lab Results
+                  </p>
+                </div>
+                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-purple-600 text-white">
+                  <TestTube className="size-4" />
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {[
+              { icon: CalendarDays, label: "Appointments", href: "/staff/appointments" },
+              { icon: ClipboardPlus, label: "Consultations", href: "/staff/consultations" },
+              { icon: Pill, label: "Prescriptions", href: "/staff/prescriptions" },
+              { icon: CalendarClock, label: "Schedule", href: "/staff/schedule" },
+            ].map(({ icon: Icon, label, href }) => (
+              <Link key={label} href={href}>
+                <Card className="items-center py-6 text-center transition-colors hover:bg-muted/50">
+                  <CardContent className="grid justify-items-center gap-2">
+                    <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
+                      <Icon className="size-5" />
+                    </div>
+                    <p className="text-sm font-medium">{label}</p>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+        </>
+      )}
 
       {role === "DOCTOR" && (
         <Card>
@@ -413,6 +600,29 @@ export default async function StaffDashboardPage() {
                 </Link>
               ))
             )}
+          </CardContent>
+        </Card>
+      )}
+
+      {role === "DOCTOR" && urgentPatientsMine.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardHeader>
+            <CardTitle className="text-destructive">Urgent Alerts</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-2">
+            {urgentPatientsMine.map((patient) => (
+              <Link
+                key={patient.id}
+                href={`/staff/patients/${patient.id}`}
+                className="flex items-center justify-between rounded-lg border border-destructive/30 p-3 hover:bg-destructive/10"
+              >
+                <p className="font-medium">{patient.name}</p>
+                <Badge variant="destructive">
+                  <AlertTriangle className="size-3.5" />
+                  Severe allergy or diagnosis on file
+                </Badge>
+              </Link>
+            ))}
           </CardContent>
         </Card>
       )}

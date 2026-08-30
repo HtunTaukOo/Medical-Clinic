@@ -23,6 +23,8 @@ import {
   Bell,
   CircleUserRound,
   Megaphone,
+  CalendarRange,
+  ClipboardPlus,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -73,6 +75,10 @@ const ICONS: Record<string, LucideIcon> = {
   notifications: Bell,
   profile: CircleUserRound,
   announcements: Megaphone,
+  myPatients: Users,
+  consultations: ClipboardPlus,
+  prescriptions: Pill,
+  schedule: CalendarRange,
 };
 
 function initials(name: string) {

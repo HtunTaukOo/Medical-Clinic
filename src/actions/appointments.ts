@@ -48,7 +48,7 @@ export async function createAppointment(
   _prevState: AppointmentFormState,
   formData: FormData
 ): Promise<AppointmentFormState> {
-  await requireRole(["ADMIN", "RECEPTIONIST"]);
+  await requireRole(["ADMIN", "RECEPTIONIST", "DOCTOR"]);
 
   const parsed = bookingSchema.safeParse({
     patientId: formData.get("patientId"),
@@ -370,4 +370,55 @@ export async function completeAppointment(appointmentId: string) {
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
+}
+
+const vitalsSchema = z.object({
+  bpSystolic: z.coerce.number().int().positive().optional(),
+  bpDiastolic: z.coerce.number().int().positive().optional(),
+  heartRateBpm: z.coerce.number().int().positive().optional(),
+  temperatureC: z.coerce.number().positive().optional(),
+  respiratoryRate: z.coerce.number().int().positive().optional(),
+  spo2Percent: z.coerce.number().int().min(0).max(100).optional(),
+});
+
+export type VitalsFormState = { error?: string; success?: boolean };
+
+export async function updateVitals(
+  appointmentId: string,
+  _prevState: VitalsFormState,
+  formData: FormData
+): Promise<VitalsFormState> {
+  const session = await requireRole(["DOCTOR"]);
+
+  const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId } });
+  if (!appointment || appointment.doctorId !== session.user.doctorId) {
+    throw new UnauthorizedError("Not your appointment");
+  }
+
+  const parsed = vitalsSchema.safeParse({
+    bpSystolic: formData.get("bpSystolic") || undefined,
+    bpDiastolic: formData.get("bpDiastolic") || undefined,
+    heartRateBpm: formData.get("heartRateBpm") || undefined,
+    temperatureC: formData.get("temperatureC") || undefined,
+    respiratoryRate: formData.get("respiratoryRate") || undefined,
+    spo2Percent: formData.get("spo2Percent") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      bpSystolic: parsed.data.bpSystolic ?? null,
+      bpDiastolic: parsed.data.bpDiastolic ?? null,
+      heartRateBpm: parsed.data.heartRateBpm ?? null,
+      temperatureC: parsed.data.temperatureC ?? null,
+      respiratoryRate: parsed.data.respiratoryRate ?? null,
+      spo2Percent: parsed.data.spo2Percent ?? null,
+    },
+  });
+
+  revalidatePath(`/staff/appointments/${appointmentId}`);
+  return { success: true };
 }

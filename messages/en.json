@@ -32,7 +32,11 @@
     "billsPayments": "Bills & Payments",
     "notifications": "Notifications",
     "profile": "Profile",
-    "announcements": "Announcements"
+    "announcements": "Announcements",
+    "myPatients": "My Patients",
+    "consultations": "Consultations",
+    "prescriptions": "Prescriptions",
+    "schedule": "Schedule"
   },
   "auth": {
     "login": "Log in",

@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { getMonthGrid, dateKey, addMonths, MONTH_NAMES } from "@/lib/calendar";
+import { todayRange } from "@/lib/queue";
 import { initials } from "@/lib/format";
 import {
   confirmAppointment,
@@ -29,29 +30,56 @@ const STATUS_STYLES: Record<string, string> = {
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
+const DOCTOR_TABS = ["today", "upcoming", "completed", "cancelled"] as const;
+type DoctorTab = (typeof DOCTOR_TABS)[number];
+
 export default async function AppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; year?: string; month?: string }>;
+  searchParams: Promise<{ view?: string; year?: string; month?: string; tab?: string }>;
 }) {
   const session = await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
   const t = await getTranslations("appointments");
+  const isDoctor = session.user.role === "DOCTOR";
 
-  const { view: viewParam, year: yearParam, month: monthParam } = await searchParams;
+  const { view: viewParam, year: yearParam, month: monthParam, tab: tabParam } =
+    await searchParams;
   const view = viewParam === "calendar" ? "calendar" : "list";
+  const tab: DoctorTab = DOCTOR_TABS.includes(tabParam as DoctorTab)
+    ? (tabParam as DoctorTab)
+    : "today";
 
   const now = new Date();
   const year = yearParam ? Number(yearParam) : now.getFullYear();
   const month = monthParam ? Number(monthParam) : now.getMonth() + 1;
 
   const appointments = await prisma.appointment.findMany({
-    where:
-      session.user.role === "DOCTOR"
-        ? { doctorId: session.user.doctorId }
-        : undefined,
+    where: isDoctor ? { doctorId: session.user.doctorId } : undefined,
     orderBy: { scheduledAt: "desc" },
     include: { patient: true, doctor: { include: { user: true } } },
   });
+
+  const { start: todayStart, end: todayEnd } = todayRange();
+  const visibleAppointments =
+    isDoctor && view === "list"
+      ? appointments.filter((appt) => {
+          if (tab === "today") {
+            return (
+              appt.scheduledAt >= todayStart &&
+              appt.scheduledAt < todayEnd &&
+              appt.status !== "CANCELLED"
+            );
+          }
+          if (tab === "upcoming") {
+            return (
+              appt.scheduledAt >= todayEnd &&
+              (appt.status === "REQUESTED" || appt.status === "CONFIRMED")
+            );
+          }
+          if (tab === "completed") return appt.status === "COMPLETED";
+          return appt.status === "CANCELLED" || appt.status === "NO_SHOW";
+        })
+      : appointments;
 
   const weeks = getMonthGrid(year, month);
   const byDay = new Map<string, typeof appointments>();
@@ -85,12 +113,29 @@ export default async function AppointmentsPage({
         </Button>
       </div>
 
+      {isDoctor && view === "list" && (
+        <div className="flex flex-wrap items-center gap-2">
+          {DOCTOR_TABS.map((value) => (
+            <Button
+              key={value}
+              asChild
+              variant={tab === value ? "default" : "outline"}
+              size="sm"
+            >
+              <Link href={`/staff/appointments?view=list&tab=${value}`} className="capitalize">
+                {value}
+              </Link>
+            </Button>
+          ))}
+        </div>
+      )}
+
       {view === "list" ? (
-        appointments.length === 0 ? (
+        visibleAppointments.length === 0 ? (
           <EmptyState icon={CalendarDays} message={t("noResults")} />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {appointments.map((appt) => (
+            {visibleAppointments.map((appt) => (
               <Card key={appt.id}>
                 <CardContent className="grid gap-3">
                   <div className="flex items-start justify-between gap-2">

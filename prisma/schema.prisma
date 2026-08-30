@@ -155,6 +155,10 @@ model DoctorProfile {
   experienceYears  Int?
   qualifications   String?
 
+  notifyNewAppointments Boolean @default(true)
+  notifyLabResults      Boolean @default(true)
+  notifyAnnouncements   Boolean @default(true)
+
   appointments     Appointment[]
   prescriptions    Prescription[]
   labOrders        LabOrder[]
@@ -220,6 +224,13 @@ model Appointment {
   reminderSent Boolean          @default(false)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
+
+  bpSystolic      Int?
+  bpDiastolic     Int?
+  heartRateBpm    Int?
+  temperatureC    Decimal?       @db.Decimal(4, 1)
+  respiratoryRate Int?
+  spo2Percent     Int?
 
   invoice       Invoice?
   prescriptions Prescription[]

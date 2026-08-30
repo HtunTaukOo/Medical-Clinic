@@ -15,11 +15,14 @@ import { NoteForm } from "@/components/medical-records/note-form";
 import { OrderLabTestsForm } from "@/components/lab/order-lab-tests-form";
 import { DiagnosisForm } from "@/components/diagnoses/diagnosis-form";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
+import { AllergyList } from "@/components/allergies/allergy-list";
+import { VitalSignsForm } from "@/components/appointments/vital-signs-form";
 import { dateKey } from "@/lib/calendar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
+import { CalendarPlus } from "lucide-react";
 
 export default async function AppointmentDetailPage({
   params,
@@ -34,7 +37,7 @@ export default async function AppointmentDetailPage({
   const appointment = await prisma.appointment.findUnique({
     where: { id },
     include: {
-      patient: true,
+      patient: { include: { allergyRecords: { orderBy: { createdAt: "desc" } } } },
       doctor: { include: { user: true } },
       prescriptions: { include: { items: { include: { medicine: true } } } },
       invoice: true,
@@ -81,6 +84,17 @@ export default async function AppointmentDetailPage({
         <Badge variant="outline">{appointment.status}</Badge>
       </div>
 
+      {appointment.patient.allergyRecords.length > 0 && (
+        <Card className="border-destructive/40 bg-destructive/5">
+          <CardHeader>
+            <CardTitle className="text-destructive">Allergies</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <AllergyList allergies={appointment.patient.allergyRecords} />
+          </CardContent>
+        </Card>
+      )}
+
       {appointment.reason && (
         <Card>
           <CardHeader>
@@ -126,6 +140,14 @@ export default async function AppointmentDetailPage({
             </form>
           </>
         )}
+        {isOwnDoctor && (
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/staff/appointments/new?patientId=${appointment.patientId}`}>
+              <CalendarPlus className="size-4" />
+              Book Follow-up
+            </Link>
+          </Button>
+        )}
       </div>
 
       {(session.user.role === "ADMIN" || session.user.role === "RECEPTIONIST") &&
@@ -161,6 +183,39 @@ export default async function AppointmentDetailPage({
             </CardContent>
           </Card>
         )}
+
+      {(canWriteNote || appointment.bpSystolic || appointment.heartRateBpm) && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Vital Signs</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {canWriteNote ? (
+              <VitalSignsForm
+                appointmentId={appointment.id}
+                defaultValues={{
+                  bpSystolic: appointment.bpSystolic,
+                  bpDiastolic: appointment.bpDiastolic,
+                  heartRateBpm: appointment.heartRateBpm,
+                  temperatureC: appointment.temperatureC ? Number(appointment.temperatureC) : null,
+                  respiratoryRate: appointment.respiratoryRate,
+                  spo2Percent: appointment.spo2Percent,
+                }}
+              />
+            ) : (
+              <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
+                {appointment.bpSystolic && appointment.bpDiastolic && (
+                  <p>BP: {appointment.bpSystolic}/{appointment.bpDiastolic} mmHg</p>
+                )}
+                {appointment.heartRateBpm && <p>HR: {appointment.heartRateBpm} bpm</p>}
+                {appointment.temperatureC && <p>Temp: {Number(appointment.temperatureC)}°C</p>}
+                {appointment.respiratoryRate && <p>RR: {appointment.respiratoryRate}/min</p>}
+                {appointment.spo2Percent && <p>SpO2: {appointment.spo2Percent}%</p>}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {canWriteNote && (
         <Card>

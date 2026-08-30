@@ -23,6 +23,7 @@ export function AppointmentForm({
   doctors,
   redirectOnSuccess,
   defaultDoctorId,
+  defaultPatientId,
 }: {
   action: (
     state: AppointmentFormState,
@@ -32,6 +33,7 @@ export function AppointmentForm({
   doctors?: { id: string; name: string; specialty: string | null }[];
   redirectOnSuccess: string;
   defaultDoctorId?: string;
+  defaultPatientId?: string;
 }) {
   const t = useTranslations("appointments");
   const router = useRouter();
@@ -73,7 +75,7 @@ export function AppointmentForm({
       {patients && (
         <div className="grid gap-2">
           <Label htmlFor="patientId">{t("patient")}</Label>
-          <Select name="patientId" required>
+          <Select name="patientId" required defaultValue={defaultPatientId}>
             <SelectTrigger id="patientId" className="w-full">
               <SelectValue placeholder={t("patient")} />
             </SelectTrigger>
