@@ -5,7 +5,6 @@ import {
   Phone,
   Plus,
   ClipboardList,
-  Bell,
   History,
   Megaphone,
   HeartPulse,
@@ -197,11 +196,8 @@ export default async function PortalDashboardPage() {
               )}
             </div>
           </div>
-          <div className="flex shrink-0 flex-col gap-2 sm:w-48">
-            <Button asChild className="bg-white text-blue-900 hover:bg-white/90">
-              <Link href="/portal/book">{t("appointments.requestNew")}</Link>
-            </Button>
-            {mapsUrl && (
+          {mapsUrl && (
+            <div className="flex shrink-0 flex-col gap-2 sm:w-48">
               <Button
                 asChild
                 variant="outline"
@@ -211,8 +207,8 @@ export default async function PortalDashboardPage() {
                   Get Directions
                 </a>
               </Button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -350,27 +346,6 @@ export default async function PortalDashboardPage() {
             </div>
           </CardContent>
         </Card>
-      </div>
-
-      {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        {[
-          { icon: CalendarClock, label: "Book Appointment", href: "/portal/book" },
-          { icon: ClipboardList, label: "Medical Records", href: "/portal/medical-records" },
-          { icon: Receipt, label: "Pay Bill", href: "/portal/invoices" },
-          { icon: Bell, label: "Notifications", href: "/portal/notifications" },
-        ].map(({ icon: Icon, label, href }) => (
-          <Link key={label} href={href}>
-            <Card className="items-center py-6 text-center transition-colors hover:bg-muted/50">
-              <CardContent className="grid justify-items-center gap-2">
-                <div className="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-                  <Icon className="size-5" />
-                </div>
-                <p className="text-sm font-medium">{label}</p>
-              </CardContent>
-            </Card>
-          </Link>
-        ))}
       </div>
 
       {/* Appointments + Announcements */}
