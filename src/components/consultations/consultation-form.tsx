@@ -65,7 +65,7 @@ export function ConsultationForm({
                 id="c-bp"
                 name="bpSystolic"
                 type="number"
-                placeholder="e.g. 120"
+                placeholder="120"
                 defaultValue={defaultValues.bpSystolic ?? ""}
                 form={CONSULTATION_FORM_ID}
               />
