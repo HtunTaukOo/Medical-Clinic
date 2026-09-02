@@ -3,7 +3,7 @@
 import { useState, useTransition } from "react";
 import {
   updateDoctorNotificationSetting,
-  type DoctorNotificationField,
+  type DoctorPreferenceField,
 } from "@/actions/staff";
 import { Switch } from "@/components/ui/switch";
 
@@ -13,7 +13,7 @@ export function DoctorNotificationToggle({
   description,
   defaultChecked,
 }: {
-  field: DoctorNotificationField;
+  field: DoctorPreferenceField;
   label: string;
   description: string;
   defaultChecked: boolean;

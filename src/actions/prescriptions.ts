@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, UnauthorizedError } from "@/lib/authz";
-import { notifyIfLowStock } from "@/lib/telegram";
+import { notifyIfLowStock, notifyPatient } from "@/lib/telegram";
 import { generateReminderSchedule } from "@/lib/pill-reminders";
 import { createNotification } from "@/lib/notifications";
 
@@ -68,13 +68,13 @@ export async function createPrescription(
     include: { items: true },
   });
 
+  const medicines = await prisma.medicine.findMany({
+    where: { id: { in: items.map((item) => item.medicineId) } },
+  });
+  const medicineById = new Map(medicines.map((m) => [m.id, m]));
+
   const existingInvoice = await prisma.invoice.findUnique({ where: { appointmentId } });
   if (!existingInvoice) {
-    const medicines = await prisma.medicine.findMany({
-      where: { id: { in: items.map((item) => item.medicineId) } },
-    });
-    const medicineById = new Map(medicines.map((m) => [m.id, m]));
-
     const invoiceItems = items.map((item) => {
       const medicine = medicineById.get(item.medicineId)!;
       return {
@@ -127,9 +127,28 @@ export async function createPrescription(
     }
   }
 
+  const medicineNames = items
+    .map((item) => medicineById.get(item.medicineId)?.name)
+    .filter(Boolean)
+    .join(", ");
+  await notifyPatient(
+    appointment.patientId,
+    `💊 ${appointment.doctor.user.name} wrote you a new prescription: ${medicineNames}.`
+  );
+  await createNotification({
+    patientId: appointment.patientId,
+    category: "PRESCRIPTION",
+    tone: "INFO",
+    title: "New Prescription",
+    body: `${appointment.doctor.user.name} prescribed ${medicineNames}. Collect it from the pharmacy once ready.`,
+    href: "/portal/medical-records",
+    relatedId: `rx-created-${prescription.id}`,
+  });
+
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/portal/appointments");
   revalidatePath("/portal/medical-records");
+  revalidatePath("/portal/notifications");
   return { success: true };
 }
 
@@ -153,19 +172,20 @@ export async function fulfillPrescription(prescriptionId: string) {
     notifyPatientId = prescription.patientId;
     medicineNames = prescription.items.map((i) => i.medicine.name).join(", ");
 
-    if (prescription.appointment.invoice?.status !== "PAID") {
+    if (prescription.appointment && prescription.appointment.invoice?.status !== "PAID") {
       throw new Error(
         "The patient must pay their invoice before medicine can be dispensed."
       );
     }
 
     for (const item of prescription.items) {
-      if (item.medicine.stockQty < item.quantity) {
+      if (item.quantity != null && item.medicine.stockQty < item.quantity) {
         throw new Error(`Insufficient stock for ${item.medicine.name}`);
       }
     }
 
     for (const item of prescription.items) {
+      if (item.quantity == null) continue;
       await tx.medicine.update({
         where: { id: item.medicineId },
         data: { stockQty: { decrement: item.quantity } },
@@ -206,3 +226,4 @@ export async function fulfillPrescription(prescriptionId: string) {
 
   revalidatePath("/staff/inventory");
 }
+

@@ -70,7 +70,11 @@ export default async function PortalSettingsPage() {
         </div>
       </div>
 
-      <Tabs defaultValue="personal" orientation="vertical" className="items-start gap-6">
+      <Tabs
+        defaultValue="personal"
+        orientation="vertical"
+        className="flex-col items-stretch gap-6 md:flex-row md:items-start"
+      >
         <TabsList className={SIDEBAR_TAB_LIST}>
           <TabsTrigger value="personal" className={SIDEBAR_TAB_TRIGGER}>
             <User className="size-4" />

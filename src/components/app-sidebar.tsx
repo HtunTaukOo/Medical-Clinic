@@ -95,8 +95,10 @@ export function AppSidebar({
   userName,
   roleLabel,
   signOutSlot,
+  hideSectionLabels,
 }: {
   navItems: SidebarNavItem[];
+  hideSectionLabels?: boolean;
   userName: string;
   roleLabel: string;
   signOutSlot: React.ReactNode;
@@ -124,7 +126,7 @@ export function AppSidebar({
       <SidebarContent className="px-2">
         {groupKeys.map((group) => (
           <SidebarGroup key={group ?? "_"} className="p-0 py-1">
-            {group && <SidebarGroupLabel>{t(group)}</SidebarGroupLabel>}
+            {group && !hideSectionLabels && <SidebarGroupLabel>{t(group)}</SidebarGroupLabel>}
             <SidebarGroupContent>
               <SidebarMenu>
                 {navItems

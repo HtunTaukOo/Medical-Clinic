@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/medicine-expiry",
       "schedule": "0 8 * * *"
+    },
+    {
+      "path": "/api/cron/appointment-no-shows",
+      "schedule": "30 18 * * *"
     }
   ]
 }

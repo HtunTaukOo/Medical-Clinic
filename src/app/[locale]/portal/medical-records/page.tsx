@@ -15,9 +15,9 @@ import { PrescriptionHistoryList } from "@/components/medical-records/prescripti
 import { LabResultsTable } from "@/components/medical-records/lab-results-table";
 
 const PILL_TAB_LIST =
-  "h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
+  "!h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
 const PILL_TAB_TRIGGER =
-  "rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-foreground shadow-none data-active:border-transparent data-active:bg-primary data-active:text-primary-foreground";
+  "!h-auto flex-none grow-0 rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-foreground shadow-none data-active:border-transparent data-active:bg-primary data-active:text-primary-foreground";
 
 export default async function PortalMedicalRecordsPage() {
   const session = await auth();

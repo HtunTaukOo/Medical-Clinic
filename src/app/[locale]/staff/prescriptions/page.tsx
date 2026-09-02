@@ -1,27 +1,35 @@
-import { Pill, ClipboardPlus, History } from "lucide-react";
+import { Pill, Clock, Hourglass, RotateCw, History as HistoryIcon } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
-import { dateKey } from "@/lib/calendar";
-import { Link } from "@/i18n/navigation";
+import { initials } from "@/lib/format";
+import { formatClinicDateTime } from "@/lib/clinic-hours";
+import { todayRange } from "@/lib/queue";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/empty-state";
+import { AVATAR_COLORS } from "@/components/appointments/appointment-row";
+import { CreatePrescriptionPanel } from "@/components/prescriptions/create-prescription-panel";
 
 export default async function PrescriptionsPage() {
   const session = await requirePageRole(["DOCTOR"]);
   const doctorId = session.user.doctorId;
-  const todayKey = dateKey(new Date());
+  const { start, end } = todayRange();
 
-  const [eligibleAppointments, active, history] = doctorId
+  const [eligibleAppointments, medicines, active, history] = doctorId
     ? await Promise.all([
         prisma.appointment.findMany({
-          where: { doctorId, status: { in: ["CHECKED_IN", "COMPLETED"] } },
-          include: { patient: true },
-          orderBy: { scheduledAt: "desc" },
-          take: 20,
+          where: {
+            doctorId,
+            scheduledAt: { gte: start, lt: end },
+            status: { in: ["CONFIRMED", "CHECKED_IN", "COMPLETED"] },
+          },
+          include: {
+            patient: { include: { allergyRecords: { orderBy: { createdAt: "desc" }, take: 1 } } },
+          },
+          orderBy: { scheduledAt: "asc" },
         }),
+        prisma.medicine.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, unit: true } }),
         prisma.prescription.findMany({
           where: { doctorId, fulfilled: false },
           include: { patient: true, items: { include: { medicine: true } } },
@@ -30,21 +38,17 @@ export default async function PrescriptionsPage() {
         prisma.prescription.findMany({
           where: { doctorId, fulfilled: true },
           include: { patient: true, items: { include: { medicine: true } } },
-          orderBy: { createdAt: "desc" },
+          orderBy: { fulfilledAt: "desc" },
           take: 30,
         }),
       ])
-    : [[], [], []];
-
-  const eligibleToday = eligibleAppointments.filter(
-    (appt) => dateKey(appt.scheduledAt) === todayKey
-  );
+    : [[], [], [], []];
 
   return (
     <div className="grid gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Prescriptions</h1>
-        <p className="text-muted-foreground">Write, track, and review your patients&apos; prescriptions.</p>
+        <p className="text-muted-foreground">Create and manage patient prescriptions.</p>
       </div>
 
       <Tabs defaultValue="create">
@@ -53,16 +57,13 @@ export default async function PrescriptionsPage() {
             value="create"
             className="data-active:bg-primary data-active:text-primary-foreground"
           >
-            Create Prescription
+            Create New
           </TabsTrigger>
           <TabsTrigger
             value="active"
             className="data-active:bg-primary data-active:text-primary-foreground"
           >
-            Active
-            <Badge variant="secondary" className="ml-1">
-              {active.length}
-            </Badge>
+            Active ({active.length})
           </TabsTrigger>
           <TabsTrigger
             value="history"
@@ -73,93 +74,130 @@ export default async function PrescriptionsPage() {
         </TabsList>
 
         <TabsContent value="create">
-          <Card>
-            <CardContent className="grid gap-2">
-              {eligibleToday.length === 0 ? (
-                <EmptyState
-                  icon={ClipboardPlus}
-                  message="No patients checked in today are ready for a prescription yet."
-                />
-              ) : (
-                eligibleToday.map((appt) => (
-                  <div
-                    key={appt.id}
-                    className="flex items-center justify-between rounded-lg border p-3"
-                  >
-                    <div>
-                      <p className="font-medium">{appt.patient.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {appt.scheduledAt.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}{" "}
-                        &mdash; {appt.status === "CHECKED_IN" ? "In consultation" : "Completed"}
-                      </p>
+          <div className="rounded-2xl border bg-card p-6">
+            <p className="mb-4 font-semibold">New Prescription</p>
+            <CreatePrescriptionPanel
+              appointments={eligibleAppointments.map((a) => ({
+                id: a.id,
+                patientName: a.patient.name,
+                allergy: a.patient.allergyRecords[0]?.name ?? null,
+                time: formatClinicDateTime(a.scheduledAt, { hour: "numeric", minute: "2-digit" }),
+                reason: a.reason,
+              }))}
+              medicines={medicines}
+            />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="active" className="grid gap-3">
+          {active.length === 0 ? (
+            <EmptyState icon={Pill} message="No active prescriptions." />
+          ) : (
+            active.map((rx, index) =>
+              rx.items.map((item) => (
+                <div key={item.id} className="rounded-xl border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-start gap-3">
+                      <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-rose-100 text-rose-600">
+                        <Pill className="size-5" />
+                      </div>
+                      <div>
+                        <p className="font-semibold">{item.medicine.name}</p>
+                        <div className="mt-0.5 flex items-center gap-2">
+                          <Avatar className="size-5">
+                            <AvatarFallback
+                              className={`text-[10px] ${AVATAR_COLORS[index % AVATAR_COLORS.length]}`}
+                            >
+                              {initials(rx.patient.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-sm text-muted-foreground">{rx.patient.name}</span>
+                        </div>
+                        <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                          <span className="flex items-center gap-1">
+                            <Pill className="size-3.5" />
+                            {item.dosage}
+                          </span>
+                          {item.frequency && (
+                            <span className="flex items-center gap-1">
+                              <Clock className="size-3.5" />
+                              {item.frequency}
+                            </span>
+                          )}
+                          {(item.duration || item.durationDays) && (
+                            <span className="flex items-center gap-1">
+                              <Hourglass className="size-3.5" />
+                              {item.duration ?? `${item.durationDays} days`}
+                            </span>
+                          )}
+                          {item.refillsLeft != null && (
+                            <Badge variant="outline" className="gap-1 bg-blue-50 text-blue-700">
+                              <RotateCw className="size-3" />
+                              {item.refillsLeft} refill{item.refillsLeft === 1 ? "" : "s"} left
+                            </Badge>
+                          )}
+                        </div>
+                        {item.instructions && (
+                          <p className="mt-1.5 text-sm text-muted-foreground italic">
+                            {item.instructions}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                    <Button asChild size="sm">
-                      <Link href={`/staff/appointments/${appt.id}`}>Prescribe</Link>
-                    </Button>
+                    <Badge variant="outline" className="bg-blue-100 text-blue-700">
+                      Active
+                    </Badge>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                </div>
+              ))
+            )
+          )}
         </TabsContent>
 
-        <TabsContent value="active">
-          <Card>
-            <CardContent className="grid gap-3">
-              {active.length === 0 ? (
-                <EmptyState icon={Pill} message="No active prescriptions." />
-              ) : (
-                active.map((rx) => (
-                  <Link
-                    key={rx.id}
-                    href={`/staff/appointments/${rx.appointmentId}`}
-                    className="rounded-lg border p-3 hover:bg-muted/50"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="font-medium">{rx.patient.name}</p>
-                      <Badge variant="outline">
-                        {new Date(rx.createdAt).toLocaleDateString()}
-                      </Badge>
+        <TabsContent value="history" className="grid gap-3">
+          {history.length === 0 ? (
+            <EmptyState icon={HistoryIcon} message="No fulfilled prescriptions yet." />
+          ) : (
+            history.map((rx, index) =>
+              rx.items.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-card p-4"
+                >
+                  <div className="flex items-center gap-3">
+                    <Avatar className="size-10">
+                      <AvatarFallback className={AVATAR_COLORS[index % AVATAR_COLORS.length]}>
+                        {initials(rx.patient.name)}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{item.medicine.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {rx.patient.name}
+                        {" · "}
+                        {item.dosage}
+                        {item.frequency && ` · ${item.frequency}`}
+                        {(item.duration || item.durationDays) &&
+                          ` · ${item.duration ?? `${item.durationDays} days`}`}
+                      </p>
+                      {rx.fulfilledAt && (
+                        <p className="text-xs text-muted-foreground">
+                          {rx.fulfilledAt.toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </p>
+                      )}
                     </div>
-                    <p className="text-sm text-muted-foreground">
-                      {rx.items.map((item) => item.medicine.name).join(", ")}
-                    </p>
-                  </Link>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="history">
-          <Card>
-            <CardContent className="grid gap-3">
-              {history.length === 0 ? (
-                <EmptyState icon={History} message="No fulfilled prescriptions yet." />
-              ) : (
-                history.map((rx) => (
-                  <Link
-                    key={rx.id}
-                    href={`/staff/appointments/${rx.appointmentId}`}
-                    className="rounded-lg border p-3 hover:bg-muted/50"
-                  >
-                    <div className="mb-2 flex items-center justify-between">
-                      <p className="font-medium">{rx.patient.name}</p>
-                      <Badge variant="success">
-                        Fulfilled {rx.fulfilledAt ? new Date(rx.fulfilledAt).toLocaleDateString() : ""}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {rx.items.map((item) => item.medicine.name).join(", ")}
-                    </p>
-                  </Link>
-                ))
-              )}
-            </CardContent>
-          </Card>
+                  </div>
+                  <Badge variant="outline" className="bg-indigo-100 text-indigo-700">
+                    Completed
+                  </Badge>
+                </div>
+              ))
+            )
+          )}
         </TabsContent>
       </Tabs>
     </div>

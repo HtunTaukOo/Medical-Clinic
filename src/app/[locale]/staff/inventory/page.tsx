@@ -52,7 +52,7 @@ export default async function InventoryPage() {
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {pendingPrescriptions.map((rx) => {
-                const isPaid = rx.appointment.invoice?.status === "PAID";
+                const isPaid = !rx.appointment || rx.appointment.invoice?.status === "PAID";
                 return (
                   <Card key={rx.id} className="border-muted-foreground/20">
                     <CardContent className="grid gap-3">
@@ -76,7 +76,8 @@ export default async function InventoryPage() {
                       <ul className="text-sm text-muted-foreground">
                         {rx.items.map((item) => (
                           <li key={item.id}>
-                            {item.medicine.name} &mdash; {item.dosage} x{item.quantity}
+                            {item.medicine.name} &mdash; {item.dosage}
+                            {item.quantity != null && ` x${item.quantity}`}
                             {item.timesPerDay && item.durationDays && (
                               <> (reminders: {item.timesPerDay}x/day for {item.durationDays} days)</>
                             )}

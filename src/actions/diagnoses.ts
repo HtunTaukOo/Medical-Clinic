@@ -4,6 +4,8 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, UnauthorizedError } from "@/lib/authz";
+import { notifyPatient } from "@/lib/telegram";
+import { createNotification } from "@/lib/notifications";
 
 const diagnosisSchema = z.object({
   code: z.string().optional(),
@@ -36,7 +38,7 @@ export async function addDiagnosis(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  await prisma.diagnosis.create({
+  const diagnosis = await prisma.diagnosis.create({
     data: {
       appointmentId,
       patientId: appointment.patientId,
@@ -48,9 +50,25 @@ export async function addDiagnosis(
     },
   });
 
+  const doctorName = session.user.name ?? "your doctor";
+  await notifyPatient(
+    appointment.patientId,
+    `📋 ${doctorName} added a new diagnosis to your record: ${parsed.data.description}.`
+  );
+  await createNotification({
+    patientId: appointment.patientId,
+    category: "DIAGNOSIS",
+    tone: "INFO",
+    title: "New Diagnosis Recorded",
+    body: `${doctorName} added "${parsed.data.description}" to your medical record.`,
+    href: "/portal/medical-records",
+    relatedId: `diagnosis-${diagnosis.id}`,
+  });
+
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath(`/portal/appointments/${appointmentId}`);
   revalidatePath("/portal/medical-records");
+  revalidatePath("/portal/notifications");
   return { success: true };
 }
 

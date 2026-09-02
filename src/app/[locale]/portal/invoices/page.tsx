@@ -8,9 +8,9 @@ import { InvoiceAccordion, type InvoiceRecord } from "@/components/billing/invoi
 import { PayNowDialog } from "@/components/billing/pay-now-dialog";
 import { Button } from "@/components/ui/button";
 
-const PILL_TAB_LIST = "h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
+const PILL_TAB_LIST = "!h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
 const PILL_TAB_TRIGGER =
-  "rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-foreground shadow-none data-active:border-transparent data-active:bg-primary data-active:text-primary-foreground";
+  "!h-auto flex-none grow-0 rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-foreground shadow-none data-active:border-transparent data-active:bg-primary data-active:text-primary-foreground";
 
 const INVOICE_DUE_DAYS = 30;
 
@@ -111,9 +111,6 @@ export default async function PortalInvoicesPage() {
           <TabsTrigger value="paid" className={PILL_TAB_TRIGGER}>
             Paid ({paid.length})
           </TabsTrigger>
-          <TabsTrigger value="receipts" className={PILL_TAB_TRIGGER}>
-            Receipts
-          </TabsTrigger>
         </TabsList>
         <TabsContent value="unpaid" className="mt-4">
           <InvoiceAccordion
@@ -127,14 +124,6 @@ export default async function PortalInvoicesPage() {
           <InvoiceAccordion
             invoices={paid}
             emptyMessage="No paid bills yet."
-            clinicPhones={settings.phones}
-            clinicAddress={settings.address}
-          />
-        </TabsContent>
-        <TabsContent value="receipts" className="mt-4">
-          <InvoiceAccordion
-            invoices={paid}
-            emptyMessage="No receipts yet."
             clinicPhones={settings.phones}
             clinicAddress={settings.address}
           />

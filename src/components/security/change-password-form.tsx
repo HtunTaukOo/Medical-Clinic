@@ -54,7 +54,7 @@ export function ChangePasswordForm() {
         />
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-emerald-600">Password updated.</p>}
+      {state.success && <p className="text-sm text-blue-600">Password updated.</p>}
       <Button type="submit" disabled={pending} className="w-fit">
         Update Password
       </Button>

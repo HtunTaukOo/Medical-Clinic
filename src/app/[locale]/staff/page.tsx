@@ -20,7 +20,6 @@ import {
   AlertTriangle,
   Siren,
   Activity,
-  ChevronRight,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
@@ -687,31 +686,6 @@ export default async function StaffDashboardPage() {
                   )}
                 </CardContent>
               </Card>
-
-              <Card>
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-1">
-                  {[
-                    { icon: Pill, label: "New Prescription", href: "/staff/prescriptions" },
-                    { icon: Users, label: "View Patients", href: "/staff/patients" },
-                    { icon: CalendarClock, label: "My Schedule", href: "/staff/schedule" },
-                  ].map(({ icon: Icon, label, href }) => (
-                    <Link
-                      key={label}
-                      href={href}
-                      className="flex items-center justify-between rounded-lg px-2 py-2.5 hover:bg-muted/50"
-                    >
-                      <span className="flex items-center gap-3">
-                        <Icon className="size-4 text-muted-foreground" />
-                        <span className="text-sm font-medium">{label}</span>
-                      </span>
-                      <ChevronRight className="size-4 text-muted-foreground" />
-                    </Link>
-                  ))}
-                </CardContent>
-              </Card>
             </div>
           </div>
         </>
@@ -782,7 +756,7 @@ export default async function StaffDashboardPage() {
               <EmptyState icon={Pill} message="No prescriptions pending." />
             ) : (
               pendingPrescriptions.slice(0, 5).map((rx) => {
-                const isPaid = rx.appointment.invoice?.status === "PAID";
+                const isPaid = !rx.appointment || rx.appointment.invoice?.status === "PAID";
                 return (
                   <Link
                     key={rx.id}

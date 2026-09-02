@@ -5,6 +5,7 @@ import {
   Pill,
   Megaphone,
   CheckCircle2,
+  Stethoscope,
 } from "lucide-react";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -17,14 +18,15 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/empty-state";
 import type { NotificationCategory, NotificationTone } from "@prisma/client";
 
-const PILL_TAB_LIST = "h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
+const PILL_TAB_LIST = "!h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
 const PILL_TAB_TRIGGER =
-  "gap-1.5 rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-foreground shadow-none data-active:border-transparent data-active:bg-primary data-active:text-primary-foreground";
+  "!h-auto flex-none grow-0 gap-1.5 rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-foreground shadow-none data-active:border-transparent data-active:bg-primary data-active:text-primary-foreground";
 
 const CATEGORY_META: Record<NotificationCategory, { label: string; icon: typeof Bell; badgeClass: string }> = {
   APPOINTMENT: { label: "Appointments", icon: CalendarClock, badgeClass: "bg-blue-100 text-blue-700" },
   LAB_RESULT: { label: "Results", icon: FlaskConical, badgeClass: "bg-emerald-100 text-emerald-700" },
   PRESCRIPTION: { label: "Prescriptions", icon: Pill, badgeClass: "bg-orange-100 text-orange-700" },
+  DIAGNOSIS: { label: "Diagnoses", icon: Stethoscope, badgeClass: "bg-rose-100 text-rose-700" },
   ANNOUNCEMENT: { label: "Announcements", icon: Megaphone, badgeClass: "bg-purple-100 text-purple-700" },
 };
 
@@ -157,6 +159,9 @@ export default async function PortalNotificationsPage() {
           <TabsTrigger value="PRESCRIPTION" className={PILL_TAB_TRIGGER}>
             Prescriptions
           </TabsTrigger>
+          <TabsTrigger value="DIAGNOSIS" className={PILL_TAB_TRIGGER}>
+            Diagnoses
+          </TabsTrigger>
           <TabsTrigger value="ANNOUNCEMENT" className={PILL_TAB_TRIGGER}>
             Announcements
           </TabsTrigger>
@@ -170,7 +175,7 @@ export default async function PortalNotificationsPage() {
           )}
         </TabsContent>
 
-        {(["APPOINTMENT", "LAB_RESULT", "PRESCRIPTION", "ANNOUNCEMENT"] as const).map((category) => (
+        {(["APPOINTMENT", "LAB_RESULT", "PRESCRIPTION", "DIAGNOSIS", "ANNOUNCEMENT"] as const).map((category) => (
           <TabsContent key={category} value={category} className="mt-4 grid gap-3">
             {byCategory(category).length === 0 ? (
               <EmptyState icon={CATEGORY_META[category].icon} message="Nothing here yet." />

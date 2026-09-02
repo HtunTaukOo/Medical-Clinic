@@ -7,13 +7,15 @@ import { EmptyState } from "@/components/empty-state";
 export function DoctorLeaveManager({
   doctorId,
   leaveDays,
+  showForm = true,
 }: {
   doctorId: string;
   leaveDays: { id: string; date: Date; reason: string | null }[];
+  showForm?: boolean;
 }) {
   return (
     <div className="grid gap-4">
-      <DoctorLeaveForm doctorId={doctorId} />
+      {showForm && <DoctorLeaveForm doctorId={doctorId} />}
       {leaveDays.length === 0 ? (
         <EmptyState icon={CalendarOff} message="No upcoming leave days scheduled." />
       ) : (

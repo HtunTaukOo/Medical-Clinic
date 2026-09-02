@@ -144,20 +144,39 @@ model TelegramChatMessage {
 }
 
 model DoctorProfile {
-  id               String  @id @default(cuid())
-  userId           String  @unique
-  user             User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id               String   @id @default(cuid())
+  userId           String   @unique
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   specialty        String?
-  consultationFee  Decimal @default(0) @db.Decimal(10, 2)
-  workingDays      Int[]   @default([1, 2, 3, 4, 5])
+  consultationFee  Decimal  @default(0) @db.Decimal(10, 2)
+  workingDays      Int[]    @default([1, 2, 3, 4, 5])
   workStartTime    String?
   workEndTime      String?
   experienceYears  Int?
   qualifications   String?
+  createdAt        DateTime @default(now())
 
-  notifyNewAppointments Boolean @default(true)
-  notifyLabResults      Boolean @default(true)
-  notifyAnnouncements   Boolean @default(true)
+  dob               DateTime?
+  gender            Gender?
+  phone             String?
+  address           String?
+  nrcNumber         String?
+  emergencyContact  String?
+
+  medicalLicenseNo String?
+  mbbsUniversity   String?
+  graduationYear   Int?
+  languages        String[] @default([])
+  professionalBio  String?
+  clinicRoom       String?
+
+  notifyNewAppointments      Boolean @default(true)
+  notifyAppointmentCancelled Boolean @default(true)
+  notifyPatientWaiting       Boolean @default(true)
+  notifyLabResults           Boolean @default(true)
+  notifyAnnouncements        Boolean @default(true)
+  notifyScheduleReminders    Boolean @default(true)
+  notifyLeaveRequestStatus   Boolean @default(true)
 
   appointments     Appointment[]
   prescriptions    Prescription[]
@@ -427,6 +446,7 @@ enum NotificationCategory {
   APPOINTMENT
   LAB_RESULT
   PRESCRIPTION
+  DIAGNOSIS
   ANNOUNCEMENT
 }
 
@@ -528,8 +548,8 @@ model PurchaseOrderItem {
 
 model Prescription {
   id            String        @id @default(cuid())
-  appointmentId String
-  appointment   Appointment   @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointmentId String?
+  appointment   Appointment?  @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   patientId     String
   patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
   doctorId      String
@@ -550,9 +570,10 @@ model PrescriptionItem {
   medicineId     String
   medicine       Medicine     @relation(fields: [medicineId], references: [id])
   dosage         String
-  quantity       Int
+  quantity       Int?
   timesPerDay    Int?
   durationDays   Int?
+  duration       String?
   frequency      String?
   instructions   String?
   refillsLeft    Int?

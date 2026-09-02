@@ -52,7 +52,7 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
   {
     href: "/staff/attendance",
     labelKey: "attendance",
-    roles: STAFF_ROLES,
+    roles: STAFF_ROLES.filter((role) => role !== "DOCTOR"),
     group: "sectionOperations",
   },
   {
@@ -143,6 +143,7 @@ export default async function StaffLayout({
       roleLabel={ROLE_LABELS[role] ?? "Staff"}
       navItems={navItems}
       sidebarDark={isDoctor}
+      hideSectionLabels={isDoctor}
       contentClassName={isDoctor ? "mx-auto w-full max-w-5xl" : undefined}
     >
       {children}

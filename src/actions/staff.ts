@@ -239,25 +239,54 @@ export async function toggleStaffActive(userId: string) {
   revalidatePath("/staff/users");
 }
 
-const ownNameSchema = z.object({ name: z.string().min(1) });
+const ownPersonalInfoSchema = z.object({
+  name: z.string().min(1),
+  dob: z.string().optional(),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  nrcNumber: z.string().optional(),
+  emergencyContact: z.string().optional(),
+});
 
-export type UpdateOwnNameState = { error?: string; success?: boolean };
+export type UpdateOwnPersonalInfoState = { error?: string; success?: boolean };
 
-export async function updateOwnName(
-  _prevState: UpdateOwnNameState,
+export async function updateOwnPersonalInfo(
+  _prevState: UpdateOwnPersonalInfoState,
   formData: FormData
-): Promise<UpdateOwnNameState> {
+): Promise<UpdateOwnPersonalInfoState> {
   const session = await requireRole(["DOCTOR"]);
+  const doctorId = session.user.doctorId;
+  if (!doctorId) throw new UnauthorizedError("No doctor profile");
 
-  const parsed = ownNameSchema.safeParse({ name: formData.get("name") });
+  const parsed = ownPersonalInfoSchema.safeParse({
+    name: formData.get("name"),
+    dob: formData.get("dob") || undefined,
+    gender: formData.get("gender") || undefined,
+    phone: formData.get("phone") || undefined,
+    address: formData.get("address") || undefined,
+    nrcNumber: formData.get("nrcNumber") || undefined,
+    emergencyContact: formData.get("emergencyContact") || undefined,
+  });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+  const { name, dob, gender, ...rest } = parsed.data;
 
-  await prisma.user.update({
-    where: { id: session.user.id },
-    data: { name: parsed.data.name },
-  });
+  await prisma.$transaction([
+    prisma.user.update({ where: { id: session.user.id }, data: { name } }),
+    prisma.doctorProfile.update({
+      where: { id: doctorId },
+      data: {
+        dob: dob ? new Date(dob) : null,
+        gender: gender ?? null,
+        phone: rest.phone ?? null,
+        address: rest.address ?? null,
+        nrcNumber: rest.nrcNumber ?? null,
+        emergencyContact: rest.emergencyContact ?? null,
+      },
+    }),
+  ]);
 
   revalidatePath("/staff/profile");
   return { success: true };
@@ -266,7 +295,12 @@ export async function updateOwnName(
 const ownDoctorProfileSchema = z.object({
   specialty: z.string().optional(),
   qualifications: z.string().optional(),
-  experienceYears: z.coerce.number().int().nonnegative().optional(),
+  medicalLicenseNo: z.string().optional(),
+  mbbsUniversity: z.string().optional(),
+  graduationYear: z.coerce.number().int().min(1900).max(2100).optional(),
+  languages: z.array(z.string()).optional(),
+  professionalBio: z.string().optional(),
+  clinicRoom: z.string().optional(),
 });
 
 export type UpdateOwnDoctorProfileState = { error?: string; success?: boolean };
@@ -282,7 +316,12 @@ export async function updateOwnDoctorProfile(
   const parsed = ownDoctorProfileSchema.safeParse({
     specialty: formData.get("specialty") || undefined,
     qualifications: formData.get("qualifications") || undefined,
-    experienceYears: formData.get("experienceYears") || undefined,
+    medicalLicenseNo: formData.get("medicalLicenseNo") || undefined,
+    mbbsUniversity: formData.get("mbbsUniversity") || undefined,
+    graduationYear: formData.get("graduationYear") || undefined,
+    languages: formData.getAll("languages"),
+    professionalBio: formData.get("professionalBio") || undefined,
+    clinicRoom: formData.get("clinicRoom") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -293,7 +332,12 @@ export async function updateOwnDoctorProfile(
     data: {
       specialty: parsed.data.specialty ?? null,
       qualifications: parsed.data.qualifications ?? null,
-      experienceYears: parsed.data.experienceYears ?? null,
+      medicalLicenseNo: parsed.data.medicalLicenseNo ?? null,
+      mbbsUniversity: parsed.data.mbbsUniversity ?? null,
+      graduationYear: parsed.data.graduationYear ?? null,
+      languages: parsed.data.languages ?? [],
+      professionalBio: parsed.data.professionalBio ?? null,
+      clinicRoom: parsed.data.clinicRoom ?? null,
     },
   });
 
@@ -301,13 +345,17 @@ export async function updateOwnDoctorProfile(
   return { success: true };
 }
 
-export type DoctorNotificationField =
+export type DoctorPreferenceField =
   | "notifyNewAppointments"
+  | "notifyAppointmentCancelled"
+  | "notifyPatientWaiting"
   | "notifyLabResults"
-  | "notifyAnnouncements";
+  | "notifyAnnouncements"
+  | "notifyScheduleReminders"
+  | "notifyLeaveRequestStatus";
 
 export async function updateDoctorNotificationSetting(
-  field: DoctorNotificationField,
+  field: DoctorPreferenceField,
   value: boolean
 ) {
   const session = await requireRole(["DOCTOR"]);

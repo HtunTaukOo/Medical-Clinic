@@ -17,6 +17,7 @@ export async function AppShell({
   navItems,
   contentClassName,
   sidebarDark,
+  hideSectionLabels,
   children,
 }: {
   locale: string;
@@ -25,6 +26,7 @@ export async function AppShell({
   navItems: SidebarNavItem[];
   contentClassName?: string;
   sidebarDark?: boolean;
+  hideSectionLabels?: boolean;
   children: ReactNode;
 }) {
   return (
@@ -35,6 +37,7 @@ export async function AppShell({
           userName={userName}
           roleLabel={roleLabel}
           signOutSlot={<SignOutButton locale={locale} />}
+          hideSectionLabels={hideSectionLabels}
         />
       </div>
       <SidebarInset className="bg-transparent">
