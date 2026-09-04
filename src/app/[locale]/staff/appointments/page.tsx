@@ -64,7 +64,7 @@ export default async function AppointmentsPage({
 
   const { view: viewParam, year: yearParam, month: monthParam, tab: tabParam } =
     await searchParams;
-  const view = isDoctor ? "list" : viewParam === "calendar" ? "calendar" : "list";
+  const view = viewParam === "calendar" ? "calendar" : "list";
   const tab: DoctorTab = DOCTOR_TABS.some(({ value }) => value === tabParam)
     ? (tabParam as DoctorTab)
     : "today";
@@ -159,18 +159,16 @@ export default async function AppointmentsPage({
         )}
       </div>
 
-      {!isDoctor && (
-        <div className="flex items-center gap-2">
-          <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
-            <Link href="/staff/appointments?view=list">List</Link>
-          </Button>
-          <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
-            <Link href="/staff/appointments?view=calendar">Calendar</Link>
-          </Button>
-        </div>
-      )}
+      <div className="flex items-center gap-2">
+        <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
+          <Link href={`/staff/appointments?view=list${isDoctor ? `&tab=${tab}` : ""}`}>List</Link>
+        </Button>
+        <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
+          <Link href="/staff/appointments?view=calendar">Calendar</Link>
+        </Button>
+      </div>
 
-      {isDoctor && (
+      {isDoctor && view === "list" && (
         <div className="flex flex-wrap items-center gap-2">
           {DOCTOR_TABS.map(({ value, label }) => (
             <Button key={value} asChild variant={tab === value ? "default" : "outline"} className="gap-2">
@@ -188,7 +186,84 @@ export default async function AppointmentsPage({
         </div>
       )}
 
-      {isDoctor ? (
+      {view === "calendar" ? (
+        <div className="grid gap-4">
+          <div className="flex items-center justify-between">
+            <h2 className="text-lg font-medium">
+              {MONTH_NAMES[month - 1]} {year}
+            </h2>
+            <div className="flex items-center gap-2">
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/staff/appointments?view=calendar&year=${prev.year}&month=${prev.month}`}>
+                  ← Prev
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link
+                  href={`/staff/appointments?view=calendar&year=${clinicToday.year}&month=${clinicToday.month}`}
+                >
+                  Today
+                </Link>
+              </Button>
+              <Button asChild variant="outline" size="sm">
+                <Link href={`/staff/appointments?view=calendar&year=${next.year}&month=${next.month}`}>
+                  Next →
+                </Link>
+              </Button>
+            </div>
+          </div>
+
+          <div className="overflow-x-auto">
+            <div className="grid min-w-[840px] grid-cols-7 gap-px rounded-lg border bg-border text-sm">
+              {WEEKDAY_LABELS.map((label) => (
+                <div key={label} className="bg-muted p-2 text-center font-medium">
+                  {label}
+                </div>
+              ))}
+              {weeks.flat().map((day) => {
+                const key = clinicDateKey(day);
+                const inMonth = day.getMonth() === month - 1;
+                const dayAppointments = byDay.get(key) ?? [];
+                return (
+                  <div
+                    key={key}
+                    className={`min-h-28 bg-background p-1.5 align-top ${
+                      inMonth ? "" : "text-muted-foreground/50"
+                    } ${key === todayKey ? "ring-2 ring-inset ring-primary" : ""}`}
+                  >
+                    <p className="mb-1 text-xs font-medium">{day.getDate()}</p>
+                    <div className="grid gap-1">
+                      {dayAppointments.slice(0, 4).map((appt) => (
+                        <Link
+                          key={appt.id}
+                          href={`/staff/appointments/${appt.id}`}
+                          className={`truncate rounded px-1 py-0.5 text-xs ${STATUS_STYLES[appt.status]}`}
+                          title={
+                            isDoctor
+                              ? `${appt.patient.name} — ${appt.status}`
+                              : `${appt.patient.name} — ${appt.doctor.user.name}`
+                          }
+                        >
+                          {new Date(appt.scheduledAt).toLocaleTimeString([], {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}{" "}
+                          {appt.patient.name}
+                        </Link>
+                      ))}
+                      {dayAppointments.length > 4 && (
+                        <span className="text-xs text-muted-foreground">
+                          +{dayAppointments.length - 4} more
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      ) : isDoctor ? (
         <div className="grid gap-2">
           {doctorVisibleAppointments.length === 0 ? (
             <EmptyState icon={CalendarDays} message={t("noResults")} />
@@ -229,7 +304,7 @@ export default async function AppointmentsPage({
             })
           )}
         </div>
-      ) : view === "list" ? (
+      ) : (
         appointments.length === 0 ? (
           <EmptyState icon={CalendarDays} message={t("noResults")} />
         ) : (
@@ -316,79 +391,6 @@ export default async function AppointmentsPage({
             ))}
           </div>
         )
-      ) : (
-        <div className="grid gap-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-medium">
-              {MONTH_NAMES[month - 1]} {year}
-            </h2>
-            <div className="flex items-center gap-2">
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/staff/appointments?view=calendar&year=${prev.year}&month=${prev.month}`}>
-                  ← Prev
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link
-                  href={`/staff/appointments?view=calendar&year=${clinicToday.year}&month=${clinicToday.month}`}
-                >
-                  Today
-                </Link>
-              </Button>
-              <Button asChild variant="outline" size="sm">
-                <Link href={`/staff/appointments?view=calendar&year=${next.year}&month=${next.month}`}>
-                  Next →
-                </Link>
-              </Button>
-            </div>
-          </div>
-
-          <div className="overflow-x-auto">
-            <div className="grid min-w-[840px] grid-cols-7 gap-px rounded-lg border bg-border text-sm">
-              {WEEKDAY_LABELS.map((label) => (
-                <div key={label} className="bg-muted p-2 text-center font-medium">
-                  {label}
-                </div>
-              ))}
-              {weeks.flat().map((day) => {
-                const key = clinicDateKey(day);
-                const inMonth = day.getMonth() === month - 1;
-                const dayAppointments = byDay.get(key) ?? [];
-                return (
-                  <div
-                    key={key}
-                    className={`min-h-28 bg-background p-1.5 align-top ${
-                      inMonth ? "" : "text-muted-foreground/50"
-                    } ${key === todayKey ? "ring-2 ring-inset ring-primary" : ""}`}
-                  >
-                    <p className="mb-1 text-xs font-medium">{day.getDate()}</p>
-                    <div className="grid gap-1">
-                      {dayAppointments.slice(0, 4).map((appt) => (
-                        <Link
-                          key={appt.id}
-                          href={`/staff/appointments/${appt.id}`}
-                          className={`truncate rounded px-1 py-0.5 text-xs ${STATUS_STYLES[appt.status]}`}
-                          title={`${appt.patient.name} — ${appt.doctor.user.name}`}
-                        >
-                          {new Date(appt.scheduledAt).toLocaleTimeString([], {
-                            hour: "2-digit",
-                            minute: "2-digit",
-                          })}{" "}
-                          {appt.patient.name}
-                        </Link>
-                      ))}
-                      {dayAppointments.length > 4 && (
-                        <span className="text-xs text-muted-foreground">
-                          +{dayAppointments.length - 4} more
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

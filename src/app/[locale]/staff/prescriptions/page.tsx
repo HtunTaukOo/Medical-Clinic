@@ -2,34 +2,19 @@ import { Pill, Clock, Hourglass, RotateCw, History as HistoryIcon } from "lucide
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { initials } from "@/lib/format";
-import { formatClinicDateTime } from "@/lib/clinic-hours";
-import { todayRange } from "@/lib/queue";
+import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/empty-state";
 import { AVATAR_COLORS } from "@/components/appointments/appointment-row";
-import { CreatePrescriptionPanel } from "@/components/prescriptions/create-prescription-panel";
 
 export default async function PrescriptionsPage() {
   const session = await requirePageRole(["DOCTOR"]);
   const doctorId = session.user.doctorId;
-  const { start, end } = todayRange();
 
-  const [eligibleAppointments, medicines, active, history] = doctorId
+  const [active, history] = doctorId
     ? await Promise.all([
-        prisma.appointment.findMany({
-          where: {
-            doctorId,
-            scheduledAt: { gte: start, lt: end },
-            status: { in: ["CONFIRMED", "CHECKED_IN", "COMPLETED"] },
-          },
-          include: {
-            patient: { include: { allergyRecords: { orderBy: { createdAt: "desc" }, take: 1 } } },
-          },
-          orderBy: { scheduledAt: "asc" },
-        }),
-        prisma.medicine.findMany({ orderBy: { name: "asc" }, select: { id: true, name: true, unit: true } }),
         prisma.prescription.findMany({
           where: { doctorId, fulfilled: false },
           include: { patient: true, items: { include: { medicine: true } } },
@@ -42,23 +27,23 @@ export default async function PrescriptionsPage() {
           take: 30,
         }),
       ])
-    : [[], [], [], []];
+    : [[], []];
 
   return (
     <div className="grid gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Prescriptions</h1>
-        <p className="text-muted-foreground">Create and manage patient prescriptions.</p>
+        <p className="text-muted-foreground">
+          Review and manage patient prescriptions. Write new ones from a{" "}
+          <Link href="/staff/consultations" className="text-primary underline">
+            patient&apos;s consultation
+          </Link>
+          .
+        </p>
       </div>
 
-      <Tabs defaultValue="create">
+      <Tabs defaultValue="active">
         <TabsList>
-          <TabsTrigger
-            value="create"
-            className="data-active:bg-primary data-active:text-primary-foreground"
-          >
-            Create New
-          </TabsTrigger>
           <TabsTrigger
             value="active"
             className="data-active:bg-primary data-active:text-primary-foreground"
@@ -72,22 +57,6 @@ export default async function PrescriptionsPage() {
             History
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="create">
-          <div className="rounded-2xl border bg-card p-6">
-            <p className="mb-4 font-semibold">New Prescription</p>
-            <CreatePrescriptionPanel
-              appointments={eligibleAppointments.map((a) => ({
-                id: a.id,
-                patientName: a.patient.name,
-                allergy: a.patient.allergyRecords[0]?.name ?? null,
-                time: formatClinicDateTime(a.scheduledAt, { hour: "numeric", minute: "2-digit" }),
-                reason: a.reason,
-              }))}
-              medicines={medicines}
-            />
-          </div>
-        </TabsContent>
 
         <TabsContent value="active" className="grid gap-3">
           {active.length === 0 ? (

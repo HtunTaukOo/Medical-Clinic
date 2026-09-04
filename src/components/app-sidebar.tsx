@@ -107,9 +107,15 @@ export function AppSidebar({
   const tApp = useTranslations("app");
   const pathname = usePathname();
 
-  const groupKeys: (string | undefined)[] = [];
-  for (const item of navItems) {
-    if (!groupKeys.includes(item.group)) groupKeys.push(item.group);
+  // When section labels are hidden, also collapse every group into one flat
+  // list — otherwise each group still gets its own SidebarGroup padding,
+  // producing uneven gaps between items at former group boundaries even
+  // though there's no label left to explain them.
+  const groupKeys: (string | undefined)[] = hideSectionLabels ? [undefined] : [];
+  if (!hideSectionLabels) {
+    for (const item of navItems) {
+      if (!groupKeys.includes(item.group)) groupKeys.push(item.group);
+    }
   }
 
   return (
@@ -130,7 +136,7 @@ export function AppSidebar({
             <SidebarGroupContent>
               <SidebarMenu>
                 {navItems
-                  .filter((item) => item.group === group)
+                  .filter((item) => hideSectionLabels || item.group === group)
                   .map((item) => {
                     const isActive =
                       pathname === item.href ||
