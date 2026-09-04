@@ -33,6 +33,10 @@ type YMD = { year: number; month: number; day: number };
 
 const STEPS = ["Specialty", "Doctor", "Date & Time", "Details", "Confirm"];
 
+// Keep in sync with MAX_APPOINTMENT_SLOTS in src/lib/scheduling.ts (a
+// server-only module this client component can't import directly).
+const MAX_SLOTS = 3;
+
 const REASON_OPTIONS = [
   "Routine Check-up",
   "Follow-up",
@@ -67,6 +71,28 @@ function formatTimeLabel(time: string) {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+function addMinutesToTime(time: string, minutesToAdd: number) {
+  const [h, m] = time.split(":").map(Number);
+  const total = h * 60 + m + minutesToAdd;
+  const hh = String(Math.floor(total / 60) % 24).padStart(2, "0");
+  const mm = String(total % 60).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+// How many consecutive 30-min slots starting at `time` are free, capped at
+// `cap` — powers the duration picker (30/60/90 min) so it only offers
+// options that are actually bookable back-to-back.
+function maxConsecutiveAvailable(daySlots: DaySlot[], time: string, cap: number) {
+  const startIndex = daySlots.findIndex((s) => s.time === time);
+  if (startIndex === -1) return 0;
+  let count = 0;
+  for (let i = startIndex; i < daySlots.length && count < cap; i++) {
+    if (!daySlots[i].available) break;
+    count++;
+  }
+  return count;
+}
+
 export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YMD }) {
   const router = useRouter();
   const [step, setStep] = useState(1);
@@ -76,6 +102,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
   const [calendarMonth, setCalendarMonth] = useState(today.month);
   const [date, setDate] = useState<YMD | null>(null);
   const [time, setTime] = useState<string | null>(null);
+  const [slotCount, setSlotCount] = useState(1);
   const [daySlots, setDaySlots] = useState<DaySlot[]>([]);
   const [slotsPending, startSlotsTransition] = useTransition();
   const [monthBookability, setMonthBookability] = useState<Record<number, boolean>>({});
@@ -100,6 +127,11 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
   );
 
   const selectedDoctor = doctors.find((d) => d.id === doctorId) ?? null;
+  const timeRangeLabel = time
+    ? slotCount > 1
+      ? `${formatTimeLabel(time)} – ${formatTimeLabel(addMinutesToTime(time, slotCount * 30))} (${slotCount * 30} min)`
+      : formatTimeLabel(time)
+    : null;
 
   useEffect(() => {
     if (!doctorId) return;
@@ -113,6 +145,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
     if (!doctorId) return;
     setDate(d);
     setTime(null);
+    setSlotCount(1);
     setDaySlots([]);
     startSlotsTransition(async () => {
       const result = await fetchDaySlots(doctorId, d.year, d.month, d.day);
@@ -120,11 +153,25 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
     });
   }
 
+  function pickTime(t: string) {
+    setTime(t);
+    setSlotCount(1);
+  }
+
   function handleConfirm() {
     if (!doctorId || !date || !time || !reasonCategory) return;
     const reason = notes ? `${reasonCategory}: ${notes}` : reasonCategory;
+    const durationMinutes = slotCount * 30;
     startSubmitTransition(async () => {
-      const result = await confirmBooking(doctorId, date.year, date.month, date.day, time, reason);
+      const result = await confirmBooking(
+        doctorId,
+        date.year,
+        date.month,
+        date.day,
+        time,
+        reason,
+        durationMinutes
+      );
       setSubmitState(result);
       if (result.success) setStep(6);
     });
@@ -145,7 +192,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
             ["Specialty", specialty],
             ["Doctor", selectedDoctor?.name],
             ["Date", date && formatDateLabel(date)],
-            ["Time", time && formatTimeLabel(time)],
+            ["Time", timeRangeLabel],
             ["Reason", reasonCategory],
           ].map(([label, value]) => (
             <div key={label} className="flex items-center justify-between border-b p-3 last:border-b-0">
@@ -217,6 +264,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {specialties.map((s) => {
                 const selected = specialty === s.name;
+                const Icon = s.icon;
                 return (
                   <button
                     key={s.name}
@@ -226,7 +274,9 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
                       selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
                     }`}
                   >
-                    <span className="text-2xl">{s.emoji}</span>
+                    <div className="flex size-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                      <Icon className="size-5" />
+                    </div>
                     <p className="mt-2 font-semibold">{s.name}</p>
                     <p className="text-sm text-muted-foreground">{s.description}</p>
                   </button>
@@ -382,7 +432,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
                       key={s.time}
                       type="button"
                       disabled={!s.available}
-                      onClick={() => setTime(s.time)}
+                      onClick={() => pickTime(s.time)}
                       className={`rounded-lg border py-2.5 text-sm font-medium transition-colors ${
                         time === s.time
                           ? "border-primary bg-primary text-primary-foreground"
@@ -394,6 +444,42 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
                       {formatTimeLabel(s.time)}
                     </button>
                   ))}
+                </div>
+              )}
+
+              {time && (
+                <div className="grid gap-2">
+                  <p className="text-sm font-medium">
+                    Expect this visit to run long? Reserve more time.
+                  </p>
+                  <div className="flex gap-2">
+                    {Array.from({ length: MAX_SLOTS }, (_, i) => i + 1).map((n) => {
+                      const maxAvailable = maxConsecutiveAvailable(daySlots, time, MAX_SLOTS);
+                      const disabled = n > maxAvailable;
+                      return (
+                        <button
+                          key={n}
+                          type="button"
+                          disabled={disabled}
+                          onClick={() => setSlotCount(n)}
+                          className={`flex-1 rounded-lg border py-2 text-sm font-medium transition-colors ${
+                            slotCount === n
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : disabled
+                                ? "text-muted-foreground/40"
+                                : "hover:bg-muted/50"
+                          }`}
+                        >
+                          {n * 30} min
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {slotCount > 1 && (
+                    <p className="text-xs text-muted-foreground">
+                      {formatTimeLabel(time)} – {formatTimeLabel(addMinutesToTime(time, slotCount * 30))}
+                    </p>
+                  )}
                 </div>
               )}
             </div>
@@ -445,7 +531,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
                 ["Specialty", specialty],
                 ["Doctor", selectedDoctor.name],
                 ["Date", formatDateLabel(date)],
-                ["Time", formatTimeLabel(time)],
+                ["Time", timeRangeLabel],
                 ["Reason", reasonCategory],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between p-3">

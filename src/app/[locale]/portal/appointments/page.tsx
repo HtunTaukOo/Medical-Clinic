@@ -1,9 +1,7 @@
-import { CalendarDays, Stethoscope, Pill } from "lucide-react";
+import { CalendarDays, Pill } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
-import { checkInAppointment, cancelAppointment } from "@/actions/appointments";
 import { clinicDateKey, clinicDateParts, formatClinicDateTime } from "@/lib/clinic-hours";
 import { leaveWaitlist } from "@/actions/waitlist";
 import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
@@ -12,6 +10,8 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
+import { PatientAppointmentCard } from "@/components/appointments/patient-appointment-card";
+import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
   REQUESTED: "bg-amber-100 text-amber-800",
@@ -26,6 +26,12 @@ const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const APPOINTMENT_TABS = ["upcoming", "completed", "cancelled"] as const;
 type AppointmentTab = (typeof APPOINTMENT_TABS)[number];
+
+const TAB_META: Record<AppointmentTab, { label: string; badgeClass: string }> = {
+  upcoming: { label: "Upcoming", badgeClass: "bg-blue-100 text-blue-700" },
+  completed: { label: "Completed", badgeClass: "bg-emerald-100 text-emerald-700" },
+  cancelled: { label: "Cancelled", badgeClass: "bg-rose-100 text-rose-700" },
+};
 
 export default async function PortalAppointmentsPage({
   searchParams,
@@ -60,18 +66,17 @@ export default async function PortalAppointmentsPage({
       })
     : [];
 
-  const visibleAppointments =
-    view === "list"
-      ? appointments.filter((appt) => {
-          if (tab === "completed") return appt.status === "COMPLETED";
-          if (tab === "cancelled") return appt.status === "CANCELLED" || appt.status === "NO_SHOW";
-          return (
-            appt.status === "REQUESTED" ||
-            appt.status === "CONFIRMED" ||
-            appt.status === "CHECKED_IN"
-          );
-        })
-      : appointments;
+  const appointmentsByTab: Record<AppointmentTab, typeof appointments> = {
+    upcoming: appointments.filter(
+      (appt) =>
+        appt.status === "REQUESTED" || appt.status === "CONFIRMED" || appt.status === "CHECKED_IN"
+    ),
+    completed: appointments.filter((appt) => appt.status === "COMPLETED"),
+    cancelled: appointments.filter(
+      (appt) => appt.status === "CANCELLED" || appt.status === "NO_SHOW"
+    ),
+  };
+  const visibleAppointments = view === "list" ? appointmentsByTab[tab] : appointments;
 
   const waitlistEntries = patientId
     ? await prisma.waitlist.findMany({
@@ -80,16 +85,6 @@ export default async function PortalAppointmentsPage({
         include: { doctor: { include: { user: true } } },
       })
     : [];
-
-  const queuePositions = new Map<string, number>();
-  for (const appt of appointments) {
-    if (appt.status === "CHECKED_IN" && appt.checkedInAt) {
-      queuePositions.set(
-        appt.id,
-        await getQueuePosition(appt.doctorId, appt.checkedInAt)
-      );
-    }
-  }
 
   const weeks = getMonthGrid(year, month);
   const byDay = new Map<string, typeof appointments>();
@@ -174,18 +169,31 @@ export default async function PortalAppointmentsPage({
 
       {view === "list" && (
         <div className="flex flex-wrap items-center gap-2">
-          {APPOINTMENT_TABS.map((value) => (
-            <Button
-              key={value}
-              asChild
-              variant={tab === value ? "default" : "outline"}
-              size="sm"
-            >
-              <Link href={`/portal/appointments?view=list&tab=${value}`} className="capitalize">
-                {value}
+          {APPOINTMENT_TABS.map((value) => {
+            const active = tab === value;
+            return (
+              <Link
+                key={value}
+                href={`/portal/appointments?view=list&tab=${value}`}
+                className={cn(
+                  "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors",
+                  active
+                    ? "bg-primary text-primary-foreground"
+                    : "border bg-white text-foreground hover:bg-muted/50"
+                )}
+              >
+                {TAB_META[value].label}
+                <span
+                  className={cn(
+                    "flex size-5 items-center justify-center rounded-full text-xs",
+                    active ? "bg-white/25" : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {appointmentsByTab[value].length}
+                </span>
               </Link>
-            </Button>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -193,55 +201,28 @@ export default async function PortalAppointmentsPage({
         visibleAppointments.length === 0 ? (
           <EmptyState icon={CalendarDays} message={t("noResults")} />
         ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {visibleAppointments.map((appt) => {
-              const position = queuePositions.get(appt.id);
-              const canSelfCheckIn =
-                appt.status === "CONFIRMED" && isWithinSelfCheckInWindow(appt.scheduledAt);
-              const canCancel =
-                appt.status === "REQUESTED" || appt.status === "CONFIRMED";
-              return (
-                <Card key={appt.id}>
-                  <CardContent className="grid gap-3">
-                    <div className="flex items-start justify-between gap-2">
-                      <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <Stethoscope className="size-4" />
-                        {appt.doctor.user.name}
-                      </div>
-                      <Badge variant="outline">{appt.status}</Badge>
-                    </div>
-                    <Link
-                      href={`/portal/appointments/${appt.id}`}
-                      className="flex items-center gap-2 text-sm text-muted-foreground hover:underline"
-                    >
-                      <CalendarDays className="size-4" />
-                      {formatClinicDateTime(appt.scheduledAt)}
-                    </Link>
-                    {position !== undefined && (
-                      <p className="text-sm font-medium text-primary">
-                        {t("queuePosition", { position, doctor: appt.doctor.user.name })}
-                      </p>
-                    )}
-                    <div className="flex gap-2">
-                      {canSelfCheckIn && (
-                        <form action={checkInAppointment.bind(null, appt.id)}>
-                          <Button size="sm" type="submit" className="w-fit">
-                            {t("checkIn")}
-                          </Button>
-                        </form>
-                      )}
-                      {canCancel && (
-                        <form action={cancelAppointment.bind(null, appt.id)}>
-                          <Button size="sm" variant="destructive" type="submit" className="w-fit">
-                            {t("cancel")}
-                          </Button>
-                        </form>
-                      )}
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
+          <div className="grid gap-3">
+            {visibleAppointments.map((appt, index) => (
+              <PatientAppointmentCard
+                key={appt.id}
+                href={`/portal/appointments/${appt.id}`}
+                avatarIndex={index}
+                doctorName={appt.doctor.user.name}
+                specialty={appt.doctor.specialty ?? "General Medicine"}
+                reason={appt.reason}
+                dateLabel={formatClinicDateTime(appt.scheduledAt, {
+                  month: "short",
+                  day: "numeric",
+                  year: "numeric",
+                })}
+                timeLabel={formatClinicDateTime(appt.scheduledAt, {
+                  hour: "numeric",
+                  minute: "2-digit",
+                })}
+                statusLabel={TAB_META[tab].label}
+                statusClassName={TAB_META[tab].badgeClass}
+              />
+            ))}
           </div>
         )
       ) : (

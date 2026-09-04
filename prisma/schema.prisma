@@ -236,6 +236,7 @@ model Appointment {
   doctorId    String
   doctor      DoctorProfile     @relation(fields: [doctorId], references: [id])
   scheduledAt DateTime
+  durationMinutes Int           @default(30)
   status      AppointmentStatus @default(REQUESTED)
   reason      String?
   notes       String?

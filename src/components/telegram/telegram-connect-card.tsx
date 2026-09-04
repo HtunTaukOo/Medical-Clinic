@@ -3,7 +3,6 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getTelegramBotUsername } from "@/lib/telegram";
 import { disconnectTelegram } from "@/actions/telegram";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
 export async function TelegramConnectCard() {
@@ -23,14 +22,12 @@ export async function TelegramConnectCard() {
   const connectUrl = `https://t.me/${botUsername}?start=${patientId}`;
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Send className="size-4" />
-          Telegram notifications
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="flex items-center justify-between gap-4">
+    <div className="grid gap-4">
+      <p className="flex items-center gap-2 font-medium">
+        <Send className="size-4" />
+        Telegram notifications
+      </p>
+      <div className="flex items-center justify-between gap-4">
         {connected ? (
           <>
             <p className="text-sm text-muted-foreground">
@@ -54,7 +51,7 @@ export async function TelegramConnectCard() {
             </Button>
           </>
         )}
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }

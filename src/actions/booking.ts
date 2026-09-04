@@ -67,7 +67,8 @@ export async function confirmBooking(
   month: number,
   day: number,
   time: string,
-  reason: string
+  reason: string,
+  durationMinutes: number = 30
 ): Promise<AppointmentFormState> {
   const session = await requireSession();
   const patientId = session.user.patientId;
@@ -77,5 +78,5 @@ export async function confirmBooking(
     clinicMidnightForYMD(year, month, day).getTime() + toMinutes(time) * 60 * 1000
   );
 
-  return submitAppointmentRequest(patientId, doctorId, scheduledAt, reason || undefined);
+  return submitAppointmentRequest(patientId, doctorId, scheduledAt, reason || undefined, durationMinutes);
 }

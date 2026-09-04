@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
-import { Pill } from "lucide-react";
+import { ChevronLeft, Pill } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { cancelAppointment } from "@/actions/appointments";
+import { cancelAppointment, checkInAppointment } from "@/actions/appointments";
+import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
+import { Link } from "@/i18n/navigation";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,8 +35,24 @@ export default async function PortalAppointmentDetailPage({
     notFound();
   }
 
+  const canSelfCheckIn =
+    appointment.status === "CONFIRMED" && isWithinSelfCheckInWindow(appointment.scheduledAt);
+  const canCancel = appointment.status === "REQUESTED" || appointment.status === "CONFIRMED";
+  const queuePosition =
+    appointment.status === "CHECKED_IN" && appointment.checkedInAt
+      ? await getQueuePosition(appointment.doctorId, appointment.checkedInAt)
+      : null;
+
   return (
     <div className="grid gap-6">
+      <Link
+        href="/portal/appointments"
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" />
+        Back
+      </Link>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{appointment.doctor.user.name}</h1>
@@ -45,13 +63,28 @@ export default async function PortalAppointmentDetailPage({
         <Badge variant="outline">{appointment.status}</Badge>
       </div>
 
-      {(appointment.status === "REQUESTED" || appointment.status === "CONFIRMED") && (
-        <form action={cancelAppointment.bind(null, appointment.id)}>
-          <Button variant="destructive" type="submit" className="w-fit">
-            {t("cancel")}
-          </Button>
-        </form>
+      {queuePosition != null && (
+        <p className="text-sm font-medium text-primary">
+          {t("queuePosition", { position: queuePosition, doctor: appointment.doctor.user.name })}
+        </p>
       )}
+
+      <div className="flex gap-2">
+        {canSelfCheckIn && (
+          <form action={checkInAppointment.bind(null, appointment.id)}>
+            <Button type="submit" className="w-fit">
+              {t("checkIn")}
+            </Button>
+          </form>
+        )}
+        {canCancel && (
+          <form action={cancelAppointment.bind(null, appointment.id)}>
+            <Button variant="destructive" type="submit" className="w-fit">
+              {t("cancel")}
+            </Button>
+          </form>
+        )}
+      </div>
 
       {appointment.reason && (
         <Card>

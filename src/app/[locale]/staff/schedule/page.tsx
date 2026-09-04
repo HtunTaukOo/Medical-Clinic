@@ -95,32 +95,44 @@ export default async function SchedulePage({
 
   const leaveDayKeys = new Set(weekLeaveDays.map((l) => weekKeyFor(l.date)));
 
-  const apptByCell = new Map<string, (typeof weekAppointments)[number]>();
+  type Occupant = { appt: (typeof weekAppointments)[number]; isStart: boolean };
+  const apptByCell = new Map<string, Occupant>();
   for (const appt of weekAppointments) {
     const offsetDays = Math.floor((appt.scheduledAt.getTime() - weekStart.getTime()) / ONE_DAY_MS);
     if (offsetDays < 0 || offsetDays > 5) continue;
     const minutesOfDay = Math.round(
       (appt.scheduledAt.getTime() - (weekStart.getTime() + offsetDays * ONE_DAY_MS)) / 60000
     );
-    apptByCell.set(`${offsetDays}-${minutesOfDay}`, appt);
+    const slotCount = Math.max(1, Math.round(appt.durationMinutes / APPOINTMENT_SLOT_MINUTES));
+    for (let i = 0; i < slotCount; i++) {
+      const m = minutesOfDay + i * APPOINTMENT_SLOT_MINUTES;
+      apptByCell.set(`${offsetDays}-${m}`, { appt, isStart: i === 0 });
+    }
   }
 
   const now = new Date().getTime();
-  let bookedCount = 0;
+  const bookedCount = weekAppointments.length;
   let availableCount = 0;
   let blockedCount = 0;
 
   type Cell =
     | { type: "booked"; id: string; patientName: string; reason: string | null }
+    | { type: "booked-continuation" }
     | { type: "available" }
     | { type: "blocked" };
 
   const grid: Cell[][] = rowMinutes.map((minutes) =>
     DAY_LABELS.map((_, dayOffset) => {
-      const appt = apptByCell.get(`${dayOffset}-${minutes}`);
-      if (appt) {
-        bookedCount++;
-        return { type: "booked", id: appt.id, patientName: appt.patient.name, reason: appt.reason };
+      const occupant = apptByCell.get(`${dayOffset}-${minutes}`);
+      if (occupant) {
+        return occupant.isStart
+          ? {
+              type: "booked",
+              id: occupant.appt.id,
+              patientName: occupant.appt.patient.name,
+              reason: occupant.appt.reason,
+            }
+          : { type: "booked-continuation" };
       }
       const dayMidnight = weekStart.getTime() + dayOffset * ONE_DAY_MS;
       const dayKey = weekKeyFor(new Date(dayMidnight));
@@ -267,6 +279,9 @@ export default async function SchedulePage({
                                 <p className="text-[11px] leading-tight text-blue-700">{cell.reason}</p>
                               )}
                             </Link>
+                          )}
+                          {cell.type === "booked-continuation" && (
+                            <div className="h-full rounded-lg border border-blue-200 bg-blue-50/70" />
                           )}
                           {cell.type === "available" && (
                             <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-blue-200 bg-blue-50/40 text-[11px] font-medium text-blue-500">

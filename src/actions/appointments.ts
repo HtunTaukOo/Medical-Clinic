@@ -7,12 +7,15 @@ import { requireRole, requireSession, UnauthorizedError } from "@/lib/authz";
 import {
   findConflictingAppointment,
   APPOINTMENT_SLOT_MINUTES,
+  MAX_APPOINTMENT_SLOTS,
 } from "@/lib/scheduling";
 import {
   getClinicSettings,
   isWithinOpeningHours,
   formatTime,
   clinicWeekday,
+  clinicMidnight,
+  toMinutes,
 } from "@/lib/clinic-hours";
 import { isWithinSelfCheckInWindow } from "@/lib/queue";
 import {
@@ -143,12 +146,28 @@ export async function submitAppointmentRequest(
   patientId: string,
   doctorId: string,
   scheduledAt: Date,
-  reason?: string
+  reason?: string,
+  durationMinutes: number = APPOINTMENT_SLOT_MINUTES
 ): Promise<AppointmentFormState> {
+  if (
+    !Number.isInteger(durationMinutes) ||
+    durationMinutes < APPOINTMENT_SLOT_MINUTES ||
+    durationMinutes > MAX_APPOINTMENT_SLOTS * APPOINTMENT_SLOT_MINUTES ||
+    durationMinutes % APPOINTMENT_SLOT_MINUTES !== 0
+  ) {
+    return { error: "Invalid appointment duration." };
+  }
+  const scheduledEnd = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
+  const dayStart = clinicMidnight(scheduledAt);
+
   const settings = await getClinicSettings();
-  if (!isWithinOpeningHours(scheduledAt, settings.openingTime, settings.closingTime)) {
+  const clinicCloseInstant = new Date(dayStart.getTime() + toMinutes(settings.closingTime) * 60 * 1000);
+  if (
+    !isWithinOpeningHours(scheduledAt, settings.openingTime, settings.closingTime) ||
+    scheduledEnd.getTime() > clinicCloseInstant.getTime()
+  ) {
     return {
-      error: `Please choose a time between ${formatTime(settings.openingTime)} and ${formatTime(settings.closingTime)}.`,
+      error: `Please choose a time between ${formatTime(settings.openingTime)} and ${formatTime(settings.closingTime)} that leaves room for the full ${durationMinutes}-minute visit.`,
     };
   }
 
@@ -168,13 +187,19 @@ export async function submitAppointmentRequest(
       error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[clinicWeekday(scheduledAt)]}s. Please choose another day.`,
     };
   }
-  if (!isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime)) {
+  const doctorCloseInstant = doctor.workEndTime
+    ? new Date(dayStart.getTime() + toMinutes(doctor.workEndTime) * 60 * 1000)
+    : null;
+  if (
+    !isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime) ||
+    (doctorCloseInstant != null && scheduledEnd.getTime() > doctorCloseInstant.getTime())
+  ) {
     return {
-      error: `Please choose a time between ${formatTime(doctor.workStartTime!)} and ${formatTime(doctor.workEndTime!)} for this doctor.`,
+      error: `Please choose a time between ${formatTime(doctor.workStartTime!)} and ${formatTime(doctor.workEndTime!)} for this doctor that leaves room for the full ${durationMinutes}-minute visit.`,
     };
   }
 
-  const conflict = await findConflictingAppointment(doctorId, scheduledAt);
+  const conflict = await findConflictingAppointment(doctorId, scheduledAt, durationMinutes);
   if (conflict) {
     return {
       error: CONFLICT_MESSAGE,
@@ -191,6 +216,7 @@ export async function submitAppointmentRequest(
       patientId,
       doctorId,
       scheduledAt,
+      durationMinutes,
       reason,
       status: "REQUESTED",
     },
