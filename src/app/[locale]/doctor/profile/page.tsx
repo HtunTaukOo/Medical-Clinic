@@ -3,7 +3,7 @@ import { User, GraduationCap, Lock, Bell } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { initials } from "@/lib/format";
-import { getClinicSettings, formatTime } from "@/lib/clinic-hours";
+import { getClinicHoursRange, formatTime } from "@/lib/clinic-hours";
 import { WEEKDAY_LABELS } from "@/lib/doctor-availability";
 import { DoctorPersonalInfoForm } from "@/components/staff/doctor-personal-info-form";
 import { DoctorSpecialtyForm } from "@/components/staff/doctor-specialty-form";
@@ -34,15 +34,15 @@ export default async function DoctorProfilePage() {
   const doctorId = session.user.doctorId;
   if (!doctorId) notFound();
 
-  const [doctor, settings] = await Promise.all([
+  const [doctor, clinicHours] = await Promise.all([
     prisma.doctorProfile.findUnique({ where: { id: doctorId }, include: { user: true } }),
-    getClinicSettings(),
+    getClinicHoursRange(),
   ]);
   if (!doctor) notFound();
 
   const consultationHours = `${formatTime(
-    doctor.workStartTime ?? settings.openingTime
-  )} – ${formatTime(doctor.workEndTime ?? settings.closingTime)} (${formatWorkingDaysRange(
+    doctor.workStartTime ?? clinicHours.openTime
+  )} – ${formatTime(doctor.workEndTime ?? clinicHours.closeTime)} (${formatWorkingDaysRange(
     doctor.workingDays
   )})`;
 

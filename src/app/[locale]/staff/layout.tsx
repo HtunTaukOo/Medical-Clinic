@@ -9,13 +9,13 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
   {
     href: "/staff/check-in",
     labelKey: "checkIn",
-    roles: ["ADMIN", "STAFF"],
+    roles: ["STAFF"],
     group: "sectionCare",
   },
   {
     href: "/staff/patients",
     labelKey: "patients",
-    roles: ["ADMIN", "STAFF"],
+    roles: ["STAFF"],
     group: "sectionCare",
   },
   {
@@ -27,14 +27,39 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
   {
     href: "/staff/queue",
     labelKey: "queue",
-    roles: ["ADMIN", "STAFF"],
+    roles: ["STAFF"],
     group: "sectionCare",
   },
   {
     href: "/staff/pharmacy",
     labelKey: "pharmacy",
-    roles: ["ADMIN", "STAFF"],
+    roles: ["STAFF"],
     group: "sectionOperations",
+  },
+  {
+    href: "/staff/inventory",
+    labelKey: "inventory",
+    roles: ["STAFF"],
+    group: "sectionOperations",
+  },
+  {
+    href: "/staff/lab",
+    labelKey: "lab",
+    roles: ["STAFF"],
+    group: "sectionOperations",
+  },
+  { href: "/staff/users", labelKey: "staff", roles: ["ADMIN"], group: "sectionAdmin" },
+  {
+    href: "/staff/doctors",
+    labelKey: "doctorsSchedules",
+    roles: ["ADMIN"],
+    group: "sectionAdmin",
+  },
+  {
+    href: "/staff/clinic-services",
+    labelKey: "clinicServices",
+    roles: ["ADMIN"],
+    group: "sectionAdmin",
   },
   {
     href: "/staff/billing",
@@ -42,37 +67,24 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
     roles: ["ADMIN", "STAFF"],
     group: "sectionOperations",
   },
-  {
-    href: "/staff/inventory",
-    labelKey: "inventory",
-    roles: ["ADMIN", "STAFF"],
-    group: "sectionOperations",
-  },
-  {
-    href: "/staff/lab",
-    labelKey: "lab",
-    roles: ["ADMIN", "STAFF"],
-    group: "sectionOperations",
-  },
-  { href: "/staff/users", labelKey: "staff", roles: ["ADMIN"], group: "sectionAdmin" },
   { href: "/staff/reports", labelKey: "reports", roles: ["ADMIN"], group: "sectionAdmin" },
   {
     href: "/staff/activity-log",
     labelKey: "activityLog",
-    roles: ["ADMIN"],
+    roles: [],
     group: "sectionAdmin",
   },
   { href: "/staff/settings", labelKey: "settings", roles: ["ADMIN"], group: "sectionAdmin" },
   {
     href: "/staff/notifications",
     labelKey: "notifications",
-    roles: ["ADMIN", "STAFF"],
+    roles: ["STAFF"],
     group: "sectionAdmin",
   },
   {
     href: "/staff/profile",
     labelKey: "profile",
-    roles: ["ADMIN", "STAFF"],
+    roles: ["STAFF"],
     group: "sectionAdmin",
   },
 ];

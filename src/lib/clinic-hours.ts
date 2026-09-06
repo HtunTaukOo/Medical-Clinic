@@ -15,6 +15,62 @@ export async function getClinicSettings() {
   });
 }
 
+const DEFAULT_WEEKLY_HOURS: Record<number, { isOpen: boolean; openTime: string; closeTime: string }> = {
+  0: { isOpen: false, openTime: "09:00", closeTime: "17:00" }, // Sun
+  1: { isOpen: true, openTime: "08:00", closeTime: "17:00" }, // Mon
+  2: { isOpen: true, openTime: "08:00", closeTime: "17:00" }, // Tue
+  3: { isOpen: true, openTime: "08:00", closeTime: "17:00" }, // Wed
+  4: { isOpen: true, openTime: "08:00", closeTime: "17:00" }, // Thu
+  5: { isOpen: true, openTime: "08:00", closeTime: "17:00" }, // Fri
+  6: { isOpen: true, openTime: "09:00", closeTime: "14:00" }, // Sat
+};
+
+// Seeds any missing weekday rows with sensible defaults, then returns all 7
+// ordered Sun-Sat, so the Working Hours UI and booking validation always see
+// a complete week even before an admin has customized anything.
+export async function getClinicWeeklyHours() {
+  const existing = await prisma.clinicWeeklyHours.findMany();
+  const existingByDay = new Map(existing.map((h) => [h.weekday, h]));
+  const missing = [0, 1, 2, 3, 4, 5, 6].filter((d) => !existingByDay.has(d));
+  if (missing.length > 0) {
+    await prisma.clinicWeeklyHours.createMany({
+      data: missing.map((weekday) => ({ weekday, ...DEFAULT_WEEKLY_HOURS[weekday] })),
+      skipDuplicates: true,
+    });
+    const refreshed = await prisma.clinicWeeklyHours.findMany();
+    return refreshed.sort((a, b) => a.weekday - b.weekday);
+  }
+  return existing.sort((a, b) => a.weekday - b.weekday);
+}
+
+// A single fallback open/close pair spanning every day the clinic is open
+// (earliest open time to latest close time). Used where a single range is
+// needed as a default (e.g. a doctor who hasn't set custom hours), rather
+// than per-day hours.
+export async function getClinicHoursRange() {
+  const week = await getClinicWeeklyHours();
+  const openDays = week.filter((h) => h.isOpen);
+  if (openDays.length === 0) return { openTime: "09:00", closeTime: "17:00" };
+  const openTime = openDays.reduce((min, h) => (h.openTime < min ? h.openTime : min), openDays[0].openTime);
+  const closeTime = openDays.reduce((max, h) => (h.closeTime > max ? h.closeTime : max), openDays[0].closeTime);
+  return { openTime, closeTime };
+}
+
+// The clinic's configured hours for the clinic-local calendar day the given
+// instant falls on (falls back to closed if that weekday somehow has no row).
+export async function getClinicHoursForDate(date: Date) {
+  const weekday = clinicWeekday(date);
+  const week = await getClinicWeeklyHours();
+  return (
+    week.find((h) => h.weekday === weekday) ?? {
+      weekday,
+      isOpen: false,
+      openTime: "09:00",
+      closeTime: "17:00",
+    }
+  );
+}
+
 export function toMinutes(time: string) {
   const [hours, minutes] = time.split(":").map(Number);
   return hours * 60 + minutes;

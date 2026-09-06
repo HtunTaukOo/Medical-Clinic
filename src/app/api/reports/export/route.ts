@@ -1,6 +1,16 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
-import { getReportData } from "@/lib/reports";
+import {
+  REPORT_TABS,
+  resolveReportRange,
+  getReportsPageData,
+  formatDateLabel,
+  type ReportTab,
+} from "@/lib/reports";
+
+function formatKyat(value: number) {
+  return `K ${Math.round(value).toLocaleString()}`;
+}
 
 function csvEscape(value: string | number) {
   const str = String(value);
@@ -12,80 +22,82 @@ function row(values: (string | number)[]) {
   return values.map(csvEscape).join(",") + "\n";
 }
 
-export async function GET() {
+function growthCell(value: number | null) {
+  return value === null ? "—" : `${value}%`;
+}
+
+export async function GET(request: Request) {
   const session = await auth();
   if (session?.user.role !== "ADMIN") {
     return new NextResponse("Unauthorized", { status: 401 });
   }
 
-  const data = await getReportData();
-  let csv = "";
+  const url = new URL(request.url);
+  const tabParam = url.searchParams.get("tab");
+  const tab: ReportTab = REPORT_TABS.some((t) => t.value === tabParam)
+    ? (tabParam as ReportTab)
+    : "appointments";
+  const range = resolveReportRange(
+    url.searchParams.get("from") ?? undefined,
+    url.searchParams.get("to") ?? undefined
+  );
+  const data = await getReportsPageData(tab, range);
 
-  csv += "Summary\n";
-  csv += row(["Total revenue", data.totalRevenue.toFixed(2)]);
-  csv += row(["Revenue this month", data.revenueThisMonth.toFixed(2)]);
-  csv += row(["Total patients", data.patientCount]);
-  csv += row(["Completed visits", data.completedAppointments]);
-  csv += row(["No-show rate", `${data.noShowRate}%`]);
+  const label = REPORT_TABS.find((t) => t.value === tab)!.label;
+  let csv = `${label} report (${range.from} to ${range.to})\n\n`;
+  csv += row([data.totalLabel, data.totalValue]);
+  csv += row(["Growth", growthCell(data.growthPercent)]);
+  csv += row([data.topPerformerLabel, data.topPerformerValue]);
   csv += "\n";
 
-  csv += "Revenue by month\n";
-  csv += row(["Month", "Total"]);
-  for (const m of data.revenueByMonth) csv += row([m.label, m.total.toFixed(2)]);
-  csv += "\n";
-
-  csv += "Appointments by status\n";
-  csv += row(["Status", "Count", "Percent"]);
-  for (const s of data.statusTotals) {
-    const pct =
-      data.totalAppointments > 0
-        ? Math.round((s._count.status / data.totalAppointments) * 100)
-        : 0;
-    csv += row([s.status, s._count.status, `${pct}%`]);
+  switch (data.kind) {
+    case "appointments":
+      csv += row(["Date", "Total", "Completed", "Cancelled", "Scheduled", "Growth"]);
+      for (const r of data.rows) {
+        csv += row([
+          formatDateLabel(r.date),
+          r.total,
+          r.completed,
+          r.cancelled,
+          r.scheduled,
+          growthCell(r.growthPercent),
+        ]);
+      }
+      break;
+    case "patients":
+      csv += row(["Date", "New Patients", "Growth"]);
+      for (const r of data.rows) {
+        csv += row([formatDateLabel(r.date), r.newPatients, growthCell(r.growthPercent)]);
+      }
+      break;
+    case "doctors":
+      csv += row(["Doctor", "Specialty", "Completed", "No-shows", "No-show Rate", "Revenue"]);
+      for (const d of data.rows) {
+        csv += row([
+          d.name,
+          d.specialty ?? "",
+          d.completed,
+          d.noShows,
+          `${d.noShowRate}%`,
+          formatKyat(d.revenue),
+        ]);
+      }
+      break;
+    case "revenue":
+      csv += row(["Date", "Revenue", "Growth"]);
+      for (const r of data.rows) {
+        csv += row([formatDateLabel(r.date), formatKyat(r.revenue), growthCell(r.growthPercent)]);
+      }
+      break;
+    case "services":
+      csv += row(["Service", "Times Billed", "Revenue"]);
+      for (const r of data.rows) {
+        csv += row([r.name, r.units, formatKyat(r.revenue)]);
+      }
+      break;
   }
-  csv += "\n";
 
-  csv += "Top prescribed medicines\n";
-  csv += row(["Medicine", "Units"]);
-  for (const m of data.medicineTotals) {
-    csv += row([data.medicineNameById.get(m.medicineId) ?? "Unknown", m._sum.quantity ?? 0]);
-  }
-  csv += "\n";
-
-  csv += "No-shows by doctor\n";
-  csv += row(["Doctor", "No-shows"]);
-  for (const d of data.noShowsByDoctor) csv += row([d.name, d.count]);
-  csv += "\n";
-
-  csv += "Doctor productivity\n";
-  csv += row(["Doctor", "Specialty", "Completed visits", "No-shows", "No-show rate", "Revenue"]);
-  for (const d of data.doctorProductivity) {
-    csv += row([
-      d.name,
-      d.specialty ?? "",
-      d.completed,
-      d.noShows,
-      `${d.noShowRate}%`,
-      d.revenue.toFixed(2),
-    ]);
-  }
-  csv += "\n";
-
-  csv += "Patient age distribution\n";
-  csv += row(["Age group", "Patients"]);
-  for (const b of data.ageDistribution) csv += row([b.label, b.count]);
-  csv += "\n";
-
-  csv += "Patients by gender\n";
-  csv += row(["Gender", "Patients"]);
-  for (const g of data.genderDistribution) csv += row([g.label, g.count]);
-  csv += "\n";
-
-  csv += "New patients by month\n";
-  csv += row(["Month", "New patients"]);
-  for (const m of data.newPatientsByMonth) csv += row([m.label, m.count]);
-
-  const filename = `nca-clinic-report-${new Date().toISOString().slice(0, 10)}.csv`;
+  const filename = `nca-clinic-${tab}-report-${range.from}-to-${range.to}.csv`;
   return new NextResponse(csv, {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",

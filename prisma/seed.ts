@@ -89,9 +89,7 @@ async function main() {
     update: {},
     create: {
       id: "clinic-settings",
-      isOpen: true,
-      openingTime: "09:00",
-      closingTime: "17:00",
+      name: "NCA Clinic",
     },
   });
 

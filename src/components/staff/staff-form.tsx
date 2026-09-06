@@ -18,18 +18,24 @@ import {
 
 const ROLES = ["ADMIN", "DOCTOR", "STAFF"] as const;
 
-export function StaffForm() {
+export function StaffForm({
+  lockRole,
+  redirectTo = "/staff/users",
+}: {
+  lockRole?: (typeof ROLES)[number];
+  redirectTo?: string;
+}) {
   const t = useTranslations("staff");
   const router = useRouter();
-  const [role, setRole] = useState<string>("STAFF");
+  const [role, setRole] = useState<string>(lockRole ?? "STAFF");
   const [state, formAction, pending] = useActionState<
     StaffFormState,
     FormData
   >(createStaff, {});
 
   useEffect(() => {
-    if (state.success) router.push("/staff/users");
-  }, [state.success, router]);
+    if (state.success) router.push(redirectTo);
+  }, [state.success, router, redirectTo]);
 
   return (
     <form action={formAction} className="grid max-w-md gap-4">
@@ -45,21 +51,25 @@ export function StaffForm() {
         <Label htmlFor="password">Password</Label>
         <Input id="password" name="password" type="password" required minLength={8} />
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="role">{t("role")}</Label>
-        <Select name="role" value={role} onValueChange={setRole}>
-          <SelectTrigger id="role" className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {ROLES.map((r) => (
-              <SelectItem key={r} value={r}>
-                {r}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
+      {lockRole ? (
+        <input type="hidden" name="role" value={lockRole} />
+      ) : (
+        <div className="grid gap-2">
+          <Label htmlFor="role">{t("role")}</Label>
+          <Select name="role" value={role} onValueChange={setRole}>
+            <SelectTrigger id="role" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ROLES.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {r}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {role === "STAFF" && (
         <div className="grid gap-2">
           <Label htmlFor="title">Job Title</Label>
@@ -98,7 +108,7 @@ export function StaffForm() {
       )}
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        {t("new")}
+        {lockRole === "DOCTOR" ? "Add Doctor" : t("new")}
       </Button>
     </form>
   );

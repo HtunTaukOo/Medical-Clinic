@@ -9,13 +9,21 @@ datasource db {
 
 model ClinicSettings {
   id                  String   @id @default(cuid())
-  isOpen              Boolean  @default(true)
-  openingTime         String   @default("09:00")
-  closingTime         String   @default("17:00")
+  name                String   @default("NCA Clinic")
+  email               String?
   phones              String[] @default([])
   address             String?
+  logoData            Bytes?
+  logoType            String?
   staffTelegramChatId String?
   updatedAt           DateTime @updatedAt
+}
+
+model ClinicWeeklyHours {
+  weekday   Int     @id
+  isOpen    Boolean @default(true)
+  openTime  String  @default("09:00")
+  closeTime String  @default("17:00")
 }
 
 enum Role {
@@ -357,12 +365,16 @@ model Invoice {
 }
 
 model InvoiceItem {
-  id          String  @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  description String
-  quantity    Int     @default(1)
-  unitPrice   Decimal @db.Decimal(10, 2)
+  id              String         @id @default(cuid())
+  invoiceId       String
+  invoice         Invoice        @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  description     String
+  quantity        Int            @default(1)
+  unitPrice       Decimal        @db.Decimal(10, 2)
+  clinicServiceId String?
+  clinicService   ClinicService? @relation(fields: [clinicServiceId], references: [id], onDelete: SetNull)
+
+  @@index([clinicServiceId])
 }
 
 enum PaymentMethod {
@@ -777,4 +789,18 @@ model LabOrderItem {
   resultNote      String?
   resultStatus    LabResultStatus?
   resultEnteredAt DateTime?
+}
+
+model ClinicService {
+  id              String   @id @default(cuid())
+  name            String
+  specialty       String?
+  durationMinutes Int
+  price           Decimal  @db.Decimal(10, 2)
+  room            String?
+  active          Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  invoiceItems InvoiceItem[]
 }

@@ -289,3 +289,13 @@ export async function updatePrivacySetting(field: PrivacyField, value: boolean) 
 
   revalidatePath("/portal/settings");
 }
+
+export async function togglePatientActive(patientId: string) {
+  await requireRole(STAFF_ROLES);
+
+  const patient = await prisma.patient.findUniqueOrThrow({ where: { id: patientId } });
+  await prisma.patient.update({ where: { id: patientId }, data: { active: !patient.active } });
+
+  revalidatePath("/staff/users");
+  revalidatePath(`/staff/patients/${patientId}`);
+}

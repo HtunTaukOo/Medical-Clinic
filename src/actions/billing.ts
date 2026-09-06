@@ -101,6 +101,7 @@ const invoiceItemSchema = z.object({
   description: z.string().min(1),
   quantity: z.coerce.number().int().positive(),
   unitPrice: z.coerce.number().nonnegative(),
+  clinicServiceId: z.string().optional(),
 });
 
 export type InvoiceItemFormState = { error?: string; success?: boolean };
@@ -121,6 +122,7 @@ export async function addInvoiceItem(
     description: formData.get("description"),
     quantity: formData.get("quantity"),
     unitPrice: formData.get("unitPrice"),
+    clinicServiceId: formData.get("clinicServiceId") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };

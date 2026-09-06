@@ -10,7 +10,7 @@ import {
   MAX_APPOINTMENT_SLOTS,
 } from "@/lib/scheduling";
 import {
-  getClinicSettings,
+  getClinicHoursForDate,
   isWithinOpeningHours,
   formatTime,
   clinicWeekday,
@@ -161,14 +161,17 @@ export async function submitAppointmentRequest(
   const scheduledEnd = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
   const dayStart = clinicMidnight(scheduledAt);
 
-  const settings = await getClinicSettings();
-  const clinicCloseInstant = new Date(dayStart.getTime() + toMinutes(settings.closingTime) * 60 * 1000);
+  const clinicHours = await getClinicHoursForDate(scheduledAt);
+  const clinicCloseInstant = new Date(dayStart.getTime() + toMinutes(clinicHours.closeTime) * 60 * 1000);
   if (
-    !isWithinOpeningHours(scheduledAt, settings.openingTime, settings.closingTime) ||
+    !clinicHours.isOpen ||
+    !isWithinOpeningHours(scheduledAt, clinicHours.openTime, clinicHours.closeTime) ||
     scheduledEnd.getTime() > clinicCloseInstant.getTime()
   ) {
     return {
-      error: `Please choose a time between ${formatTime(settings.openingTime)} and ${formatTime(settings.closingTime)} that leaves room for the full ${durationMinutes}-minute visit.`,
+      error: clinicHours.isOpen
+        ? `Please choose a time between ${formatTime(clinicHours.openTime)} and ${formatTime(clinicHours.closeTime)} that leaves room for the full ${durationMinutes}-minute visit.`
+        : "The clinic is closed on the selected day. Please choose another day.",
     };
   }
 

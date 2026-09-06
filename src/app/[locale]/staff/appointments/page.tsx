@@ -1,4 +1,4 @@
-import { CalendarDays } from "lucide-react";
+import { CalendarDays, Plus } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
@@ -24,6 +24,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
+import { SearchInput } from "@/components/search-input";
+import { InventoryFilterSelect } from "@/components/inventory/inventory-filter-select";
+import { DateFilterInput } from "@/components/appointments/date-filter-input";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -38,6 +41,7 @@ const STATUS_STYLES: Record<string, string> = {
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const TABS = [
+  { value: "all", label: "All" },
   { value: "today", label: "Today" },
   { value: "upcoming", label: "Upcoming" },
   { value: "completed", label: "Completed" },
@@ -62,15 +66,30 @@ function getRowDisplay(
 export default async function AppointmentsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ view?: string; year?: string; month?: string; tab?: string }>;
+  searchParams: Promise<{
+    view?: string;
+    year?: string;
+    month?: string;
+    tab?: string;
+    q?: string;
+    specialty?: string;
+    date?: string;
+  }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("appointments");
 
-  const { view: viewParam, year: yearParam, month: monthParam, tab: tabParam } =
-    await searchParams;
+  const {
+    view: viewParam,
+    year: yearParam,
+    month: monthParam,
+    tab: tabParam,
+    q,
+    specialty,
+    date,
+  } = await searchParams;
   const view = viewParam === "calendar" ? "calendar" : "list";
-  const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "today";
+  const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "all";
 
   const now = new Date();
   const clinicToday = clinicDateParts(now);
@@ -85,9 +104,12 @@ export default async function AppointmentsPage({
     },
   });
 
+  const specialties = [...new Set(appointments.map((a) => a.doctor.specialty).filter(Boolean))] as string[];
+
   const { start: todayStart, end: todayEnd } = todayRange();
 
   function matchesTab(appt: (typeof appointments)[number], value: Tab) {
+    if (value === "all") return true;
     if (value === "today") {
       return (
         appt.scheduledAt >= todayStart &&
@@ -105,12 +127,20 @@ export default async function AppointmentsPage({
     return appt.status === "CANCELLED" || appt.status === "NO_SHOW";
   }
 
-  const tabCounts: Record<Tab, number> = {
-    today: appointments.filter((a) => matchesTab(a, "today")).length,
-    upcoming: appointments.filter((a) => matchesTab(a, "upcoming")).length,
-    completed: appointments.filter((a) => matchesTab(a, "completed")).length,
-    cancelled: appointments.filter((a) => matchesTab(a, "cancelled")).length,
-  };
+  function matchesFilters(appt: (typeof appointments)[number]) {
+    if (q) {
+      const query = q.toLowerCase();
+      const matchesQuery =
+        appt.patient.name.toLowerCase().includes(query) ||
+        appt.doctor.user.name.toLowerCase().includes(query);
+      if (!matchesQuery) return false;
+    }
+    if (specialty && appt.doctor.specialty !== specialty) return false;
+    if (date && clinicDateKey(appt.scheduledAt) !== date) return false;
+    return true;
+  }
+
+  const filteredAppointments = appointments.filter(matchesFilters);
 
   const checkedInToday = appointments
     .filter((a) => matchesTab(a, "today") && a.status === "CHECKED_IN")
@@ -118,7 +148,7 @@ export default async function AppointmentsPage({
   const inProgressApptId = checkedInToday[0]?.id ?? null;
   const waitingApptIds = new Set(checkedInToday.slice(1).map((a) => a.id));
 
-  const visibleAppointments = appointments
+  const visibleAppointments = filteredAppointments
     .filter((a) => matchesTab(a, tab))
     .sort((a, b) =>
       tab === "completed" || tab === "cancelled"
@@ -138,6 +168,12 @@ export default async function AppointmentsPage({
   const next = addMonths(year, month, 1);
   const todayKey = clinicDateKey(now);
 
+  const filterParams = new URLSearchParams();
+  if (q) filterParams.set("q", q);
+  if (specialty) filterParams.set("specialty", specialty);
+  if (date) filterParams.set("date", date);
+  const filterQuery = filterParams.toString();
+
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
@@ -148,13 +184,18 @@ export default async function AppointmentsPage({
           </p>
         </div>
         <Button asChild>
-          <Link href="/staff/appointments/new">{t("new")}</Link>
+          <Link href="/staff/appointments/new">
+            <Plus className="size-4" />
+            {t("new")}
+          </Link>
         </Button>
       </div>
 
       <div className="flex items-center gap-2">
         <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
-          <Link href={`/staff/appointments?view=list&tab=${tab}`}>List</Link>
+          <Link href={`/staff/appointments?view=list&tab=${tab}${filterQuery ? `&${filterQuery}` : ""}`}>
+            List
+          </Link>
         </Button>
         <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
           <Link href="/staff/appointments?view=calendar">Calendar</Link>
@@ -162,21 +203,27 @@ export default async function AppointmentsPage({
       </div>
 
       {view === "list" && (
-        <div className="flex flex-wrap items-center gap-2">
-          {TABS.map(({ value, label }) => (
-            <Button key={value} asChild variant={tab === value ? "default" : "outline"} className="gap-2">
-              <Link href={`/staff/appointments?tab=${value}`}>
-                {label}
-                <Badge
-                  variant="secondary"
-                  className={tab === value ? "bg-white/20 text-white" : undefined}
-                >
-                  {tabCounts[value]}
-                </Badge>
-              </Link>
-            </Button>
-          ))}
-        </div>
+        <>
+          <div className="flex flex-wrap items-center gap-2">
+            {TABS.map(({ value, label }) => (
+              <Button key={value} asChild variant={tab === value ? "default" : "outline"}>
+                <Link href={`/staff/appointments?tab=${value}${filterQuery ? `&${filterQuery}` : ""}`}>
+                  {label}
+                </Link>
+              </Button>
+            ))}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <SearchInput placeholder="Search patient, doctor..." />
+            <InventoryFilterSelect
+              paramName="specialty"
+              placeholder="All Specialties"
+              options={specialties.map((s) => ({ value: s, label: s }))}
+            />
+            <DateFilterInput />
+          </div>
+        </>
       )}
 
       {view === "calendar" ? (
@@ -264,6 +311,7 @@ export default async function AppointmentsPage({
                   <TableHead>Patient</TableHead>
                   <TableHead>Doctor</TableHead>
                   <TableHead>Specialty</TableHead>
+                  <TableHead>Date</TableHead>
                   <TableHead>Time</TableHead>
                   <TableHead>Type</TableHead>
                   <TableHead>Status</TableHead>
@@ -291,14 +339,14 @@ export default async function AppointmentsPage({
                         {appt.doctor.specialty ?? "—"}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {tab === "today"
-                          ? appt.scheduledAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
-                          : appt.scheduledAt.toLocaleString([], {
-                              month: "short",
-                              day: "numeric",
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
+                        {appt.scheduledAt.toLocaleDateString([], {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {appt.scheduledAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {appt.reason || "Consultation"}

@@ -1,5 +1,5 @@
 import { getTranslations } from "next-intl/server";
-import { getClinicSettings, isWithinOpeningHours, formatTime } from "@/lib/clinic-hours";
+import { getClinicHoursForDate, isWithinOpeningHours, formatTime } from "@/lib/clinic-hours";
 import { Badge } from "@/components/ui/badge";
 
 export async function ClinicStatusBanner({
@@ -8,8 +8,9 @@ export async function ClinicStatusBanner({
   variant?: "standalone" | "hero";
 } = {}) {
   const t = await getTranslations("clinic");
-  const settings = await getClinicSettings();
-  const openNow = settings.isOpen && isWithinOpeningHours(new Date(), settings.openingTime, settings.closingTime);
+  const now = new Date();
+  const todayHours = await getClinicHoursForDate(now);
+  const openNow = todayHours.isOpen && isWithinOpeningHours(now, todayHours.openTime, todayHours.closeTime);
 
   if (variant === "hero") {
     return (
@@ -17,13 +18,15 @@ export async function ClinicStatusBanner({
         <Badge variant="outline" className="border-white/30 bg-white/10 text-primary-foreground">
           {openNow ? t("statusOpenNow") : t("statusClosedNow")}
         </Badge>
-        <span>
-          {t("hoursToday", {
-            opening: formatTime(settings.openingTime),
-            closing: formatTime(settings.closingTime),
-          })}
-        </span>
-        {!settings.isOpen && (
+        {todayHours.isOpen && (
+          <span>
+            {t("hoursToday", {
+              opening: formatTime(todayHours.openTime),
+              closing: formatTime(todayHours.closeTime),
+            })}
+          </span>
+        )}
+        {!todayHours.isOpen && (
           <span className="text-rose-100">{t("closedForBookings")}</span>
         )}
       </div>
@@ -35,13 +38,15 @@ export async function ClinicStatusBanner({
       <Badge variant={openNow ? "success" : "destructive"}>
         {openNow ? t("statusOpenNow") : t("statusClosedNow")}
       </Badge>
-      <span className="text-muted-foreground">
-        {t("hoursToday", {
-          opening: formatTime(settings.openingTime),
-          closing: formatTime(settings.closingTime),
-        })}
-      </span>
-      {!settings.isOpen && (
+      {todayHours.isOpen && (
+        <span className="text-muted-foreground">
+          {t("hoursToday", {
+            opening: formatTime(todayHours.openTime),
+            closing: formatTime(todayHours.closeTime),
+          })}
+        </span>
+      )}
+      {!todayHours.isOpen && (
         <span className="text-destructive">{t("closedForBookings")}</span>
       )}
     </div>

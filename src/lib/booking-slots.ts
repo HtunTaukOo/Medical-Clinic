@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getClinicSettings, toMinutes, clinicMidnightForYMD, clinicDateParts } from "@/lib/clinic-hours";
+import { getClinicHoursForDate, toMinutes, clinicMidnightForYMD, clinicDateParts } from "@/lib/clinic-hours";
 import { isDoctorOnLeave, isWorkingDay } from "@/lib/doctor-availability";
 import { APPOINTMENT_SLOT_MINUTES, MAX_APPOINTMENT_SLOTS } from "@/lib/scheduling";
 
@@ -22,6 +22,8 @@ export async function isDayBookable(
   day: number
 ): Promise<boolean> {
   const dayStart = clinicMidnightForYMD(year, month, day);
+  const clinicHours = await getClinicHoursForDate(dayStart);
+  if (!clinicHours.isOpen) return false;
   if (await isDoctorOnLeave(doctor.id, dayStart)) return false;
   if (!isWorkingDay(doctor.workingDays, dayStart)) return false;
   return true;
@@ -41,10 +43,10 @@ export async function getDaySlots(
 ): Promise<DaySlot[]> {
   if (!(await isDayBookable(doctor, year, month, day))) return [];
 
-  const settings = await getClinicSettings();
   const dayStart = clinicMidnightForYMD(year, month, day);
-  const startTime = doctor.workStartTime ?? settings.openingTime;
-  const endTime = doctor.workEndTime ?? settings.closingTime;
+  const clinicHours = await getClinicHoursForDate(dayStart);
+  const startTime = doctor.workStartTime ?? clinicHours.openTime;
+  const endTime = doctor.workEndTime ?? clinicHours.closeTime;
   const startMinutes = toMinutes(startTime);
   const endMinutes = toMinutes(endTime);
 

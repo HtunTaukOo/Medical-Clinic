@@ -31,7 +31,7 @@ export default async function InvoiceDetailPage({
   const { id } = await params;
   const t = await getTranslations("billing");
 
-  const [invoice, packages, claims] = await Promise.all([
+  const [invoice, packages, services, claims] = await Promise.all([
     prisma.invoice.findUnique({
       where: { id },
       include: {
@@ -41,6 +41,7 @@ export default async function InvoiceDetailPage({
       },
     }),
     prisma.package.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    prisma.clinicService.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
     prisma.insuranceClaim.findMany({
       where: { invoiceId: id },
       orderBy: { submittedAt: "desc" },
@@ -103,6 +104,7 @@ export default async function InvoiceDetailPage({
               <AddInvoiceItemForm
                 invoiceId={invoice.id}
                 packages={packages.map((p) => ({ id: p.id, name: p.name, price: Number(p.price) }))}
+                services={services.map((s) => ({ id: s.id, name: s.name, price: Number(s.price) }))}
               />
             </div>
           )}

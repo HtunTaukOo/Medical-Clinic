@@ -1,7 +1,8 @@
-import { Receipt } from "lucide-react";
+import { Plus, Receipt } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
+import { clinicMidnight } from "@/lib/clinic-hours";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -15,16 +16,15 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
-import { InvoiceForm } from "@/components/billing/invoice-form";
+import { CopySummaryButton } from "@/components/billing/copy-summary-button";
 
 function formatKyat(value: number) {
   return `K ${Math.round(value).toLocaleString()}`;
 }
 
 const TABS = [
-  { value: "new", label: "New Bill" },
+  { value: "all", label: "All Invoices" },
   { value: "UNPAID", label: "Unpaid" },
-  { value: "PARTIAL", label: "Partially Paid" },
   { value: "PAID", label: "Paid" },
   { value: "REFUNDED", label: "Refunded" },
 ] as const;
@@ -44,83 +44,113 @@ export default async function BillingPage({
   await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("billing");
   const { tab: tabParam } = await searchParams;
-  const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "new";
+  const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "all";
 
-  const [invoices, patients, invoiceCount] = await Promise.all([
+  const todayStart = clinicMidnight(new Date());
+  const todayEnd = new Date(todayStart.getTime() + 86400000);
+
+  const [invoicesAsc, todaysPayments, paidInvoicesToday] = await Promise.all([
     prisma.invoice.findMany({
-      orderBy: { createdAt: "desc" },
-      include: { patient: true, payments: { include: { refunds: true } } },
+      orderBy: { createdAt: "asc" },
+      include: { patient: true, items: true, payments: { include: { refunds: true } } },
     }),
-    tab === "new" ? prisma.patient.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
-    tab === "new" ? prisma.invoice.count() : Promise.resolve(0),
+    prisma.payment.findMany({
+      where: { paidAt: { gte: todayStart, lt: todayEnd } },
+      select: { amount: true },
+    }),
+    prisma.invoice.count({
+      where: { status: "PAID", payments: { some: { paidAt: { gte: todayStart, lt: todayEnd } } } },
+    }),
   ]);
 
-  const rows = invoices.map((invoice) => {
-    const paid = invoice.payments.reduce((sum, p) => {
-      const refunded = p.refunds.reduce((s, r) => s + Number(r.amount), 0);
-      return sum + Number(p.amount) - refunded;
-    }, 0);
-    const hasRefund = invoice.payments.some((p) => p.refunds.length > 0);
-    const balanceDue = Math.max(0, Number(invoice.total) - paid);
-    return { invoice, balanceDue, hasRefund };
-  });
+  const totalRevenueToday = todaysPayments.reduce((sum, p) => sum + Number(p.amount), 0);
 
-  const tabCounts: Record<Tab, number> = {
-    new: 0,
-    UNPAID: rows.filter((r) => r.invoice.status === "UNPAID").length,
-    PARTIAL: rows.filter((r) => r.invoice.status === "PARTIAL").length,
-    PAID: rows.filter((r) => r.invoice.status === "PAID" && !r.hasRefund).length,
-    REFUNDED: rows.filter((r) => r.hasRefund).length,
-  };
+  const rows = invoicesAsc.map((invoice, index) => {
+    const grossPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
+    const totalRefunded = invoice.payments.reduce(
+      (sum, p) => sum + p.refunds.reduce((s, r) => s + Number(r.amount), 0),
+      0
+    );
+    const netPaid = grossPaid - totalRefunded;
+    const balanceDue = Math.max(0, Number(invoice.total) - netPaid);
+    const hasRefund = totalRefunded > 0;
+    const description = invoice.items.map((i) => i.description).join(" + ") || "—";
+    return {
+      invoice,
+      invoiceNumber: index + 1,
+      description,
+      grossPaid,
+      netPaid,
+      balanceDue,
+      hasRefund,
+    };
+  });
+  rows.reverse();
 
   const visibleRows =
-    tab === "new"
-      ? []
+    tab === "all"
+      ? rows
       : tab === "REFUNDED"
         ? rows.filter((r) => r.hasRefund)
-        : rows.filter((r) => r.invoice.status === tab && !r.hasRefund);
+        : tab === "UNPAID"
+          ? rows.filter((r) => !r.hasRefund && (r.invoice.status === "UNPAID" || r.invoice.status === "PARTIAL"))
+          : rows.filter((r) => r.invoice.status === "PAID" && !r.hasRefund);
 
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">Create invoices and manage payments.</p>
+          <p className="text-sm text-muted-foreground">Manage invoices and payments.</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" size="sm">
             <Link href="/staff/billing/claims">{t("insuranceClaims")}</Link>
           </Button>
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" size="sm">
             <Link href="/staff/billing/packages">{t("packages")}</Link>
+          </Button>
+          <Button asChild>
+            <Link href="/staff/billing/new">
+              <Plus />
+              New Invoice
+            </Link>
           </Button>
         </div>
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 p-6 text-white">
+        <div>
+          <p className="text-xs font-semibold tracking-wide text-emerald-50 uppercase">
+            Total Revenue (Today)
+          </p>
+          <p className="mt-1 text-3xl font-bold">{formatKyat(totalRevenueToday)}</p>
+          <p className="mt-1 text-sm text-emerald-50">
+            {paidInvoicesToday} paid invoice{paidInvoicesToday === 1 ? "" : "s"}
+          </p>
+        </div>
+        <CopySummaryButton
+          text={`Total revenue today: ${formatKyat(totalRevenueToday)} (${paidInvoicesToday} paid invoice${paidInvoicesToday === 1 ? "" : "s"})`}
+        />
+      </div>
+
+      <div className="inline-flex w-fit items-center gap-1 rounded-xl bg-muted p-1">
         {TABS.map(({ value, label }) => (
-          <Button key={value} asChild variant={tab === value ? "default" : "outline"} size="sm">
-            <Link href={`/staff/billing?tab=${value}`}>
-              {label}
-              {value !== "new" && (
-                <Badge
-                  variant="secondary"
-                  className={tab === value ? "bg-white/20 text-white" : undefined}
-                >
-                  {tabCounts[value]}
-                </Badge>
-              )}
-            </Link>
-          </Button>
+          <Link
+            key={value}
+            href={`/staff/billing?tab=${value}`}
+            className={
+              tab === value
+                ? "rounded-lg bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm"
+                : "rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
+            }
+          >
+            {label}
+          </Link>
         ))}
       </div>
 
-      {tab === "new" ? (
-        <InvoiceForm
-          patients={patients.map((p) => ({ id: p.id, name: p.name }))}
-          nextInvoiceNumber={invoiceCount + 1}
-        />
-      ) : visibleRows.length === 0 ? (
+      {visibleRows.length === 0 ? (
         <EmptyState icon={Receipt} message={t("noResults")} />
       ) : (
         <Card>
@@ -128,18 +158,23 @@ export default async function BillingPage({
             <Table>
               <TableHeader>
                 <TableRow>
+                  <TableHead>Invoice No</TableHead>
                   <TableHead>Patient</TableHead>
+                  <TableHead>Description</TableHead>
                   <TableHead>Date</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Balance Due</TableHead>
+                  <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleRows.map(({ invoice, balanceDue }) => (
+                {visibleRows.map(({ invoice, invoiceNumber, description, grossPaid, netPaid, balanceDue, hasRefund }) => (
                   <TableRow key={invoice.id}>
+                    <TableCell className="font-medium">
+                      INV-{String(invoiceNumber).padStart(4, "0")}
+                    </TableCell>
                     <TableCell className="font-medium">{invoice.patient.name}</TableCell>
+                    <TableCell className="text-muted-foreground">{description}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {invoice.createdAt.toLocaleDateString(undefined, {
                         month: "short",
@@ -148,23 +183,51 @@ export default async function BillingPage({
                       })}
                     </TableCell>
                     <TableCell>{formatKyat(Number(invoice.total))}</TableCell>
-                    <TableCell>{formatKyat(balanceDue)}</TableCell>
                     <TableCell>
-                      <Badge variant="outline" className={STATUS_STYLES[invoice.status]}>
-                        {invoice.status === "PAID"
-                          ? "Paid"
-                          : invoice.status === "PARTIAL"
-                            ? "Partial"
-                            : "Unpaid"}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-1">
+                        <Badge variant="outline" className={STATUS_STYLES[invoice.status]}>
+                          {invoice.status === "PAID"
+                            ? "Paid"
+                            : invoice.status === "PARTIAL"
+                              ? "Partial"
+                              : "Unpaid"}
+                        </Badge>
+                        {hasRefund && (
+                          <Badge variant="outline" className="bg-slate-100 text-slate-600">
+                            {t("refunded")}
+                          </Badge>
+                        )}
+                      </div>
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Link
-                        href={`/staff/billing/${invoice.id}`}
-                        className="font-medium text-primary underline underline-offset-2"
-                      >
-                        View
-                      </Link>
+                    <TableCell>
+                      <div className="flex flex-wrap items-center gap-3">
+                        {balanceDue > 0 && (
+                          <Link
+                            href={`/staff/billing/${invoice.id}`}
+                            className="font-medium text-emerald-600 hover:underline"
+                          >
+                            Receive Payment
+                          </Link>
+                        )}
+                        {grossPaid > 0 && (
+                          <>
+                            <Link
+                              href={`/receipt/${invoice.id}`}
+                              className="font-medium text-primary hover:underline"
+                            >
+                              View Receipt
+                            </Link>
+                            {netPaid > 0 && (
+                              <Link
+                                href={`/staff/billing/${invoice.id}`}
+                                className="font-medium text-rose-600 hover:underline"
+                              >
+                                {t("refund")}
+                              </Link>
+                            )}
+                          </>
+                        )}
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

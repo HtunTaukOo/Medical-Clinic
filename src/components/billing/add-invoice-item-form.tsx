@@ -16,9 +16,11 @@ import {
 export function AddInvoiceItemForm({
   invoiceId,
   packages,
+  services,
 }: {
   invoiceId: string;
   packages?: { id: string; name: string; price: number }[];
+  services?: { id: string; name: string; price: number }[];
 }) {
   const t = useTranslations("billing");
   const boundAction = addInvoiceItem.bind(null, invoiceId);
@@ -28,16 +30,40 @@ export function AddInvoiceItemForm({
   );
   const [description, setDescription] = useState("");
   const [unitPrice, setUnitPrice] = useState("");
+  const [clinicServiceId, setClinicServiceId] = useState("");
 
   function handlePackage(packageId: string) {
     const pkg = packages?.find((p) => p.id === packageId);
     if (!pkg) return;
     setDescription(pkg.name);
     setUnitPrice(String(pkg.price));
+    setClinicServiceId("");
+  }
+
+  function handleService(serviceId: string) {
+    const service = services?.find((s) => s.id === serviceId);
+    if (!service) return;
+    setDescription(service.name);
+    setUnitPrice(String(service.price));
+    setClinicServiceId(serviceId);
   }
 
   return (
     <form action={formAction} className="flex flex-wrap items-center gap-2">
+      {services && services.length > 0 && (
+        <Select onValueChange={handleService}>
+          <SelectTrigger className="w-56">
+            <SelectValue placeholder="Add service" />
+          </SelectTrigger>
+          <SelectContent>
+            {services.map((service) => (
+              <SelectItem key={service.id} value={service.id}>
+                {service.name} — {service.price.toFixed(2)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
       {packages && packages.length > 0 && (
         <Select onValueChange={handlePackage}>
           <SelectTrigger className="w-56">
@@ -52,13 +78,17 @@ export function AddInvoiceItemForm({
           </SelectContent>
         </Select>
       )}
+      <input type="hidden" name="clinicServiceId" value={clinicServiceId} />
       <Input
         name="description"
         placeholder="Description"
         className="w-40"
         required
         value={description}
-        onChange={(e) => setDescription(e.target.value)}
+        onChange={(e) => {
+          setDescription(e.target.value);
+          setClinicServiceId("");
+        }}
       />
       <Input
         name="quantity"

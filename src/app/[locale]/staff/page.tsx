@@ -5,12 +5,16 @@ import {
   Pill,
   Clock,
   Wallet,
-  ShieldAlert,
   FlaskConical,
   ListOrdered,
   AlertTriangle,
+  Users,
+  CalendarDays,
+  Stethoscope,
+  UserPlus,
+  CheckCircle2,
+  History,
 } from "lucide-react";
-import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Link } from "@/i18n/navigation";
@@ -28,7 +32,8 @@ import { EmptyState } from "@/components/empty-state";
 import { todayRange } from "@/lib/queue";
 import { getExpiryStatus } from "@/lib/inventory";
 import { getDisplayFirstName } from "@/lib/format";
-import { clinicLocalMinutes, formatClinicDateTime } from "@/lib/clinic-hours";
+import { clinicLocalMinutes, clinicMidnight, clinicWeekday, formatClinicDateTime } from "@/lib/clinic-hours";
+import { MONTH_NAMES } from "@/lib/reports";
 import { StatTile } from "@/components/stat-tile";
 import { checkInAppointment } from "@/actions/appointments";
 import { callWalkIn } from "@/actions/walk-ins";
@@ -36,6 +41,52 @@ import { NewAnnouncementDialog } from "@/components/staff/new-announcement-dialo
 
 function Num({ children }: { children: ReactNode }) {
   return <span className="font-semibold text-primary">{children}</span>;
+}
+
+function SolidStatCard({
+  icon: Icon,
+  label,
+  value,
+  className,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  label: string;
+  value: ReactNode;
+  className: string;
+}) {
+  return (
+    <div className={`flex items-center justify-between gap-3 rounded-xl p-5 text-white ${className}`}>
+      <div>
+        <p className="text-xs font-semibold tracking-wide text-white/80 uppercase">{label}</p>
+        <p className="mt-1 text-2xl font-bold">{value}</p>
+      </div>
+      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/20">
+        <Icon className="size-5" />
+      </div>
+    </div>
+  );
+}
+
+const WEEKDAY_LABELS_MON_FIRST = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+
+function activityMeta(action: string): { icon: React.ComponentType<{ className?: string }>; className: string } {
+  const lower = action.toLowerCase();
+  if (lower.includes("payment") || lower.includes("invoice")) {
+    return { icon: Wallet, className: "bg-emerald-100 text-emerald-600" };
+  }
+  if (lower.includes("stock") || lower.includes("expir")) {
+    return { icon: AlertTriangle, className: "bg-rose-100 text-rose-600" };
+  }
+  if (lower.includes("registered") || lower.includes("created staff") || lower.includes("account")) {
+    return { icon: UserPlus, className: "bg-purple-100 text-purple-600" };
+  }
+  if (lower.includes("confirm") || lower.includes("complete")) {
+    return { icon: CheckCircle2, className: "bg-emerald-100 text-emerald-600" };
+  }
+  if (lower.includes("appointment") || lower.includes("booked") || lower.includes("checked in")) {
+    return { icon: CalendarDays, className: "bg-blue-100 text-blue-600" };
+  }
+  return { icon: History, className: "bg-slate-100 text-slate-600" };
 }
 
 const LAB_STATUS_LABEL: Record<string, string> = {
@@ -75,10 +126,15 @@ const QUEUE_STATUS_CLASS: Record<string, string> = {
 
 export default async function StaffDashboardPage() {
   const session = await auth();
-  const t = await getTranslations();
   const role = session?.user.role;
 
   const { start: todayStart, end: todayEnd } = todayRange();
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const mondayOffsetDays = (clinicWeekday(now) + 6) % 7;
+  const weekStart = new Date(clinicMidnight(now).getTime() - mondayOffsetDays * 86400000);
+  const weekEnd = new Date(weekStart.getTime() + 7 * 86400000);
 
   const [
     unpaidInvoices,
@@ -95,6 +151,13 @@ export default async function StaffDashboardPage() {
     pendingClaims,
     pendingLabOrders,
     completedLabToday,
+    patientCount,
+    activeDoctorsCount,
+    todaysAppointmentCountAdmin,
+    sixMonthPayments,
+    monthRefunds,
+    weekAppointments,
+    recentActivity,
   ] = await Promise.all([
     prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIAL"] } } }),
     prisma.medicine.findMany({
@@ -189,6 +252,34 @@ export default async function StaffDashboardPage() {
           where: { status: "COMPLETED", completedAt: { gte: todayStart, lt: todayEnd } },
         })
       : Promise.resolve(0),
+    role === "ADMIN" ? prisma.patient.count() : Promise.resolve(0),
+    role === "ADMIN"
+      ? prisma.doctorProfile.count({ where: { user: { active: true } } })
+      : Promise.resolve(0),
+    role === "ADMIN"
+      ? prisma.appointment.count({ where: { scheduledAt: { gte: todayStart, lt: todayEnd } } })
+      : Promise.resolve(0),
+    role === "ADMIN"
+      ? prisma.payment.findMany({
+          where: { paidAt: { gte: sixMonthsAgo } },
+          select: { amount: true, paidAt: true },
+        })
+      : Promise.resolve([]),
+    role === "ADMIN"
+      ? prisma.refund.aggregate({
+          _sum: { amount: true },
+          where: { createdAt: { gte: monthStart } },
+        })
+      : Promise.resolve({ _sum: { amount: null as unknown as number | null } }),
+    role === "ADMIN"
+      ? prisma.appointment.findMany({
+          where: { scheduledAt: { gte: weekStart, lt: weekEnd } },
+          select: { scheduledAt: true },
+        })
+      : Promise.resolve([]),
+    role === "ADMIN"
+      ? prisma.activityLog.findMany({ orderBy: { createdAt: "desc" }, take: 5 })
+      : Promise.resolve([]),
   ]);
 
   const lowStockMedicines = medicines
@@ -206,6 +297,34 @@ export default async function StaffDashboardPage() {
   const waitingTotal = waitingToCheckInCount + walkInsWaitingCount;
   const pendingPrescriptionsCount = pendingPrescriptions.length;
   const pendingClaimsCount = pendingClaims.length;
+
+  const paymentsThisMonth = sixMonthPayments.filter((p) => p.paidAt >= monthStart);
+  const monthlyRevenue =
+    paymentsThisMonth.reduce((sum, p) => sum + Number(p.amount), 0) -
+    Number(monthRefunds._sum.amount ?? 0);
+
+  const revenueByMonth: { key: string; label: string; total: number }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    revenueByMonth.push({ key: `${d.getFullYear()}-${d.getMonth()}`, label: MONTH_NAMES[d.getMonth()], total: 0 });
+  }
+  const revenueMonthIndex = new Map(revenueByMonth.map((m, i) => [m.key, i]));
+  for (const payment of sixMonthPayments) {
+    const key = `${payment.paidAt.getFullYear()}-${payment.paidAt.getMonth()}`;
+    const idx = revenueMonthIndex.get(key);
+    if (idx !== undefined) revenueByMonth[idx].total += Number(payment.amount);
+  }
+  const lastMonthRevenue = revenueByMonth[revenueByMonth.length - 2]?.total ?? 0;
+  const revenueMonthChangePct =
+    lastMonthRevenue > 0 ? Math.round(((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 1000) / 10 : null;
+
+  const weeklyAppointmentCounts = WEEKDAY_LABELS_MON_FIRST.map(() => 0);
+  for (const appt of weekAppointments) {
+    const dayIndex = Math.round(
+      (clinicMidnight(appt.scheduledAt).getTime() - weekStart.getTime()) / 86400000
+    );
+    if (dayIndex >= 0 && dayIndex < 7) weeklyAppointmentCounts[dayIndex] += 1;
+  }
 
   // The queue overview blends four very different record shapes (completed
   // visits, in-progress consultations, called and waiting walk-ins/bookings)
@@ -298,7 +417,6 @@ export default async function StaffDashboardPage() {
     .slice(0, 5);
 
   const firstName = session?.user.name ? getDisplayFirstName(session.user.name) : "";
-  const now = new Date();
   const clinicHour = Math.floor(clinicLocalMinutes(now) / 60);
   const greeting = clinicHour < 12 ? "Good morning" : clinicHour < 18 ? "Good afternoon" : "Good evening";
 
@@ -353,20 +471,135 @@ export default async function StaffDashboardPage() {
       )}
 
       {role === "ADMIN" && (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          <StatTile
-            icon={Wallet}
-            value={todayRevenue.toFixed(2)}
-            label="Revenue Today"
-            color="emerald"
-          />
-          <StatTile
-            icon={ShieldAlert}
-            value={pendingClaimsCount}
-            label="Claims to Review"
-            color="rose"
-          />
-          <StatTile icon={PackageX} value={lowStock} label={t("inventory.lowStock")} color="amber" />
+        <div className="grid gap-6">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <SolidStatCard
+              icon={Users}
+              label="Total Patients"
+              value={patientCount.toLocaleString()}
+              className="bg-violet-600"
+            />
+            <SolidStatCard
+              icon={CalendarDays}
+              label="Today's Appointments"
+              value={todaysAppointmentCountAdmin}
+              className="bg-blue-600"
+            />
+            <SolidStatCard
+              icon={Stethoscope}
+              label="Active Doctors"
+              value={activeDoctorsCount}
+              className="bg-emerald-600"
+            />
+            <SolidStatCard
+              icon={Wallet}
+              label="Monthly Revenue"
+              value={`K ${Math.round(monthlyRevenue).toLocaleString()}`}
+              className="bg-orange-600"
+            />
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle>Weekly Appointments</CardTitle>
+                <span className="text-sm text-muted-foreground">Mon – Sun</span>
+              </CardHeader>
+              <CardContent>
+                <div className="flex h-48 items-end gap-3">
+                  {(() => {
+                    const max = Math.max(1, ...weeklyAppointmentCounts);
+                    return WEEKDAY_LABELS_MON_FIRST.map((label, i) => (
+                      <div key={label} className="flex flex-1 flex-col items-center gap-2">
+                        <span className="text-xs font-medium text-primary">
+                          {weeklyAppointmentCounts[i]}
+                        </span>
+                        <div className="flex w-full flex-1 items-end">
+                          <div
+                            className="w-full rounded-t-md bg-primary"
+                            style={{
+                              height: `${Math.max(2, (weeklyAppointmentCounts[i] / max) * 100)}%`,
+                            }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium">{label}</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue Trend</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="flex h-32 items-end gap-3">
+                  {(() => {
+                    const max = Math.max(1, ...revenueByMonth.map((m) => m.total));
+                    return revenueByMonth.map((m) => (
+                      <div key={m.key} className="flex flex-1 flex-col items-center gap-2">
+                        <div className="flex w-full flex-1 items-end">
+                          <div
+                            className="w-full rounded-t-md bg-emerald-500"
+                            style={{ height: `${Math.max(2, (m.total / max) * 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium">{m.label}</span>
+                      </div>
+                    ));
+                  })()}
+                </div>
+                <div className="mt-4 border-t pt-3">
+                  <p className="text-xs text-muted-foreground">This Month</p>
+                  <p className="text-xl font-bold text-emerald-600">
+                    K {Math.round(monthlyRevenue).toLocaleString()}
+                  </p>
+                  {revenueMonthChangePct !== null && (
+                    <p className={`text-xs ${revenueMonthChangePct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      {revenueMonthChangePct >= 0 ? "+" : ""}
+                      {revenueMonthChangePct}% vs last month
+                    </p>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Recent Activity</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {recentActivity.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+              ) : (
+                <div className="grid gap-3">
+                  {recentActivity.map((entry) => {
+                    const meta = activityMeta(entry.action);
+                    const Icon = meta.icon;
+                    return (
+                      <div key={entry.id} className="flex items-start gap-3">
+                        <div className={`flex size-9 shrink-0 items-center justify-center rounded-full ${meta.className}`}>
+                          <Icon className="size-4" />
+                        </div>
+                        <div>
+                          <p className="text-sm">
+                            {entry.action}
+                            {entry.target ? ` — ${entry.target}` : ""}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(entry.createdAt).toLocaleString()}
+                          </p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       )}
 

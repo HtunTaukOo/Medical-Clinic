@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
 import {
-  getClinicSettings,
+  getClinicHoursRange,
   toMinutes,
   formatTime,
   clinicDateKey,
@@ -66,10 +66,10 @@ export default async function SchedulePage({
   const nextWeek = new Date(weekStart.getTime() + 7 * ONE_DAY_MS);
   const todayKey = clinicDateKey(new Date());
 
-  const [doctor, settings, weekAppointments, upcomingLeaveDays, weekLeaveDays] =
+  const [doctor, clinicHours, weekAppointments, upcomingLeaveDays, weekLeaveDays] =
     await Promise.all([
       prisma.doctorProfile.findUnique({ where: { id: doctorId } }),
-      getClinicSettings(),
+      getClinicHoursRange(),
       prisma.appointment.findMany({
         where: {
           doctorId,
@@ -88,8 +88,8 @@ export default async function SchedulePage({
     ]);
   if (!doctor) notFound();
 
-  const startMinutes = toMinutes(doctor.workStartTime ?? settings.openingTime);
-  const endMinutes = toMinutes(doctor.workEndTime ?? settings.closingTime);
+  const startMinutes = toMinutes(doctor.workStartTime ?? clinicHours.openTime);
+  const endMinutes = toMinutes(doctor.workEndTime ?? clinicHours.closeTime);
   const rowMinutes: number[] = [];
   for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) rowMinutes.push(m);
 

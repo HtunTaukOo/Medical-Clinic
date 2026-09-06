@@ -1,9 +1,15 @@
-import { Wallet, CalendarCheck2, Users, Pill, UserX, Download, Stethoscope, UserPlus } from "lucide-react";
+import { Download, FileBarChart2 } from "lucide-react";
 import { requirePageRole } from "@/lib/authz";
-import { getReportData } from "@/lib/reports";
-import { StatTile } from "@/components/stat-tile";
+import {
+  REPORT_TABS,
+  resolveReportRange,
+  getReportsPageData,
+  formatDateLabel,
+  type ReportTab,
+} from "@/lib/reports";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   Table,
   TableBody,
@@ -12,273 +18,258 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { BarList } from "@/components/reports/bar-list";
+import { DateRangeFilter } from "@/components/reports/date-range-filter";
+import { EmptyState } from "@/components/empty-state";
 
-const STATUS_BAR_COLORS: Record<string, string> = {
-  REQUESTED: "bg-amber-400",
-  CONFIRMED: "bg-blue-400",
-  CHECKED_IN: "bg-emerald-400",
-  COMPLETED: "bg-slate-400",
-  CANCELLED: "bg-rose-400",
-  NO_SHOW: "bg-orange-400",
-};
+function formatKyat(value: number) {
+  return `K ${Math.round(value).toLocaleString()}`;
+}
 
-export default async function ReportsPage() {
+function GrowthText({ value }: { value: number | null }) {
+  if (value === null) return <span className="text-muted-foreground">—</span>;
+  return (
+    <span className={value >= 0 ? "text-emerald-600" : "text-rose-600"}>
+      {value >= 0 ? "+" : ""}
+      {value}%
+    </span>
+  );
+}
+
+export default async function ReportsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ tab?: string; from?: string; to?: string }>;
+}) {
   await requirePageRole(["ADMIN"]);
 
-  const data = await getReportData();
+  const { tab: tabParam, from, to } = await searchParams;
+  const tab: ReportTab = REPORT_TABS.some((t) => t.value === tabParam)
+    ? (tabParam as ReportTab)
+    : "appointments";
+  const range = resolveReportRange(from, to);
+  const data = await getReportsPageData(tab, range);
+
+  const exportHref = `/api/reports/export?tab=${tab}&from=${range.from}&to=${range.to}`;
 
   return (
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Reports</h1>
-          <p className="text-sm text-muted-foreground">
-            Revenue, patient, and appointment metrics at a glance.
-          </p>
+          <p className="text-sm text-muted-foreground">Generate and view clinic analytics.</p>
         </div>
-        <Button asChild variant="outline">
-          <a href="/api/reports/export">
+        <Button asChild>
+          <a href={exportHref}>
+            <Download />
+            Export
+          </a>
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        {REPORT_TABS.map(({ value, label }) => (
+          <Button
+            key={value}
+            asChild
+            variant={tab === value ? "default" : "outline"}
+            size="sm"
+            className="rounded-full"
+          >
+            <Link href={`/staff/reports?tab=${value}&from=${range.from}&to=${range.to}`}>
+              {label}
+            </Link>
+          </Button>
+        ))}
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <DateRangeFilter defaultFrom={range.from} defaultTo={range.to} />
+        <Button asChild variant="outline" size="sm">
+          <a href={exportHref}>
             <Download />
             Export CSV
           </a>
         </Button>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <StatTile icon={Wallet} value={data.totalRevenue.toFixed(2)} label="Total revenue" color="emerald" />
-        <StatTile
-          icon={Wallet}
-          value={data.revenueThisMonth.toFixed(2)}
-          label="Revenue this month"
-          color="blue"
-        />
-        <StatTile icon={Users} value={data.patientCount} label="Total patients" color="purple" />
-        <StatTile
-          icon={CalendarCheck2}
-          value={data.completedAppointments}
-          label="Completed visits"
-          color="amber"
-        />
-        <StatTile
-          icon={UserX}
-          value={`${data.noShowRate}%`}
-          label="No-show rate"
-          color="orange"
-        />
+      <div className="grid gap-4 sm:grid-cols-3">
+        <Card>
+          <CardContent>
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              {data.totalLabel}
+            </p>
+            <p className="mt-1 text-2xl font-semibold">{data.totalValue}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              Growth
+            </p>
+            <p className="mt-1 text-2xl font-semibold">
+              <GrowthText value={data.growthPercent} />
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent>
+            <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+              {data.topPerformerLabel}
+            </p>
+            <p className="mt-1 truncate text-2xl font-semibold text-primary">
+              {data.topPerformerValue}
+            </p>
+          </CardContent>
+        </Card>
       </div>
 
       <Card>
-        <CardHeader>
-          <CardTitle>Revenue by month</CardTitle>
-        </CardHeader>
         <CardContent>
-          <div className="flex h-48 items-end gap-4">
-            {(() => {
-              const max = Math.max(1, ...data.revenueByMonth.map((m) => m.total));
-              return data.revenueByMonth.map((m) => (
-                <div key={m.key} className="flex flex-1 flex-col items-center gap-2">
-                  <span className="text-xs text-muted-foreground">{m.total.toFixed(0)}</span>
-                  <div className="flex w-full flex-1 items-end">
-                    <div
-                      className="w-full rounded-t-md bg-primary"
-                      style={{ height: `${Math.max(2, (m.total / max) * 100)}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium">{m.label}</span>
-                </div>
-              ));
-            })()}
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Stethoscope className="size-4" />
-            Doctor productivity
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {data.doctorProductivity.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No doctors on staff yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Doctor</TableHead>
-                  <TableHead>Completed visits</TableHead>
-                  <TableHead>No-shows</TableHead>
-                  <TableHead>No-show rate</TableHead>
-                  <TableHead>Revenue</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {data.doctorProductivity.map((d) => (
-                  <TableRow key={d.doctorId}>
-                    <TableCell>
-                      <p className="font-medium">{d.name}</p>
-                      {d.specialty && (
-                        <p className="text-sm text-muted-foreground">{d.specialty}</p>
-                      )}
-                    </TableCell>
-                    <TableCell>{d.completed}</TableCell>
-                    <TableCell>{d.noShows}</TableCell>
-                    <TableCell>{d.noShowRate}%</TableCell>
-                    <TableCell>{d.revenue.toFixed(2)}</TableCell>
+          {data.kind === "appointments" &&
+            (data.rows.every((r) => r.total === 0) ? (
+              <EmptyState icon={FileBarChart2} message="No appointments in this date range." />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Completed</TableHead>
+                    <TableHead>Cancelled</TableHead>
+                    <TableHead>Scheduled</TableHead>
+                    <TableHead>Growth</TableHead>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          )}
+                </TableHeader>
+                <TableBody>
+                  {data.rows.map((r) => (
+                    <TableRow key={r.date}>
+                      <TableCell className="font-medium">{formatDateLabel(r.date)}</TableCell>
+                      <TableCell>{r.total}</TableCell>
+                      <TableCell>{r.completed}</TableCell>
+                      <TableCell>{r.cancelled}</TableCell>
+                      <TableCell>{r.scheduled}</TableCell>
+                      <TableCell>
+                        <GrowthText value={r.growthPercent} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ))}
+
+          {data.kind === "patients" &&
+            (data.rows.every((r) => r.newPatients === 0) ? (
+              <EmptyState icon={FileBarChart2} message="No new patients in this date range." />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>New Patients</TableHead>
+                    <TableHead>Growth</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.rows.map((r) => (
+                    <TableRow key={r.date}>
+                      <TableCell className="font-medium">{formatDateLabel(r.date)}</TableCell>
+                      <TableCell>{r.newPatients}</TableCell>
+                      <TableCell>
+                        <GrowthText value={r.growthPercent} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ))}
+
+          {data.kind === "doctors" &&
+            (data.rows.length === 0 ? (
+              <EmptyState icon={FileBarChart2} message="No doctor activity in this date range." />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Doctor</TableHead>
+                    <TableHead>Completed</TableHead>
+                    <TableHead>No-shows</TableHead>
+                    <TableHead>No-show Rate</TableHead>
+                    <TableHead>Revenue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.rows.map((d) => (
+                    <TableRow key={d.doctorId}>
+                      <TableCell>
+                        <p className="font-medium">{d.name}</p>
+                        {d.specialty && (
+                          <p className="text-sm text-muted-foreground">{d.specialty}</p>
+                        )}
+                      </TableCell>
+                      <TableCell>{d.completed}</TableCell>
+                      <TableCell>{d.noShows}</TableCell>
+                      <TableCell>{d.noShowRate}%</TableCell>
+                      <TableCell>{formatKyat(d.revenue)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ))}
+
+          {data.kind === "revenue" &&
+            (data.rows.every((r) => r.revenue === 0) ? (
+              <EmptyState icon={FileBarChart2} message="No revenue in this date range." />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Revenue</TableHead>
+                    <TableHead>Growth</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.rows.map((r) => (
+                    <TableRow key={r.date}>
+                      <TableCell className="font-medium">{formatDateLabel(r.date)}</TableCell>
+                      <TableCell>{formatKyat(r.revenue)}</TableCell>
+                      <TableCell>
+                        <GrowthText value={r.growthPercent} />
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ))}
+
+          {data.kind === "services" &&
+            (data.rows.length === 0 ? (
+              <EmptyState
+                icon={FileBarChart2}
+                message="No clinic services billed in this date range."
+              />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Service</TableHead>
+                    <TableHead>Times Billed</TableHead>
+                    <TableHead>Revenue</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.rows.map((r) => (
+                    <TableRow key={r.serviceId}>
+                      <TableCell className="font-medium">{r.name}</TableCell>
+                      <TableCell>{r.units}</TableCell>
+                      <TableCell>{formatKyat(r.revenue)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ))}
         </CardContent>
       </Card>
-
-      <div className="grid gap-4 lg:grid-cols-3">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="size-4" />
-              Patient age distribution
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.patientCount === 0 ? (
-              <p className="text-sm text-muted-foreground">No patients yet.</p>
-            ) : (
-              <BarList
-                items={data.ageDistribution
-                  .filter((b) => b.count > 0)
-                  .map((b) => ({
-                    label: b.label,
-                    value: b.count,
-                    displayValue: `${b.count} (${Math.round((b.count / data.patientCount) * 100)}%)`,
-                  }))}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Users className="size-4" />
-              Patients by gender
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.patientCount === 0 ? (
-              <p className="text-sm text-muted-foreground">No patients yet.</p>
-            ) : (
-              <BarList
-                items={data.genderDistribution
-                  .filter((g) => g.count > 0)
-                  .map((g) => ({
-                    label: g.label,
-                    value: g.count,
-                    displayValue: `${g.count} (${Math.round((g.count / data.patientCount) * 100)}%)`,
-                  }))}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserPlus className="size-4" />
-              New patients by month
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex h-40 items-end gap-4">
-              {(() => {
-                const max = Math.max(1, ...data.newPatientsByMonth.map((m) => m.count));
-                return data.newPatientsByMonth.map((m) => (
-                  <div key={m.key} className="flex flex-1 flex-col items-center gap-2">
-                    <span className="text-xs text-muted-foreground">{m.count}</span>
-                    <div className="flex w-full flex-1 items-end">
-                      <div
-                        className="w-full rounded-t-md bg-primary"
-                        style={{ height: `${Math.max(2, (m.count / max) * 100)}%` }}
-                      />
-                    </div>
-                    <span className="text-xs font-medium">{m.label}</span>
-                  </div>
-                ));
-              })()}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Pill className="size-4" />
-              Top prescribed medicines
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.medicineTotals.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No prescriptions yet.</p>
-            ) : (
-              <BarList
-                items={data.medicineTotals.map((m) => ({
-                  label: data.medicineNameById.get(m.medicineId) ?? "Unknown",
-                  value: m._sum.quantity ?? 0,
-                  displayValue: `${m._sum.quantity ?? 0} units`,
-                }))}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Appointments by status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.totalAppointments === 0 ? (
-              <p className="text-sm text-muted-foreground">No appointments yet.</p>
-            ) : (
-              <BarList
-                items={data.statusTotals.map((s) => ({
-                  label: s.status,
-                  value: s._count.status,
-                  displayValue: `${s._count.status} (${Math.round((s._count.status / data.totalAppointments) * 100)}%)`,
-                  colorClass: STATUS_BAR_COLORS[s.status],
-                }))}
-              />
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <UserX className="size-4" />
-              No-shows by doctor
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {data.noShowsByDoctor.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No no-shows recorded.</p>
-            ) : (
-              <BarList
-                items={data.noShowsByDoctor.map((d) => ({
-                  label: d.name,
-                  value: d.count,
-                  displayValue: `${d.count}`,
-                  colorClass: "bg-orange-400",
-                }))}
-              />
-            )}
-          </CardContent>
-        </Card>
-      </div>
     </div>
   );
 }

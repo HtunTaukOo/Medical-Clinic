@@ -17,6 +17,7 @@ import {
   formatClinicDateTime,
   formatTime,
   getClinicSettings,
+  getClinicHoursForDate,
   isWithinOpeningHours,
 } from "@/lib/clinic-hours";
 import { Link } from "@/i18n/navigation";
@@ -66,6 +67,7 @@ export default async function PortalDashboardPage() {
 
   const [
     settings,
+    todayHours,
     upcomingAppointments,
     weekAppointmentCount,
     prescriptions,
@@ -75,6 +77,7 @@ export default async function PortalDashboardPage() {
     announcements,
   ] = await Promise.all([
     getClinicSettings(),
+    getClinicHoursForDate(now),
     patientId
       ? prisma.appointment.findMany({
           where: {
@@ -144,8 +147,8 @@ export default async function PortalDashboardPage() {
   const nextUnpaidInvoice = unpaidInvoices[0];
 
   const firstName = session?.user.name ? getDisplayFirstName(session.user.name) : "";
-  const clinicName = t("app.name");
-  const openNow = settings.isOpen && isWithinOpeningHours(now, settings.openingTime, settings.closingTime);
+  const clinicName = settings.name || t("app.name");
+  const openNow = todayHours.isOpen && isWithinOpeningHours(now, todayHours.openTime, todayHours.closeTime);
   const mapsUrl = settings.address
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`
     : null;
@@ -182,7 +185,9 @@ export default async function PortalDashboardPage() {
               </Badge>
               <h1 className="text-2xl font-bold">{clinicName}</h1>
               <p className="text-sm text-white/80">
-                Hours today: {formatTime(settings.openingTime)} – {formatTime(settings.closingTime)}
+                {todayHours.isOpen
+                  ? `Hours today: ${formatTime(todayHours.openTime)} – ${formatTime(todayHours.closeTime)}`
+                  : "Closed today"}
               </p>
               {settings.phones.length > 0 && (
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/80">

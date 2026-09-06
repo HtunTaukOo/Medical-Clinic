@@ -27,6 +27,7 @@ import {
   ClipboardPlus,
   UserPlus,
   PillBottle,
+  Building2,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -62,6 +63,8 @@ const ICONS: Record<string, LucideIcon> = {
   inventory: Pill,
   pharmacy: PillBottle,
   staff: UserCog,
+  doctorsSchedules: Stethoscope,
+  clinicServices: Building2,
   findDoctors: Stethoscope,
   myAppointments: CalendarCheck,
   myInvoices: FileText,

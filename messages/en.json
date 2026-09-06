@@ -11,7 +11,9 @@
     "billing": "Billing",
     "inventory": "Inventory",
     "pharmacy": "Pharmacy",
-    "staff": "Staff",
+    "staff": "User Management",
+    "doctorsSchedules": "Doctors & Schedules",
+    "clinicServices": "Clinic Services",
     "myAppointments": "My Appointments",
     "myInvoices": "My Invoices",
     "findDoctors": "Find Doctors",
@@ -227,8 +229,8 @@
     "deactivate": "Deactivate"
   },
   "staff": {
-    "title": "Staff",
-    "new": "New staff account",
+    "title": "User Management",
+    "new": "Add User",
     "name": "Name",
     "email": "Email",
     "role": "Role",
