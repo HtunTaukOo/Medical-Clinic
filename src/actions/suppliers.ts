@@ -3,9 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
-
-const INVENTORY_ROLES = ["ADMIN", "PHARMACIST"] as const;
+import { requireRole, STAFF_ROLES } from "@/lib/authz";
 
 const supplierSchema = z.object({
   name: z.string().min(1),
@@ -21,7 +19,7 @@ export async function createSupplier(
   _prevState: SupplierFormState,
   formData: FormData
 ): Promise<SupplierFormState> {
-  await requireRole([...INVENTORY_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const parsed = supplierSchema.safeParse({
     name: formData.get("name"),
@@ -41,7 +39,7 @@ export async function createSupplier(
 }
 
 export async function toggleSupplierActive(supplierId: string) {
-  await requireRole([...INVENTORY_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const supplier = await prisma.supplier.findUniqueOrThrow({ where: { id: supplierId } });
   await prisma.supplier.update({

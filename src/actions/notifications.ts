@@ -17,3 +17,15 @@ export async function markAllNotificationsRead() {
   revalidatePath("/portal/notifications");
   revalidatePath("/portal");
 }
+
+export async function markAllStaffNotificationsRead() {
+  const session = await requireSession();
+
+  await prisma.staffNotification.updateMany({
+    where: { userId: session.user.id, read: false },
+    data: { read: true },
+  });
+
+  revalidatePath("/staff/notifications");
+  revalidatePath("/doctor/notifications");
+}

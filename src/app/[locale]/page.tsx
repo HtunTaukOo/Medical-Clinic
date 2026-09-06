@@ -13,6 +13,8 @@ export default async function HomePage({
     redirect({ href: "/login", locale });
   } else if (session.user.role === "PATIENT") {
     redirect({ href: "/portal", locale });
+  } else if (session.user.role === "DOCTOR") {
+    redirect({ href: "/doctor", locale });
   } else {
     redirect({ href: "/staff", locale });
   }

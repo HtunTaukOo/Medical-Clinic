@@ -10,7 +10,12 @@ export default async function ClinicSettingsPage() {
 
   return (
     <div className="grid gap-4">
-      <h1 className="text-2xl font-semibold">{t("title")}</h1>
+      <div>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">
+          Configure clinic hours, contact details, and notifications.
+        </p>
+      </div>
       <ClinicSettingsForm
         isOpen={settings.isOpen}
         openingTime={settings.openingTime}

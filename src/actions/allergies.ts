@@ -3,9 +3,9 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole, requireSession, UnauthorizedError } from "@/lib/authz";
+import { requireRole, requireSession, UnauthorizedError, STAFF_ROLES } from "@/lib/authz";
 
-const STAFF_ROLES = ["ADMIN", "DOCTOR", "RECEPTIONIST"] as const;
+const ALLERGY_STAFF_ROLES = [...STAFF_ROLES, "DOCTOR"] as const;
 
 const allergySchema = z.object({
   name: z.string().min(1),
@@ -32,7 +32,7 @@ export async function addAllergy(
   _prevState: AllergyFormState,
   formData: FormData
 ): Promise<AllergyFormState> {
-  await requireRole([...STAFF_ROLES]);
+  await requireRole([...ALLERGY_STAFF_ROLES]);
 
   const parsed = parseAllergyForm(formData);
   if (!parsed.success) {
@@ -51,6 +51,7 @@ export async function addAllergy(
   });
 
   revalidatePath(`/staff/patients/${patientId}`);
+  revalidatePath(`/doctor/patients/${patientId}`);
   revalidatePath("/portal/medical-records");
   return { success: true };
 }
@@ -89,7 +90,7 @@ export async function deleteAllergy(allergyId: string) {
 
   const allergy = await prisma.allergy.findUniqueOrThrow({ where: { id: allergyId } });
   const isOwnAllergy = session.user.patientId === allergy.patientId;
-  const isStaff = (STAFF_ROLES as readonly string[]).includes(session.user.role);
+  const isStaff = (ALLERGY_STAFF_ROLES as readonly string[]).includes(session.user.role);
   if (!isOwnAllergy && !isStaff) {
     throw new UnauthorizedError("Not your allergy record");
   }
@@ -97,6 +98,7 @@ export async function deleteAllergy(allergyId: string) {
   await prisma.allergy.delete({ where: { id: allergyId } });
 
   revalidatePath(`/staff/patients/${allergy.patientId}`);
+  revalidatePath(`/doctor/patients/${allergy.patientId}`);
   revalidatePath("/portal/settings");
   revalidatePath("/portal/medical-records");
 }

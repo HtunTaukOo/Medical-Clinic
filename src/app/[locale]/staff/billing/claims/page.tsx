@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/table";
 
 export default async function ClaimsPage() {
-  await requirePageRole(["ADMIN", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("billing");
 
   const claims = await prisma.insuranceClaim.findMany({

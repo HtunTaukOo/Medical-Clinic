@@ -21,9 +21,7 @@ model ClinicSettings {
 enum Role {
   ADMIN
   DOCTOR
-  RECEPTIONIST
-  PHARMACIST
-  LAB_TECH
+  STAFF
   PATIENT
 }
 
@@ -35,17 +33,24 @@ model User {
   role                Role
   locale              String    @default("en")
   active              Boolean   @default(true)
+  phone               String?
+  title               String?
   resetToken          String?   @unique
   resetTokenExpiresAt DateTime?
   createdAt           DateTime  @default(now())
   updatedAt           DateTime  @updatedAt
 
-  patient           Patient?
-  doctorProfile     DoctorProfile?
-  medicalRecords    MedicalRecord[]
-  attendanceRecords AttendanceRecord[]
-  purchaseOrders    PurchaseOrder[]
-  announcements     Announcement[]
+  notifyNewAppointments Boolean @default(true)
+  notifyLowStock        Boolean @default(true)
+  notifyAnnouncements   Boolean @default(true)
+
+  patient        Patient?
+  doctorProfile  DoctorProfile?
+  medicalRecords MedicalRecord[]
+  purchaseOrders PurchaseOrder[]
+  announcements  Announcement[]
+  pharmacySales  PharmacySale[]
+  staffNotifications StaffNotification[]
 }
 
 enum Gender {
@@ -106,6 +111,7 @@ model Patient {
   walkIns              WalkIn[]
   allergyRecords       Allergy[]
   notifications        Notification[]
+  pharmacySales        PharmacySale[]
 }
 
 enum AllergyCategory {
@@ -475,6 +481,31 @@ model Notification {
   @@index([patientId, category])
 }
 
+enum StaffNotificationCategory {
+  APPOINTMENT
+  LAB_RESULT
+  INVENTORY
+  ANNOUNCEMENT
+}
+
+model StaffNotification {
+  id        String                     @id @default(cuid())
+  userId    String
+  user      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  category  StaffNotificationCategory
+  tone      NotificationTone           @default(INFO)
+  title     String
+  body      String
+  href      String?
+  relatedId String
+  read      Boolean                    @default(false)
+  createdAt DateTime                   @default(now())
+
+  @@unique([userId, relatedId])
+  @@index([userId, read])
+  @@index([userId, category])
+}
+
 model Medicine {
   id           String    @id @default(cuid())
   name         String
@@ -493,6 +524,7 @@ model Medicine {
   prescriptionItems  PrescriptionItem[]
   stockTransactions  StockTransaction[]
   purchaseOrderItems PurchaseOrderItem[]
+  pharmacySaleItems  PharmacySaleItem[]
 }
 
 model Supplier {
@@ -560,6 +592,7 @@ model Prescription {
   createdAt     DateTime      @default(now())
 
   items PrescriptionItem[]
+  sales PharmacySale[]
 
   @@index([patientId])
 }
@@ -595,6 +628,45 @@ model PillReminder {
 
   @@index([sent, scheduledFor])
   @@index([patientId])
+}
+
+enum PharmacySaleStatus {
+  COMPLETED
+  RETURNED
+}
+
+model PharmacySale {
+  id             String             @id @default(cuid())
+  patientId      String
+  patient        Patient            @relation(fields: [patientId], references: [id])
+  prescriptionId String?
+  prescription   Prescription?      @relation(fields: [prescriptionId], references: [id])
+  soldById       String
+  soldBy         User               @relation(fields: [soldById], references: [id])
+  subtotal       Decimal            @db.Decimal(10, 2)
+  discount       Decimal            @db.Decimal(10, 2) @default(0)
+  tax            Decimal            @db.Decimal(10, 2) @default(0)
+  total          Decimal            @db.Decimal(10, 2)
+  paymentMethod  PaymentMethod      @default(CASH)
+  status         PharmacySaleStatus @default(COMPLETED)
+  returnedAt     DateTime?
+  createdAt      DateTime           @default(now())
+
+  items PharmacySaleItem[]
+
+  @@index([patientId])
+  @@index([createdAt])
+}
+
+model PharmacySaleItem {
+  id         String       @id @default(cuid())
+  saleId     String
+  sale       PharmacySale @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  medicineId String
+  medicine   Medicine     @relation(fields: [medicineId], references: [id])
+  name       String
+  quantity   Int
+  unitPrice  Decimal      @db.Decimal(10, 2)
 }
 
 enum StockTransactionType {
@@ -633,17 +705,6 @@ model MedicalRecord {
   createdAt DateTime          @default(now())
 
   @@index([patientId])
-}
-
-model AttendanceRecord {
-  id        String    @id @default(cuid())
-  userId    String
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  clockIn   DateTime
-  clockOut  DateTime?
-  createdAt DateTime  @default(now())
-
-  @@index([userId, clockIn])
 }
 
 model ActivityLog {

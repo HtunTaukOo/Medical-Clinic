@@ -3,10 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { notifyIfLowStock } from "@/lib/telegram";
-
-const INVENTORY_ROLES = ["ADMIN", "PHARMACIST"] as const;
 
 const medicineSchema = z.object({
   name: z.string().min(1),
@@ -23,7 +21,7 @@ export async function createMedicine(
   _prevState: MedicineFormState,
   formData: FormData
 ): Promise<MedicineFormState> {
-  await requireRole([...INVENTORY_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const parsed = medicineSchema.safeParse({
     name: formData.get("name"),
@@ -43,6 +41,45 @@ export async function createMedicine(
   return { success: true };
 }
 
+const updateMedicineSchema = z.object({
+  name: z.string().min(1),
+  unit: z.string().min(1),
+  reorderLevel: z.coerce.number().int().nonnegative(),
+  price: z.coerce.number().nonnegative(),
+});
+
+export async function updateMedicine(
+  medicineId: string,
+  _prevState: MedicineFormState,
+  formData: FormData
+): Promise<MedicineFormState> {
+  await requireRole(STAFF_ROLES);
+
+  const parsed = updateMedicineSchema.safeParse({
+    name: formData.get("name"),
+    unit: formData.get("unit"),
+    reorderLevel: formData.get("reorderLevel"),
+    price: formData.get("price"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.medicine.update({ where: { id: medicineId }, data: parsed.data });
+
+  revalidatePath("/staff/inventory");
+  revalidatePath(`/staff/inventory/${medicineId}`);
+  return { success: true };
+}
+
+export async function deleteMedicine(medicineId: string) {
+  await requireRole(STAFF_ROLES);
+
+  await prisma.medicine.delete({ where: { id: medicineId } });
+
+  revalidatePath("/staff/inventory");
+}
+
 const expiryDateSchema = z.object({
   expiryDate: z.coerce.date().optional(),
 });
@@ -54,7 +91,7 @@ export async function setMedicineExpiry(
   _prevState: SetExpiryState,
   formData: FormData
 ): Promise<SetExpiryState> {
-  await requireRole([...INVENTORY_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const parsed = expiryDateSchema.safeParse({
     expiryDate: formData.get("expiryDate") || undefined,
@@ -87,7 +124,7 @@ export async function updateMedicinePromo(
   _prevState: MedicinePromoState,
   formData: FormData
 ): Promise<MedicinePromoState> {
-  await requireRole([...INVENTORY_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const parsed = promoSchema.safeParse({
     featured: formData.get("featured") ? "on" : "off",
@@ -123,7 +160,7 @@ export async function adjustStock(
   _prevState: AdjustStockState,
   formData: FormData
 ): Promise<AdjustStockState> {
-  await requireRole([...INVENTORY_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const parsed = adjustSchema.safeParse({
     type: formData.get("type"),
@@ -162,5 +199,6 @@ export async function adjustStock(
   }
 
   revalidatePath("/staff/inventory");
+  revalidatePath(`/staff/inventory/${medicineId}`);
   return { success: true };
 }

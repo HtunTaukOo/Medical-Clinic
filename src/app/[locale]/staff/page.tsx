@@ -1,71 +1,82 @@
-import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import {
-  Users,
-  CalendarDays,
   Receipt,
   PackageX,
-  ShieldCheck,
-  Stethoscope,
   Pill,
   Clock,
   Wallet,
-  UserCheck,
   ShieldAlert,
-  Truck,
-  CalendarClock,
   FlaskConical,
-  TestTube,
-  CheckCircle2,
-  Megaphone,
+  ListOrdered,
   AlertTriangle,
-  Siren,
-  Activity,
 } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { Link } from "@/i18n/navigation";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
-import { getDisplayFirstName, initials, calculateAge, formatRelativeTime } from "@/lib/format";
 import { todayRange } from "@/lib/queue";
-import { clinicLocalMinutes, formatClinicDateTime } from "@/lib/clinic-hours";
 import { getExpiryStatus } from "@/lib/inventory";
-import { getVitalsAlertMessage } from "@/lib/clinical-alerts";
-import { HeroBanner } from "@/components/hero-banner";
+import { getDisplayFirstName } from "@/lib/format";
+import { clinicLocalMinutes, formatClinicDateTime } from "@/lib/clinic-hours";
 import { StatTile } from "@/components/stat-tile";
-import { AppointmentRow, AVATAR_COLORS, GENDER_LETTER } from "@/components/appointments/appointment-row";
+import { checkInAppointment } from "@/actions/appointments";
+import { callWalkIn } from "@/actions/walk-ins";
+import { NewAnnouncementDialog } from "@/components/staff/new-announcement-dialog";
 
-const ROLE_ICON: Record<string, LucideIcon> = {
-  ADMIN: ShieldCheck,
-  DOCTOR: Stethoscope,
-  RECEPTIONIST: CalendarDays,
-  PHARMACIST: Pill,
-  LAB_TECH: FlaskConical,
-};
-
-const OUTLINE_ON_PRIMARY =
-  "border-primary-foreground/30 bg-transparent text-primary-foreground hover:bg-white/10 hover:text-primary-foreground";
+function Num({ children }: { children: ReactNode }) {
+  return <span className="font-semibold text-primary">{children}</span>;
+}
 
 const LAB_STATUS_LABEL: Record<string, string> = {
   ORDERED: "Awaiting collection",
   SAMPLE_COLLECTED: "Awaiting results",
 };
 
-const LAB_RESULT_LABEL: Record<string, string> = {
-  HIGH: "elevated",
-  LOW: "low",
-  BORDERLINE: "borderline",
+const LAB_STATUS_CLASS: Record<string, string> = {
+  ORDERED: "bg-amber-100 text-amber-700",
+  SAMPLE_COLLECTED: "bg-blue-100 text-blue-700",
+};
+
+const APPT_STATUS_LABEL: Record<string, string> = {
+  REQUESTED: "Requested",
+  CONFIRMED: "Confirmed",
+  CHECKED_IN: "Checked In",
+  COMPLETED: "Completed",
+  CANCELLED: "Cancelled",
+  NO_SHOW: "No-show",
+};
+
+const APPT_STATUS_CLASS: Record<string, string> = {
+  REQUESTED: "bg-slate-100 text-slate-700",
+  CONFIRMED: "bg-blue-100 text-blue-700",
+  CHECKED_IN: "bg-emerald-100 text-emerald-700",
+  COMPLETED: "bg-indigo-100 text-indigo-700",
+  CANCELLED: "bg-rose-100 text-rose-700",
+  NO_SHOW: "bg-orange-100 text-orange-700",
+};
+
+const QUEUE_STATUS_CLASS: Record<string, string> = {
+  Completed: "bg-emerald-100 text-emerald-700",
+  "In Consultation": "bg-purple-100 text-purple-700",
+  Called: "bg-blue-100 text-blue-700",
+  Waiting: "bg-amber-100 text-amber-700",
 };
 
 export default async function StaffDashboardPage() {
   const session = await auth();
   const t = await getTranslations();
   const role = session?.user.role;
-  const doctorId = session?.user.doctorId;
 
   const { start: todayStart, end: todayEnd } = todayRange();
 
@@ -73,24 +84,23 @@ export default async function StaffDashboardPage() {
     unpaidInvoices,
     medicines,
     pendingPrescriptions,
-    todaysAppointmentsFull,
-    recentAbnormalLabResults,
     waitingAppointments,
     waitingWalkIns,
-    checkedInNow,
+    checkedInAppointmentsToday,
+    calledWalkInsToday,
+    completedAppointmentsToday,
+    todaysAppointmentsAll,
     todayPayments,
     todayRefunds,
-    staffClockedIn,
     pendingClaims,
-    openPurchaseOrders,
     pendingLabOrders,
-    completedToday,
+    completedLabToday,
   ] = await Promise.all([
     prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIAL"] } } }),
     prisma.medicine.findMany({
-      select: { id: true, name: true, stockQty: true, reorderLevel: true, expiryDate: true },
+      select: { id: true, name: true, unit: true, stockQty: true, reorderLevel: true, expiryDate: true },
     }),
-    role === "PHARMACIST"
+    role === "STAFF"
       ? prisma.prescription.findMany({
           where: { fulfilled: false },
           include: {
@@ -102,54 +112,50 @@ export default async function StaffDashboardPage() {
           take: 20,
         })
       : Promise.resolve([]),
-    role === "DOCTOR" && doctorId
-      ? prisma.appointment.findMany({
-          where: {
-            doctorId,
-            scheduledAt: { gte: todayStart, lt: todayEnd },
-            status: { not: "CANCELLED" },
-          },
-          orderBy: { scheduledAt: "asc" },
-          include: {
-            patient: {
-              include: {
-                allergyRecords: { where: { severity: "SEVERE" }, take: 1 },
-                diagnoses: { where: { severity: "SEVERE", status: "ACTIVE" }, take: 1 },
-              },
-            },
-          },
-        })
-      : Promise.resolve([]),
-    role === "DOCTOR" && doctorId
-      ? prisma.labOrderItem.findMany({
-          where: {
-            labOrder: { doctorId, status: "COMPLETED" },
-            resultStatus: { in: ["HIGH", "LOW", "BORDERLINE"] },
-          },
-          include: { labTest: true, labOrder: { include: { patient: true } } },
-          orderBy: { resultEnteredAt: "desc" },
-          take: 3,
-        })
-      : Promise.resolve([]),
-    role === "RECEPTIONIST"
+    role === "STAFF"
       ? prisma.appointment.findMany({
           where: { status: "CONFIRMED", scheduledAt: { gte: todayStart, lt: todayEnd } },
           include: { patient: true, doctor: { include: { user: true } } },
           orderBy: { scheduledAt: "asc" },
         })
       : Promise.resolve([]),
-    role === "RECEPTIONIST"
+    role === "STAFF"
       ? prisma.walkIn.findMany({
           where: { status: "WAITING", createdAt: { gte: todayStart, lt: todayEnd } },
           include: { doctor: { include: { user: true } } },
           orderBy: { createdAt: "asc" },
         })
       : Promise.resolve([]),
-    role === "RECEPTIONIST"
-      ? prisma.appointment.count({
+    role === "STAFF"
+      ? prisma.appointment.findMany({
           where: { status: "CHECKED_IN", scheduledAt: { gte: todayStart, lt: todayEnd } },
+          include: { patient: true, doctor: { include: { user: true } } },
+          orderBy: { checkedInAt: "asc" },
         })
-      : Promise.resolve(0),
+      : Promise.resolve([]),
+    role === "STAFF"
+      ? prisma.walkIn.findMany({
+          where: { status: "CALLED", createdAt: { gte: todayStart, lt: todayEnd } },
+          include: { doctor: { include: { user: true } } },
+          orderBy: { calledAt: "asc" },
+        })
+      : Promise.resolve([]),
+    role === "STAFF"
+      ? prisma.appointment.findMany({
+          where: { status: "COMPLETED", scheduledAt: { gte: todayStart, lt: todayEnd } },
+          include: { patient: true, doctor: { include: { user: true } } },
+          orderBy: { scheduledAt: "desc" },
+          take: 2,
+        })
+      : Promise.resolve([]),
+    role === "STAFF"
+      ? prisma.appointment.findMany({
+          where: { scheduledAt: { gte: todayStart, lt: todayEnd } },
+          include: { patient: true, doctor: { include: { user: true } } },
+          orderBy: { scheduledAt: "asc" },
+          take: 6,
+        })
+      : Promise.resolve([]),
     role === "ADMIN"
       ? prisma.payment.aggregate({
           _sum: { amount: true },
@@ -163,11 +169,6 @@ export default async function StaffDashboardPage() {
         })
       : Promise.resolve({ _sum: { amount: null as unknown as number | null } }),
     role === "ADMIN"
-      ? prisma.attendanceRecord.count({
-          where: { clockOut: null, clockIn: { gte: todayStart, lt: todayEnd } },
-        })
-      : Promise.resolve(0),
-    role === "ADMIN"
       ? prisma.insuranceClaim.findMany({
           where: { status: "SUBMITTED" },
           include: { patient: true },
@@ -175,10 +176,7 @@ export default async function StaffDashboardPage() {
           take: 20,
         })
       : Promise.resolve([]),
-    role === "PHARMACIST"
-      ? prisma.purchaseOrder.count({ where: { status: { in: ["ORDERED", "PARTIALLY_RECEIVED"] } } })
-      : Promise.resolve(0),
-    role === "LAB_TECH"
+    role === "STAFF"
       ? prisma.labOrder.findMany({
           where: { status: { in: ["ORDERED", "SAMPLE_COLLECTED"] } },
           include: { patient: true, items: { include: { labTest: true } } },
@@ -186,75 +184,20 @@ export default async function StaffDashboardPage() {
           take: 20,
         })
       : Promise.resolve([]),
-    role === "LAB_TECH"
+    role === "STAFF"
       ? prisma.labOrder.count({
           where: { status: "COMPLETED", completedAt: { gte: todayStart, lt: todayEnd } },
         })
       : Promise.resolve(0),
   ]);
 
-  const lowStock = medicines.filter((m) => m.stockQty <= m.reorderLevel).length;
-  const expiringOrExpired = medicines.filter((m) => getExpiryStatus(m.expiryDate) !== null).length;
+  const lowStockMedicines = medicines
+    .filter((m) => m.stockQty <= m.reorderLevel)
+    .sort((a, b) => a.stockQty - b.stockQty);
+  const lowStock = lowStockMedicines.length;
   const attentionMedicines = medicines
     .filter((m) => m.stockQty <= m.reorderLevel || getExpiryStatus(m.expiryDate) !== null)
     .slice(0, 5);
-  const checkedInToday = todaysAppointmentsFull
-    .filter((appt) => appt.status === "CHECKED_IN")
-    .sort((a, b) => (a.checkedInAt?.getTime() ?? 0) - (b.checkedInAt?.getTime() ?? 0));
-  const inProgressAppt = checkedInToday[0] ?? null;
-  const waitingAppts = checkedInToday.slice(1);
-  const completedAppts = todaysAppointmentsFull.filter((appt) => appt.status === "COMPLETED");
-
-  type RedAlert = {
-    key: string;
-    appointmentId: string;
-    patientName: string;
-    message: string;
-    timeLabel: string;
-  };
-  const redAlerts: RedAlert[] = [];
-  for (const appt of todaysAppointmentsFull) {
-    if (appt.status === "CHECKED_IN") {
-      const vitalsMessage = getVitalsAlertMessage(
-        appt.spo2Percent,
-        appt.heartRateBpm,
-        appt.temperatureC ? Number(appt.temperatureC) : null
-      );
-      if (vitalsMessage) {
-        redAlerts.push({
-          key: `vitals-${appt.id}`,
-          appointmentId: appt.id,
-          patientName: appt.patient.name,
-          message: vitalsMessage,
-          timeLabel: "Now",
-        });
-      }
-    }
-    if (
-      (appt.patient.allergyRecords.length > 0 || appt.patient.diagnoses.length > 0) &&
-      appt.status !== "COMPLETED"
-    ) {
-      redAlerts.push({
-        key: `severe-${appt.id}`,
-        appointmentId: appt.id,
-        patientName: appt.patient.name,
-        message: "Severe allergy or diagnosis on file — review before consultation",
-        timeLabel: "",
-      });
-    }
-  }
-
-  const amberAlerts = recentAbnormalLabResults
-    .filter((item) => item.resultStatus)
-    .map((item) => ({
-      key: item.id,
-      href: `/lab-report/${item.labOrderId}`,
-      patientName: item.labOrder.patient.name,
-      message: `Lab results returned: ${item.labTest.name} ${LAB_RESULT_LABEL[item.resultStatus as string]}${
-        item.resultValue ? ` (${item.resultValue}${item.labTest.unit ?? ""})` : ""
-      }. Review recommended.`,
-      timeLabel: item.resultEnteredAt ? formatRelativeTime(item.resultEnteredAt) : "",
-    }));
 
   const todayRevenue =
     Number(todayPayments._sum.amount ?? 0) - Number(todayRefunds._sum.amount ?? 0);
@@ -263,25 +206,95 @@ export default async function StaffDashboardPage() {
   const waitingTotal = waitingToCheckInCount + walkInsWaitingCount;
   const pendingPrescriptionsCount = pendingPrescriptions.length;
   const pendingClaimsCount = pendingClaims.length;
-  const awaitingCollection = pendingLabOrders.filter((o) => o.status === "ORDERED").length;
-  const awaitingResults = pendingLabOrders.filter((o) => o.status === "SAMPLE_COLLECTED").length;
 
-  type WaitingRow =
-    | { kind: "appointment"; appointment: (typeof waitingAppointments)[number]; sortKey: number }
-    | { kind: "walkin"; walkIn: (typeof waitingWalkIns)[number]; sortKey: number };
-  const mergedWaiting: WaitingRow[] = [
+  // The queue overview blends four very different record shapes (completed
+  // visits, in-progress consultations, called and waiting walk-ins/bookings)
+  // into one ordered list, mirroring how the front desk actually experiences
+  // "who's in the clinic right now" rather than four separate queries.
+  type QueueRow = {
+    key: string;
+    patientName: string;
+    doctorName: string;
+    statusLabel: "Completed" | "In Consultation" | "Called" | "Waiting";
+    priority: number;
+    sortKey: number;
+    action: ReactNode;
+  };
+
+  const queueRows: QueueRow[] = [
+    ...completedAppointmentsToday.map(
+      (appt): QueueRow => ({
+        key: `done-${appt.id}`,
+        patientName: appt.patient.name,
+        doctorName: appt.doctor.user.name,
+        statusLabel: "Completed",
+        priority: 0,
+        sortKey: appt.scheduledAt.getTime(),
+        action: <span className="text-muted-foreground">—</span>,
+      })
+    ),
+    ...checkedInAppointmentsToday.map(
+      (appt, index): QueueRow => ({
+        key: `checkedin-${appt.id}`,
+        patientName: appt.patient.name,
+        doctorName: appt.doctor.user.name,
+        statusLabel: index === 0 ? "In Consultation" : "Waiting",
+        priority: index === 0 ? 1 : 3,
+        sortKey: (appt.checkedInAt ?? appt.scheduledAt).getTime(),
+        action: <span className="text-muted-foreground">—</span>,
+      })
+    ),
+    ...calledWalkInsToday.map(
+      (walkIn): QueueRow => ({
+        key: `called-${walkIn.id}`,
+        patientName: walkIn.name || "Walk-in",
+        doctorName: walkIn.doctor?.user.name ?? "Any doctor",
+        statusLabel: "Called",
+        priority: 2,
+        sortKey: (walkIn.calledAt ?? walkIn.createdAt).getTime(),
+        action: (
+          <Link href={`/staff/queue/walk-ins/${walkIn.id}`} className="font-medium text-primary underline">
+            Start
+          </Link>
+        ),
+      })
+    ),
     ...waitingAppointments.map(
-      (appointment): WaitingRow => ({
-        kind: "appointment",
-        appointment,
-        sortKey: appointment.scheduledAt.getTime(),
+      (appt): QueueRow => ({
+        key: `confirmed-${appt.id}`,
+        patientName: appt.patient.name,
+        doctorName: appt.doctor.user.name,
+        statusLabel: "Waiting",
+        priority: 3,
+        sortKey: appt.scheduledAt.getTime(),
+        action: (
+          <form action={checkInAppointment.bind(null, appt.id)}>
+            <button type="submit" className="font-medium text-primary underline">
+              Check In
+            </button>
+          </form>
+        ),
       })
     ),
     ...waitingWalkIns.map(
-      (walkIn): WaitingRow => ({ kind: "walkin", walkIn, sortKey: walkIn.createdAt.getTime() })
+      (walkIn): QueueRow => ({
+        key: `waitingwalkin-${walkIn.id}`,
+        patientName: walkIn.name || "Walk-in",
+        doctorName: walkIn.doctor?.user.name ?? "Any doctor",
+        statusLabel: "Waiting",
+        priority: 3,
+        sortKey: walkIn.createdAt.getTime(),
+        action: (
+          <form action={callWalkIn.bind(null, walkIn.id)}>
+            <button type="submit" className="font-medium text-primary underline">
+              Call In
+            </button>
+          </form>
+        ),
+      })
     ),
   ]
-    .sort((a, b) => a.sortKey - b.sortKey)
+    .sort((a, b) => a.priority - b.priority || a.sortKey - b.sortKey)
     .slice(0, 5);
 
   const firstName = session?.user.name ? getDisplayFirstName(session.user.name) : "";
@@ -289,592 +302,386 @@ export default async function StaffDashboardPage() {
   const clinicHour = Math.floor(clinicLocalMinutes(now) / 60);
   const greeting = clinicHour < 12 ? "Good morning" : clinicHour < 18 ? "Good afternoon" : "Good evening";
 
-  let subtitle = "";
-  if (role === "ADMIN") {
-    subtitle = `${staffClockedIn} staff on shift • ${todayRevenue.toFixed(2)} revenue today`;
-  } else if (role === "RECEPTIONIST") {
-    subtitle = `${waitingTotal} waiting • ${checkedInNow} in queue now`;
-  } else if (role === "DOCTOR") {
-    subtitle = `You have ${todaysAppointmentsFull.length} appointment${todaysAppointmentsFull.length === 1 ? "" : "s"} scheduled today.`;
-  } else if (role === "PHARMACIST") {
-    subtitle = `${pendingPrescriptionsCount} prescription${pendingPrescriptionsCount === 1 ? "" : "s"} pending fulfillment`;
-  } else if (role === "LAB_TECH") {
-    subtitle = `${awaitingCollection} awaiting collection • ${awaitingResults} awaiting results`;
-  }
-
   return (
     <div className="grid gap-6">
-      {role !== "DOCTOR" && (
-      <>
-      <HeroBanner
-        name={firstName}
-        subtitle={subtitle}
-        icon={role ? ROLE_ICON[role] : undefined}
-        actions={
-          <>
-            {(role === "ADMIN" || role === "RECEPTIONIST") && (
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <p className="text-sm text-muted-foreground">
+            {formatClinicDateTime(now, {
+              weekday: "long",
+              year: "numeric",
+              month: "long",
+              day: "numeric",
+            })}
+          </p>
+          <h1 className="text-2xl font-bold">
+            {greeting}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {role === "ADMIN" ? (
               <>
-                <Button asChild variant="secondary">
-                  <Link href="/staff/patients/new">{t("patients.new")}</Link>
-                </Button>
-                <Button asChild variant="outline" className={OUTLINE_ON_PRIMARY}>
-                  <Link href="/staff/appointments/new">{t("appointments.new")}</Link>
-                </Button>
+                <Num>{todayRevenue.toFixed(2)}</Num> revenue today · <Num>{pendingClaimsCount}</Num>{" "}
+                claim{pendingClaimsCount === 1 ? "" : "s"} to review
+              </>
+            ) : (
+              <>
+                <Num>{waitingTotal}</Num> waiting · <Num>{pendingPrescriptionsCount}</Num>{" "}
+                prescription{pendingPrescriptionsCount === 1 ? "" : "s"} pending ·{" "}
+                <Num>{pendingLabOrders.length}</Num> lab order{pendingLabOrders.length === 1 ? "" : "s"}{" "}
+                open
               </>
             )}
-            {role === "RECEPTIONIST" && (
-              <Button asChild variant="outline" className={OUTLINE_ON_PRIMARY}>
-                <Link href="/staff/queue">{t("nav.queue")}</Link>
-              </Button>
-            )}
-            {role === "ADMIN" && (
-              <Button asChild variant="outline" className={OUTLINE_ON_PRIMARY}>
-                <Link href="/staff/reports">{t("nav.reports")}</Link>
-              </Button>
-            )}
-            {role === "PHARMACIST" && (
-              <>
-                <Button asChild variant="secondary">
-                  <Link href="/staff/inventory">{t("inventory.title")}</Link>
-                </Button>
-                <Button asChild variant="outline" className={OUTLINE_ON_PRIMARY}>
-                  <Link href="/staff/inventory/purchase-orders">
-                    {t("inventory.purchaseOrders")}
-                  </Link>
-                </Button>
-              </>
-            )}
-            {role === "LAB_TECH" && (
-              <Button asChild variant="secondary">
-                <Link href="/staff/lab">{t("nav.lab")}</Link>
-              </Button>
-            )}
-          </>
-        }
-      />
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        {role === "RECEPTIONIST" && (
-          <>
-            <StatTile
-              icon={Clock}
-              value={waitingToCheckInCount}
-              label="Waiting to Check In"
-              color="amber"
-            />
-            <StatTile icon={Megaphone} value={walkInsWaitingCount} label="Walk-ins Waiting" color="orange" />
-            <StatTile icon={Users} value={checkedInNow} label="In Queue Now" color="blue" />
-            <StatTile
-              icon={Receipt}
-              value={unpaidInvoices}
-              label={t("billing.invoices")}
-              color="purple"
-            />
-          </>
-        )}
-        {role === "PHARMACIST" && (
-          <>
-            <StatTile
-              icon={Pill}
-              value={pendingPrescriptionsCount}
-              label="Pending Prescriptions"
-              color="blue"
-            />
-            <StatTile icon={PackageX} value={lowStock} label={t("inventory.lowStock")} color="amber" />
-            <StatTile
-              icon={CalendarClock}
-              value={expiringOrExpired}
-              label="Expiring / Expired"
-              color="rose"
-            />
-            <StatTile
-              icon={Truck}
-              value={openPurchaseOrders}
-              label="Open Purchase Orders"
-              color="purple"
-            />
-          </>
-        )}
-        {role === "LAB_TECH" && (
-          <>
-            <StatTile
-              icon={TestTube}
-              value={awaitingCollection}
-              label="Awaiting Collection"
-              color="amber"
-            />
-            <StatTile
-              icon={FlaskConical}
-              value={awaitingResults}
-              label="Awaiting Results"
-              color="blue"
-            />
-            <StatTile
-              icon={CheckCircle2}
-              value={completedToday}
-              label="Completed Today"
-              color="emerald"
-            />
-          </>
-        )}
-        {role === "ADMIN" && (
-          <>
-            <StatTile
-              icon={Wallet}
-              value={todayRevenue.toFixed(2)}
-              label="Revenue Today"
-              color="emerald"
-            />
-            <StatTile icon={UserCheck} value={staffClockedIn} label="Staff on Shift" color="blue" />
-            <StatTile
-              icon={ShieldAlert}
-              value={pendingClaimsCount}
-              label="Claims to Review"
-              color="rose"
-            />
-            <StatTile icon={PackageX} value={lowStock} label={t("inventory.lowStock")} color="amber" />
-          </>
-        )}
+          </p>
+        </div>
+        <NewAnnouncementDialog />
       </div>
-      </>
+
+      {role === "STAFF" && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          <StatTile icon={Clock} value={waitingTotal} label="Patients Waiting" color="amber" />
+          <StatTile icon={Receipt} value={unpaidInvoices} label="Unpaid Bills" color="rose" />
+          <StatTile
+            icon={Pill}
+            value={pendingPrescriptionsCount}
+            label="Pending Prescriptions"
+            color="blue"
+          />
+          <StatTile icon={PackageX} value={lowStock} label="Low Stock Alerts" color="amber" />
+          <StatTile icon={FlaskConical} value={pendingLabOrders.length} label="Lab Orders" color="purple" />
+        </div>
       )}
 
-      {role === "DOCTOR" && (
-        <>
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">
-                {formatClinicDateTime(now, {
-                  weekday: "long",
-                  year: "numeric",
-                  month: "long",
-                  day: "numeric",
-                })}
-              </p>
-              <h1 className="text-2xl font-bold">
-                {greeting}
-                {firstName ? `, ${firstName}` : ""}
-              </h1>
-              <p className="text-sm text-muted-foreground">{subtitle}</p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <Button asChild>
-                <Link
-                  href={
-                    inProgressAppt
-                      ? `/staff/appointments/${inProgressAppt.id}`
-                      : "/staff/consultations"
-                  }
-                >
-                  <Activity className="size-4" />
-                  Start Consultation
-                </Link>
-              </Button>
-              <Button asChild variant="outline">
-                <Link href="/staff/schedule">
-                  <Clock className="size-4" />
-                  Schedule
-                </Link>
-              </Button>
-            </div>
-          </div>
+      {role === "ADMIN" && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <StatTile
+            icon={Wallet}
+            value={todayRevenue.toFixed(2)}
+            label="Revenue Today"
+            color="emerald"
+          />
+          <StatTile
+            icon={ShieldAlert}
+            value={pendingClaimsCount}
+            label="Claims to Review"
+            color="rose"
+          />
+          <StatTile icon={PackageX} value={lowStock} label={t("inventory.lowStock")} color="amber" />
+        </div>
+      )}
 
-          {(redAlerts.length > 0 || amberAlerts.length > 0) && (
-            <div className="grid gap-3">
-              {redAlerts.map((alert) => (
-                <div
-                  key={alert.key}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50 px-4 py-3 dark:border-red-900/40 dark:bg-red-950/30"
-                >
-                  <div className="flex items-start gap-3">
-                    <Siren className="mt-0.5 size-5 shrink-0 text-red-600" />
-                    <div>
-                      <p className="text-sm font-medium text-red-900 dark:text-red-100">
-                        {alert.patientName} — {alert.message}
-                      </p>
-                      {alert.timeLabel && (
-                        <p className="text-xs text-red-700/70 dark:text-red-300/70">
-                          {alert.timeLabel}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <Button asChild size="sm" variant="destructive">
-                    <Link href={`/staff/appointments/${alert.appointmentId}`}>View</Link>
-                  </Button>
-                </div>
-              ))}
-              {amberAlerts.map((alert) => (
-                <div
-                  key={alert.key}
-                  className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 dark:border-amber-900/40 dark:bg-amber-950/30"
-                >
-                  <div className="flex items-start gap-3">
-                    <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
-                    <div>
-                      <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                        {alert.patientName} — {alert.message}
-                      </p>
-                      {alert.timeLabel && (
-                        <p className="text-xs text-amber-700/70 dark:text-amber-300/70">
-                          {alert.timeLabel}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  <Button asChild size="sm" className="bg-amber-600 text-white hover:bg-amber-700">
-                    <Link href={alert.href}>View</Link>
-                  </Button>
-                </div>
-              ))}
-            </div>
-          )}
+      {role === "STAFF" && (
+        <div className="grid gap-6">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle>Queue Overview</CardTitle>
+              <Link href="/staff/queue" className="text-sm underline">
+                View All
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {queueRows.length === 0 ? (
+                <EmptyState icon={ListOrdered} message="No one in the queue right now." />
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Queue #</TableHead>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Doctor</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {queueRows.map((row, index) => (
+                      <TableRow key={row.key}>
+                        <TableCell className="font-medium text-primary">
+                          #{String(index + 1).padStart(2, "0")}
+                        </TableCell>
+                        <TableCell>{row.patientName}</TableCell>
+                        <TableCell className="text-muted-foreground">{row.doctorName}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className={QUEUE_STATUS_CLASS[row.statusLabel]}>
+                            {row.statusLabel}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">{row.action}</TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
 
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="grid gap-6 lg:grid-cols-2">
             <Card>
-              <CardContent className="flex items-start justify-between">
-                <div>
-                  <p className="text-2xl font-bold">{todaysAppointmentsFull.length}</p>
-                  <p className="text-sm font-medium">Today&apos;s Total</p>
-                  <p className="text-xs text-muted-foreground">appointments</p>
-                </div>
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                  <CalendarDays className="size-4" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-start justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-amber-600">{waitingAppts.length}</p>
-                  <p className="text-sm font-medium">Waiting</p>
-                  <p className="text-xs text-muted-foreground">patients in queue</p>
-                </div>
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-                  <Clock className="size-4" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-start justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-blue-600">{inProgressAppt ? 1 : 0}</p>
-                  <p className="text-sm font-medium">In Progress</p>
-                  <p className="text-xs text-muted-foreground">active consultation</p>
-                </div>
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-                  <Activity className="size-4" />
-                </div>
-              </CardContent>
-            </Card>
-            <Card>
-              <CardContent className="flex items-start justify-between">
-                <div>
-                  <p className="text-2xl font-bold text-indigo-600">{completedAppts.length}</p>
-                  <p className="text-sm font-medium">Completed</p>
-                  <p className="text-xs text-muted-foreground">consultations today</p>
-                </div>
-                <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
-                  <CheckCircle2 className="size-4" />
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-3">
-            <Card className="lg:col-span-2">
-              <CardHeader className="flex items-center justify-between">
-                <CardTitle>Today&apos;s Schedule</CardTitle>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle>Today&apos;s Appointments</CardTitle>
                 <Link href="/staff/appointments" className="text-sm underline">
+                  View All
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {todaysAppointmentsAll.length === 0 ? (
+                  <EmptyState icon={Clock} message="No appointments scheduled today." />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Time</TableHead>
+                        <TableHead>Patient</TableHead>
+                        <TableHead>Doctor</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {todaysAppointmentsAll.map((appt) => (
+                        <TableRow key={appt.id}>
+                          <TableCell>
+                            {appt.scheduledAt.toLocaleTimeString([], {
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </TableCell>
+                          <TableCell>
+                            <Link
+                              href={`/staff/patients/${appt.patientId}`}
+                              className="underline underline-offset-2"
+                            >
+                              {appt.patient.name}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {appt.doctor.user.name}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={APPT_STATUS_CLASS[appt.status]}>
+                              {APPT_STATUS_LABEL[appt.status]}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <div className="flex items-center gap-2">
+                  <CardTitle>Laboratory Overview</CardTitle>
+                  {completedLabToday > 0 && (
+                    <Badge variant="outline" className="bg-emerald-100 text-emerald-700">
+                      {completedLabToday} today
+                    </Badge>
+                  )}
+                </div>
+                <Link href="/staff/lab" className="text-sm underline">
+                  View All
+                </Link>
+              </CardHeader>
+              <CardContent>
+                {pendingLabOrders.length === 0 ? (
+                  <EmptyState icon={FlaskConical} message="No pending lab orders." />
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Patient</TableHead>
+                        <TableHead>Test(s)</TableHead>
+                        <TableHead>Status</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {pendingLabOrders.slice(0, 5).map((order) => (
+                        <TableRow key={order.id}>
+                          <TableCell>
+                            <Link
+                              href={`/staff/lab/${order.id}`}
+                              className="underline underline-offset-2"
+                            >
+                              {order.patient.name}
+                            </Link>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground">
+                            {order.items.map((item) => item.labTest.name).join(", ")}
+                          </TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className={LAB_STATUS_CLASS[order.status]}>
+                              {LAB_STATUS_LABEL[order.status]}
+                            </Badge>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0">
+                <CardTitle>Pending Prescriptions</CardTitle>
+                <Link href="/staff/inventory" className="text-sm underline">
                   View all
                 </Link>
               </CardHeader>
               <CardContent className="grid gap-2">
-                {todaysAppointmentsFull.length === 0 ? (
-                  <EmptyState icon={CalendarDays} message="No appointments scheduled today." />
+                {pendingPrescriptions.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No prescriptions pending.</p>
                 ) : (
-                  todaysAppointmentsFull.map((appt, index) => {
-                    const isInProgress = inProgressAppt?.id === appt.id;
-                    const isWaiting = waitingAppts.some((a) => a.id === appt.id);
-                    const isUrgent = redAlerts.some((a) => a.appointmentId === appt.id);
-                    const age = calculateAge(appt.patient.dob);
-                    const genderLetter = appt.patient.gender
-                      ? GENDER_LETTER[appt.patient.gender]
-                      : null;
-                    const statusLabel =
-                      appt.status === "COMPLETED"
-                        ? "Completed"
-                        : isInProgress
-                          ? "In Progress"
-                          : isWaiting
-                            ? "Waiting"
-                            : appt.status === "NO_SHOW"
-                              ? "No-show"
-                              : "Scheduled";
-                    const statusClass =
-                      appt.status === "COMPLETED"
-                        ? "bg-indigo-100 text-indigo-700"
-                        : isInProgress
-                          ? "bg-blue-100 text-blue-700"
-                          : isWaiting
-                            ? "bg-amber-100 text-amber-700"
-                            : appt.status === "NO_SHOW"
-                              ? "bg-rose-100 text-rose-700"
-                              : "bg-slate-100 text-slate-700";
+                  pendingPrescriptions.slice(0, 5).map((rx) => {
+                    const isPaid = !rx.appointment || rx.appointment.invoice?.status === "PAID";
                     return (
-                      <AppointmentRow
-                        key={appt.id}
-                        href={`/staff/appointments/${appt.id}`}
-                        time={formatClinicDateTime(appt.scheduledAt, {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
-                        avatarIndex={index}
-                        patientName={appt.patient.name}
-                        age={age}
-                        genderLetter={genderLetter}
-                        reason={appt.reason ?? ""}
-                        isUrgent={isUrgent}
-                        statusLabel={statusLabel}
-                        statusClassName={statusClass}
-                      />
+                      <Link
+                        key={rx.id}
+                        href={`/staff/patients/${rx.patientId}`}
+                        className="flex items-center justify-between gap-3 rounded-lg border p-3 hover:bg-muted/50"
+                      >
+                        <div>
+                          <p className="font-medium">{rx.patient.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {rx.items.map((item) => item.medicine.name).join(", ")}
+                          </p>
+                        </div>
+                        <Badge variant={isPaid ? "success" : "destructive"}>
+                          {isPaid ? "Ready" : "Unpaid"}
+                        </Badge>
+                      </Link>
                     );
                   })
                 )}
               </CardContent>
             </Card>
 
-            <div className="grid gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Waiting Room</CardTitle>
-                </CardHeader>
-                <CardContent className="grid gap-2">
-                  {checkedInToday.length === 0 ? (
-                    <EmptyState icon={Clock} message="No one waiting right now." />
-                  ) : (
-                    checkedInToday.map((appt, index) => {
-                      const isInProgress = inProgressAppt?.id === appt.id;
-                      const isUrgent = redAlerts.some((a) => a.appointmentId === appt.id);
-                      return (
-                        <div
-                          key={appt.id}
-                          className="flex items-center justify-between gap-2 rounded-lg border p-3"
-                        >
-                          <div className="flex items-center gap-3">
-                            <Avatar className="size-9">
-                              <AvatarFallback
-                                className={AVATAR_COLORS[index % AVATAR_COLORS.length]}
-                              >
-                                {initials(appt.patient.name)}
-                              </AvatarFallback>
-                            </Avatar>
-                            <div>
-                              <p className="font-medium">{appt.patient.name}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {appt.reason || "No reason given"}
-                              </p>
-                            </div>
-                          </div>
-                          <Button asChild size="sm" variant={isUrgent ? "destructive" : "default"}>
-                            <Link href={`/staff/appointments/${appt.id}`}>
-                              {isInProgress ? "Resume" : "Start"}
-                            </Link>
-                          </Button>
-                        </div>
-                      );
-                    })
-                  )}
-                </CardContent>
-              </Card>
-            </div>
-          </div>
-        </>
-      )}
-
-      {role === "RECEPTIONIST" && (
-        <Card>
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle>Waiting Room</CardTitle>
-            <Link href="/staff/queue" className="text-sm underline">
-              View full queue
-            </Link>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {mergedWaiting.length === 0 ? (
-              <EmptyState icon={Clock} message="No one waiting." />
-            ) : (
-              mergedWaiting.map((row) =>
-                row.kind === "appointment" ? (
-                  <Link
-                    key={`appt-${row.appointment.id}`}
-                    href={`/staff/patients/${row.appointment.patientId}`}
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Badge variant="outline">Booked</Badge>
-                      <p className="font-medium">{row.appointment.patient.name}</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {formatClinicDateTime(row.appointment.scheduledAt, {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}{" "}
-                      — {row.appointment.doctor.user.name}
-                    </p>
-                  </Link>
+            <Card>
+              <CardHeader>
+                <CardTitle>Low Stock Alerts</CardTitle>
+              </CardHeader>
+              <CardContent className="grid gap-2">
+                {lowStockMedicines.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Stock levels look fine.</p>
                 ) : (
-                  <Link
-                    key={`walkin-${row.walkIn.id}`}
-                    href="/staff/queue"
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <Badge variant="secondary">#{row.walkIn.tokenNumber}</Badge>
-                      <p className="font-medium">{row.walkIn.name || "Walk-in"}</p>
-                    </div>
-                    <p className="text-sm text-muted-foreground">
-                      {row.walkIn.doctor ? row.walkIn.doctor.user.name : "Any doctor"}
-                    </p>
-                  </Link>
-                )
-              )
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {role === "PHARMACIST" && (
-        <Card>
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle>Pending Prescriptions</CardTitle>
-            <Link href="/staff/inventory" className="text-sm underline">
-              View all
-            </Link>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {pendingPrescriptions.length === 0 ? (
-              <EmptyState icon={Pill} message="No prescriptions pending." />
-            ) : (
-              pendingPrescriptions.slice(0, 5).map((rx) => {
-                const isPaid = !rx.appointment || rx.appointment.invoice?.status === "PAID";
-                return (
-                  <Link
-                    key={rx.id}
-                    href={`/staff/patients/${rx.patientId}`}
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"
-                  >
-                    <div>
-                      <p className="font-medium">{rx.patient.name}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {rx.items.map((item) => item.medicine.name).join(", ")}
-                      </p>
-                    </div>
-                    <Badge variant={isPaid ? "success" : "destructive"}>
-                      {isPaid ? "Ready to fulfill" : "Payment required"}
-                    </Badge>
-                  </Link>
-                );
-              })
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {role === "LAB_TECH" && (
-        <Card>
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle>Pending Lab Orders</CardTitle>
-            <Link href="/staff/lab" className="text-sm underline">
-              View all
-            </Link>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {pendingLabOrders.length === 0 ? (
-              <EmptyState icon={TestTube} message="No pending lab orders." />
-            ) : (
-              pendingLabOrders.slice(0, 5).map((order) => (
-                <Link
-                  key={order.id}
-                  href={`/staff/lab/${order.id}`}
-                  className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"
-                >
-                  <div>
-                    <p className="font-medium">{order.patient.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {order.items.map((item) => item.labTest.name).join(", ")}
-                    </p>
-                  </div>
-                  <Badge variant="outline">{LAB_STATUS_LABEL[order.status]}</Badge>
-                </Link>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {role === "ADMIN" && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Needs Attention</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-6 sm:grid-cols-2">
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Insurance claims</p>
-                <Link href="/staff/billing/claims" className="text-sm underline">
-                  View all
-                </Link>
-              </div>
-              {pendingClaims.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No claims pending review.</p>
-              ) : (
-                pendingClaims.slice(0, 5).map((claim) => (
-                  <Link
-                    key={claim.id}
-                    href={`/staff/billing/${claim.invoiceId}`}
-                    className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"
-                  >
-                    <p className="font-medium">{claim.patient.name}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {Number(claim.claimedAmount).toFixed(2)}
-                    </p>
-                  </Link>
-                ))
-              )}
-            </div>
-            <div className="grid gap-2">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-muted-foreground">Inventory</p>
-                <Link href="/staff/inventory" className="text-sm underline">
-                  View all
-                </Link>
-              </div>
-              {attentionMedicines.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Stock levels look fine.</p>
-              ) : (
-                attentionMedicines.map((medicine) => {
-                  const expiry = getExpiryStatus(medicine.expiryDate);
-                  const label =
-                    medicine.stockQty <= medicine.reorderLevel
-                      ? "Low stock"
-                      : expiry === "expired"
-                        ? "Expired"
-                        : "Expiring soon";
-                  return (
+                  lowStockMedicines.slice(0, 5).map((medicine) => (
                     <Link
                       key={medicine.id}
                       href={`/staff/inventory/${medicine.id}`}
-                      className="flex items-center justify-between rounded-lg border p-3 hover:bg-muted/50"
+                      className="flex items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50 p-3"
                     >
-                      <p className="font-medium">{medicine.name}</p>
-                      <Badge variant="destructive">{label}</Badge>
+                      <div>
+                        <p className="font-medium">{medicine.name}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {medicine.stockQty} {medicine.unit} remaining
+                        </p>
+                      </div>
+                      <AlertTriangle className="size-4 shrink-0 text-amber-500" />
                     </Link>
-                  );
-                })
+                  ))
+                )}
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
+      {role === "ADMIN" && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle>Insurance Claims</CardTitle>
+              <Link href="/staff/billing/claims" className="text-sm underline">
+                View all
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {pendingClaims.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No claims pending review.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Patient</TableHead>
+                      <TableHead>Claimed Amount</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {pendingClaims.slice(0, 5).map((claim) => (
+                      <TableRow key={claim.id}>
+                        <TableCell>{claim.patient.name}</TableCell>
+                        <TableCell>{Number(claim.claimedAmount).toFixed(2)}</TableCell>
+                        <TableCell className="text-right">
+                          <Link
+                            href={`/staff/billing/${claim.invoiceId}`}
+                            className="font-medium text-primary underline"
+                          >
+                            View
+                          </Link>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
               )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
+              <CardTitle>Inventory Attention</CardTitle>
+              <Link href="/staff/inventory" className="text-sm underline">
+                View all
+              </Link>
+            </CardHeader>
+            <CardContent>
+              {attentionMedicines.length === 0 ? (
+                <p className="text-sm text-muted-foreground">Stock levels look fine.</p>
+              ) : (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Medicine</TableHead>
+                      <TableHead>Issue</TableHead>
+                      <TableHead className="text-right">Action</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {attentionMedicines.map((medicine) => {
+                      const expiry = getExpiryStatus(medicine.expiryDate);
+                      const label =
+                        medicine.stockQty <= medicine.reorderLevel
+                          ? "Low stock"
+                          : expiry === "expired"
+                            ? "Expired"
+                            : "Expiring soon";
+                      return (
+                        <TableRow key={medicine.id}>
+                          <TableCell>{medicine.name}</TableCell>
+                          <TableCell>
+                            <Badge variant="destructive">{label}</Badge>
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <Link
+                              href={`/staff/inventory/${medicine.id}`}
+                              className="font-medium text-primary underline"
+                            >
+                              View
+                            </Link>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </CardContent>
+          </Card>
+        </div>
       )}
     </div>
   );

@@ -11,7 +11,7 @@ export default async function ConvertWalkInPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePageRole(["ADMIN", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const { id } = await params;
   const t = await getTranslations("appointments");
 

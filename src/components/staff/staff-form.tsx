@@ -3,6 +3,7 @@
 import { useActionState, useEffect, useState } from "react";
 import { useTranslations } from "next-intl";
 import { createStaff, type StaffFormState } from "@/actions/staff";
+import { STAFF_TITLES } from "@/lib/staff-titles";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,12 +16,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const ROLES = ["ADMIN", "DOCTOR", "RECEPTIONIST", "PHARMACIST", "LAB_TECH"] as const;
+const ROLES = ["ADMIN", "DOCTOR", "STAFF"] as const;
 
 export function StaffForm() {
   const t = useTranslations("staff");
   const router = useRouter();
-  const [role, setRole] = useState<string>("RECEPTIONIST");
+  const [role, setRole] = useState<string>("STAFF");
   const [state, formAction, pending] = useActionState<
     StaffFormState,
     FormData
@@ -59,6 +60,23 @@ export function StaffForm() {
           </SelectContent>
         </Select>
       </div>
+      {role === "STAFF" && (
+        <div className="grid gap-2">
+          <Label htmlFor="title">Job Title</Label>
+          <Select name="title" defaultValue={STAFF_TITLES[0]}>
+            <SelectTrigger id="title" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STAFF_TITLES.map((title) => (
+                <SelectItem key={title} value={title}>
+                  {title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
       {role === "DOCTOR" && (
         <>
           <div className="grid gap-2">

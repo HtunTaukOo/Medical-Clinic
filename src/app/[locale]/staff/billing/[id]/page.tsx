@@ -27,7 +27,7 @@ export default async function InvoiceDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requirePageRole(["ADMIN", "RECEPTIONIST"]);
+  const session = await requirePageRole(["ADMIN", "STAFF"]);
   const { id } = await params;
   const t = await getTranslations("billing");
 

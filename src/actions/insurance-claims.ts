@@ -3,11 +3,9 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
 import { recomputeInvoiceStatus } from "@/actions/billing";
-
-const BILLING_STAFF_ROLES = ["ADMIN", "RECEPTIONIST"] as const;
 
 const submitClaimSchema = z.object({
   insuranceProvider: z.string().min(1),
@@ -23,7 +21,7 @@ export async function submitClaim(
   _prevState: ClaimFormState,
   formData: FormData
 ): Promise<ClaimFormState> {
-  const session = await requireRole([...BILLING_STAFF_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
 
@@ -78,7 +76,7 @@ export async function decideClaim(
   _prevState: ClaimDecisionState,
   formData: FormData
 ): Promise<ClaimDecisionState> {
-  const session = await requireRole([...BILLING_STAFF_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const claim = await prisma.insuranceClaim.findUniqueOrThrow({ where: { id: claimId } });
   if (claim.status !== "SUBMITTED") {
@@ -128,7 +126,7 @@ export async function decideClaim(
 }
 
 export async function markClaimPaid(claimId: string) {
-  const session = await requireRole([...BILLING_STAFF_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const claim = await prisma.insuranceClaim.findUniqueOrThrow({ where: { id: claimId } });
   if (claim.status !== "APPROVED" || !claim.approvedAmount) {

@@ -1,14 +1,17 @@
 import { notFound } from "next/navigation";
-import { ArrowDownCircle, ArrowUpCircle, History } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, ChevronLeft, History, Pencil } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { getExpiryStatus } from "@/lib/inventory";
+import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { ExpiryForm } from "@/components/inventory/expiry-form";
 import { MedicinePromoForm } from "@/components/inventory/medicine-promo-form";
+import { AdjustStockForm } from "@/components/inventory/adjust-stock-form";
 import {
   Table,
   TableBody,
@@ -23,7 +26,7 @@ export default async function MedicineHistoryPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePageRole(["ADMIN", "PHARMACIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const { id } = await params;
   const t = await getTranslations("inventory");
 
@@ -40,6 +43,14 @@ export default async function MedicineHistoryPage({
 
   return (
     <div className="grid gap-6">
+      <Link
+        href="/staff/inventory"
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" />
+        Back
+      </Link>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{medicine.name}</h1>
@@ -48,18 +59,35 @@ export default async function MedicineHistoryPage({
             {Number(medicine.price).toFixed(2)} per {medicine.unit}
           </p>
         </div>
-        <div className="flex flex-col items-end gap-1">
-          {medicine.stockQty <= medicine.reorderLevel && (
-            <Badge variant="destructive">{t("lowStock")}</Badge>
-          )}
-          {expiryStatus === "expired" && (
-            <Badge variant="destructive">{t("expired")}</Badge>
-          )}
-          {expiryStatus === "expiring" && (
-            <Badge className="bg-amber-500 text-white">{t("expiringSoon")}</Badge>
-          )}
+        <div className="flex flex-col items-end gap-2">
+          <div className="flex items-center gap-1">
+            {medicine.stockQty <= medicine.reorderLevel && (
+              <Badge variant="destructive">{t("lowStock")}</Badge>
+            )}
+            {expiryStatus === "expired" && (
+              <Badge variant="destructive">{t("expired")}</Badge>
+            )}
+            {expiryStatus === "expiring" && (
+              <Badge className="bg-amber-500 text-white">{t("expiringSoon")}</Badge>
+            )}
+          </div>
+          <Button asChild size="sm" variant="outline">
+            <Link href={`/staff/inventory/${medicine.id}/edit`}>
+              <Pencil className="size-4" />
+              Edit
+            </Link>
+          </Button>
         </div>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>{t("adjustStock")}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <AdjustStockForm medicineId={medicine.id} />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -96,8 +124,14 @@ export default async function MedicineHistoryPage({
       </Card>
 
       <Card>
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between space-y-0">
           <CardTitle>Stock history</CardTitle>
+          <Link
+            href={`/staff/inventory/stock-movement?q=${encodeURIComponent(medicine.name)}`}
+            className="text-sm underline"
+          >
+            View in Stock Movement
+          </Link>
         </CardHeader>
         <CardContent>
           {medicine.stockTransactions.length === 0 ? (

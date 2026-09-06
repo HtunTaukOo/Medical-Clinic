@@ -1,15 +1,15 @@
-import { Megaphone } from "lucide-react";
+import { ChevronLeft, Megaphone } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { toggleAnnouncementActive } from "@/actions/announcements";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
-import { AnnouncementForm } from "@/components/staff/announcement-form";
+import { Link } from "@/i18n/navigation";
 
 export default async function AnnouncementsPage() {
-  await requirePageRole(["ADMIN", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
 
   const announcements = await prisma.announcement.findMany({
     orderBy: { createdAt: "desc" },
@@ -18,16 +18,20 @@ export default async function AnnouncementsPage() {
 
   return (
     <div className="grid gap-6">
-      <h1 className="text-2xl font-semibold">Announcements</h1>
+      <Link
+        href="/staff"
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" />
+        Back
+      </Link>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>New announcement</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <AnnouncementForm />
-        </CardContent>
-      </Card>
+      <div>
+        <h1 className="text-2xl font-semibold">Announcements</h1>
+        <p className="text-sm text-muted-foreground">
+          Messages posted to staff and patients.
+        </p>
+      </div>
 
       {announcements.length === 0 ? (
         <EmptyState icon={Megaphone} message="No announcements yet." />

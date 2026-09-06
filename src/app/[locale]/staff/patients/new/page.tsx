@@ -4,7 +4,7 @@ import { createPatient } from "@/actions/patients";
 import { PatientForm } from "@/components/patients/patient-form";
 
 export default async function NewPatientPage() {
-  await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "DOCTOR", "STAFF"]);
   const t = await getTranslations("patients");
 
   return (

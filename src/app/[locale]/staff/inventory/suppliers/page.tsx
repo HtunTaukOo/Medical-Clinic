@@ -1,8 +1,9 @@
-import { Truck } from "lucide-react";
+import { ChevronLeft, Truck } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { toggleSupplierActive } from "@/actions/suppliers";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,13 +11,20 @@ import { EmptyState } from "@/components/empty-state";
 import { SupplierForm } from "@/components/inventory/supplier-form";
 
 export default async function SuppliersPage() {
-  await requirePageRole(["ADMIN", "PHARMACIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("inventory");
 
   const suppliers = await prisma.supplier.findMany({ orderBy: { createdAt: "desc" } });
 
   return (
     <div className="grid gap-6">
+      <Link
+        href="/staff/inventory/purchase-orders"
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" />
+        Back
+      </Link>
       <h1 className="text-2xl font-semibold">{t("suppliers")}</h1>
 
       <Card>

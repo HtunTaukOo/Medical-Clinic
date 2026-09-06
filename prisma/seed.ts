@@ -31,34 +31,37 @@ async function main() {
 
   const receptionist = await prisma.user.upsert({
     where: { email: "receptionist@nca.clinic" },
-    update: {},
+    update: { title: "Receptionist" },
     create: {
       email: "receptionist@nca.clinic",
       passwordHash: password,
       name: "Front Desk",
-      role: "RECEPTIONIST",
+      role: "STAFF",
+      title: "Receptionist",
     },
   });
 
   const pharmacist = await prisma.user.upsert({
     where: { email: "pharmacist@nca.clinic" },
-    update: {},
+    update: { title: "Pharmacist" },
     create: {
       email: "pharmacist@nca.clinic",
       passwordHash: password,
       name: "Pharmacy Staff",
-      role: "PHARMACIST",
+      role: "STAFF",
+      title: "Pharmacist",
     },
   });
 
   const labTech = await prisma.user.upsert({
     where: { email: "lab@nca.clinic" },
-    update: {},
+    update: { title: "Lab Technician" },
     create: {
       email: "lab@nca.clinic",
       passwordHash: password,
       name: "Lab Technician",
-      role: "LAB_TECH",
+      role: "STAFF",
+      title: "Lab Technician",
     },
   });
 

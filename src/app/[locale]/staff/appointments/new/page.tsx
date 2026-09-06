@@ -11,7 +11,7 @@ export default async function NewAppointmentPage({
 }: {
   searchParams: Promise<{ patientId?: string }>;
 }) {
-  const session = await requirePageRole(["ADMIN", "RECEPTIONIST", "DOCTOR"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("appointments");
   const { patientId } = await searchParams;
 
@@ -40,9 +40,6 @@ export default async function NewAppointmentPage({
         }))}
         redirectOnSuccess="/staff/appointments"
         defaultPatientId={patientId}
-        defaultDoctorId={
-          session.user.role === "DOCTOR" ? (session.user.doctorId ?? undefined) : undefined
-        }
       />
     </div>
   );

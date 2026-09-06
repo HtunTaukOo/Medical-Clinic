@@ -210,14 +210,14 @@ export default async function SchedulePage({
         <CardContent className="py-4">
           <div className="mb-4 flex items-center justify-center gap-4">
             <Link
-              href={`/staff/schedule?week=${weekKeyFor(prevWeek)}`}
+              href={`/doctor/schedule?week=${weekKeyFor(prevWeek)}`}
               className="flex size-8 items-center justify-center rounded-full border text-muted-foreground hover:bg-muted"
             >
               <ChevronLeft className="size-4" />
             </Link>
             <p className="font-semibold">Week of {rangeLabel}</p>
             <Link
-              href={`/staff/schedule?week=${weekKeyFor(nextWeek)}`}
+              href={`/doctor/schedule?week=${weekKeyFor(nextWeek)}`}
               className="flex size-8 items-center justify-center rounded-full border text-muted-foreground hover:bg-muted"
             >
               <ChevronRight className="size-4" />
@@ -271,7 +271,7 @@ export default async function SchedulePage({
                         >
                           {cell.type === "booked" && (
                             <Link
-                              href={`/staff/appointments/${cell.id}`}
+                              href={`/doctor/appointments/${cell.id}`}
                               className="block h-full rounded-lg border border-blue-300 bg-blue-50 p-2 text-blue-900 transition-colors hover:bg-blue-100"
                             >
                               <p className="text-xs leading-tight font-semibold">{cell.patientName}</p>

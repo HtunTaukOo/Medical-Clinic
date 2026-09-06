@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { collectSample } from "@/actions/lab";
@@ -13,7 +14,7 @@ export default async function LabOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePageRole(["ADMIN", "LAB_TECH"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const { id } = await params;
 
   const order = await prisma.labOrder.findUnique({
@@ -29,6 +30,14 @@ export default async function LabOrderDetailPage({
 
   return (
     <div className="grid gap-6">
+      <Link
+        href="/staff/lab"
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" />
+        Back
+      </Link>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{order.patient.name}</h1>

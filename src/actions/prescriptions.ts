@@ -145,7 +145,7 @@ export async function createPrescription(
     relatedId: `rx-created-${prescription.id}`,
   });
 
-  revalidatePath(`/staff/appointments/${appointmentId}`);
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
   revalidatePath("/portal/appointments");
   revalidatePath("/portal/medical-records");
   revalidatePath("/portal/notifications");
@@ -153,7 +153,7 @@ export async function createPrescription(
 }
 
 export async function fulfillPrescription(prescriptionId: string) {
-  await requireRole(["PHARMACIST"]);
+  await requireRole(["STAFF"]);
 
   const medicineIds: string[] = [];
   let notifyPatientId: string | null = null;

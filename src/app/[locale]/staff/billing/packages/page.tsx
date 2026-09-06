@@ -10,7 +10,7 @@ import { EmptyState } from "@/components/empty-state";
 import { PackageForm } from "@/components/billing/package-form";
 
 export default async function PackagesPage() {
-  await requirePageRole(["ADMIN", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("billing");
 
   const packages = await prisma.package.findMany({ orderBy: { createdAt: "desc" } });

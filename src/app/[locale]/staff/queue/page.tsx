@@ -1,277 +1,335 @@
-import { Clock, ListOrdered, Megaphone } from "lucide-react";
+import type { ReactNode } from "react";
+import { Megaphone } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { todayRange } from "@/lib/queue";
-import { estimateWaitMinutes } from "@/lib/walk-ins";
 import {
   checkInAppointment,
   completeAppointment,
-  cancelAppointment,
   markNoShow,
 } from "@/actions/appointments";
 import { callWalkIn, cancelWalkIn } from "@/actions/walk-ins";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { EmptyState } from "@/components/empty-state";
-import { WalkInForm } from "@/components/queue/walk-in-form";
+
+type ColumnKey = "WAITING" | "CALLED" | "IN_CONSULTATION" | "COMPLETED" | "MISSED";
+
+type QueueCard = {
+  key: string;
+  queuedAt: number;
+  time: Date;
+  patientName: string;
+  doctorName: string;
+  specialty: string | null;
+  column: ColumnKey;
+  action: ReactNode | null;
+};
+
+const COLUMN_META: Record<
+  ColumnKey,
+  { label: string; headerClass: string; numberClass: string }
+> = {
+  WAITING: { label: "Waiting", headerClass: "bg-amber-500", numberClass: "text-amber-600" },
+  CALLED: { label: "Called", headerClass: "bg-blue-500", numberClass: "text-blue-600" },
+  IN_CONSULTATION: {
+    label: "In Consultation",
+    headerClass: "bg-purple-500",
+    numberClass: "text-purple-600",
+  },
+  COMPLETED: {
+    label: "Completed",
+    headerClass: "bg-emerald-500",
+    numberClass: "text-emerald-600",
+  },
+  MISSED: { label: "Missed", headerClass: "bg-rose-500", numberClass: "text-rose-600" },
+};
+
+const COLUMN_ORDER: ColumnKey[] = ["WAITING", "CALLED", "IN_CONSULTATION", "COMPLETED", "MISSED"];
+
+function ActionButton({
+  formAction,
+  variant,
+  children,
+}: {
+  formAction: (formData: FormData) => void;
+  variant: "blue" | "purple" | "emerald";
+  children: ReactNode;
+}) {
+  const classes = {
+    blue: "bg-blue-100 text-blue-700 hover:bg-blue-200",
+    purple: "bg-purple-100 text-purple-700 hover:bg-purple-200",
+    emerald: "bg-emerald-100 text-emerald-700 hover:bg-emerald-200",
+  }[variant];
+  return (
+    <form action={formAction} className="flex-1">
+      <button
+        type="submit"
+        className={`w-full rounded-md px-2 py-1 text-xs font-semibold ${classes}`}
+      >
+        {children}
+      </button>
+    </form>
+  );
+}
 
 export default async function QueuePage() {
-  const session = await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("appointments");
-  const tNav = await getTranslations("nav");
   const { start, end } = todayRange();
 
-  const appointments = await prisma.appointment.findMany({
-    where: {
-      scheduledAt: { gte: start, lt: end },
-      status: { in: ["CONFIRMED", "CHECKED_IN"] },
-      doctorId: session.user.role === "DOCTOR" ? session.user.doctorId : undefined,
-    },
-    include: { patient: true, doctor: { include: { user: true } } },
-  });
-
-  const waiting = appointments
-    .filter((a) => a.status === "CONFIRMED")
-    .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
-  const inQueue = appointments
-    .filter((a) => a.status === "CHECKED_IN")
-    .sort(
-      (a, b) => (a.checkedInAt?.getTime() ?? 0) - (b.checkedInAt?.getTime() ?? 0)
-    );
-
-  const showDoctorColumn = session.user.role !== "DOCTOR";
-  const canManageWalkIns = session.user.role !== "DOCTOR";
-
-  const [walkIns, doctors] = await Promise.all([
-    canManageWalkIns
-      ? prisma.walkIn.findMany({
-          where: { createdAt: { gte: start, lt: end }, status: { in: ["WAITING", "CALLED"] } },
-          include: { doctor: { include: { user: true } } },
-          orderBy: { tokenNumber: "asc" },
-        })
-      : Promise.resolve([]),
-    canManageWalkIns
-      ? prisma.doctorProfile.findMany({ include: { user: true } })
-      : Promise.resolve([]),
+  const [appointments, walkIns] = await Promise.all([
+    prisma.appointment.findMany({
+      where: {
+        scheduledAt: { gte: start, lt: end },
+        status: { in: ["CONFIRMED", "CHECKED_IN", "COMPLETED", "NO_SHOW"] },
+      },
+      include: { patient: true, doctor: { include: { user: true } } },
+    }),
+    prisma.walkIn.findMany({
+      where: { createdAt: { gte: start, lt: end }, status: { in: ["WAITING", "CALLED"] } },
+      include: { doctor: { include: { user: true } } },
+      orderBy: { tokenNumber: "asc" },
+    }),
   ]);
+
+  const confirmed = appointments.filter((a) => a.status === "CONFIRMED");
+  const completed = appointments.filter((a) => a.status === "COMPLETED");
+  const noShow = appointments.filter((a) => a.status === "NO_SHOW");
   const waitingWalkIns = walkIns.filter((w) => w.status === "WAITING");
   const calledWalkIns = walkIns.filter((w) => w.status === "CALLED");
 
-  // Scheduled patients and walk-ins are fundamentally different (a booked
-  // time vs. an arrival token) but staff experience them as one waiting
-  // room, so — for roles that see both — merge them into a single list
-  // ordered by whichever moment put each person in line.
-  type WaitingRow =
-    | { kind: "appointment"; appointment: (typeof waiting)[number]; sortKey: number }
-    | { kind: "walkin"; walkIn: (typeof waitingWalkIns)[number]; sortKey: number };
+  // "In consultation" isn't a stored status — it's the earliest checked-in
+  // patient per doctor, computed at render time. Once that appointment is
+  // completed, the next-earliest checked-in patient for that doctor becomes
+  // "in consultation" automatically on the next load, with no extra state.
+  const checkedInByDoctor = new Map<string, typeof appointments>();
+  for (const appt of appointments.filter((a) => a.status === "CHECKED_IN")) {
+    const list = checkedInByDoctor.get(appt.doctorId) ?? [];
+    list.push(appt);
+    checkedInByDoctor.set(appt.doctorId, list);
+  }
+  const inConsultation: typeof appointments = [];
+  const stillCheckedIn: typeof appointments = [];
+  for (const list of checkedInByDoctor.values()) {
+    const sorted = [...list].sort(
+      (a, b) => (a.checkedInAt?.getTime() ?? 0) - (b.checkedInAt?.getTime() ?? 0)
+    );
+    inConsultation.push(sorted[0]);
+    stillCheckedIn.push(...sorted.slice(1));
+  }
 
-  const mergedWaiting: WaitingRow[] = canManageWalkIns
-    ? [
-        ...waiting.map(
-          (appointment): WaitingRow => ({
-            kind: "appointment",
-            appointment,
-            sortKey: appointment.scheduledAt.getTime(),
-          })
+  const cards: QueueCard[] = [
+    ...confirmed.map(
+      (appt): QueueCard => ({
+        key: `confirmed-${appt.id}`,
+        queuedAt: appt.scheduledAt.getTime(),
+        time: appt.scheduledAt,
+        patientName: appt.patient.name,
+        doctorName: appt.doctor.user.name,
+        specialty: appt.doctor.specialty,
+        column: "WAITING",
+        action: (
+          <>
+            <ActionButton formAction={checkInAppointment.bind(null, appt.id)} variant="blue">
+              Call In
+            </ActionButton>
+            <form action={markNoShow.bind(null, appt.id)}>
+              <button
+                type="submit"
+                className="px-2 py-1 text-xs font-semibold text-rose-600 hover:text-rose-700"
+              >
+                Miss
+              </button>
+            </form>
+          </>
         ),
-        ...waitingWalkIns.map(
-          (walkIn): WaitingRow => ({
-            kind: "walkin",
-            walkIn,
-            sortKey: walkIn.createdAt.getTime(),
-          })
+      })
+    ),
+    ...stillCheckedIn.map(
+      (appt): QueueCard => ({
+        key: `waiting-checkedin-${appt.id}`,
+        queuedAt: (appt.checkedInAt ?? appt.scheduledAt).getTime(),
+        time: appt.scheduledAt,
+        patientName: appt.patient.name,
+        doctorName: appt.doctor.user.name,
+        specialty: appt.doctor.specialty,
+        column: "WAITING",
+        action: null,
+      })
+    ),
+    ...waitingWalkIns.map(
+      (walkIn): QueueCard => ({
+        key: `walkin-waiting-${walkIn.id}`,
+        queuedAt: walkIn.createdAt.getTime(),
+        time: walkIn.createdAt,
+        patientName: walkIn.name || t("anonymousWalkIn"),
+        doctorName: walkIn.doctor?.user.name ?? "Any doctor",
+        specialty: walkIn.doctor?.specialty ?? null,
+        column: "WAITING",
+        action: (
+          <>
+            <ActionButton formAction={callWalkIn.bind(null, walkIn.id)} variant="blue">
+              Call In
+            </ActionButton>
+            <form action={cancelWalkIn.bind(null, walkIn.id)}>
+              <button
+                type="submit"
+                className="px-2 py-1 text-xs font-semibold text-rose-600 hover:text-rose-700"
+              >
+                Miss
+              </button>
+            </form>
+          </>
         ),
-      ].sort((a, b) => a.sortKey - b.sortKey)
-    : waiting.map((appointment) => ({ kind: "appointment", appointment, sortKey: 0 }));
+      })
+    ),
+    ...calledWalkIns.map(
+      (walkIn): QueueCard => ({
+        key: `walkin-called-${walkIn.id}`,
+        queuedAt: (walkIn.calledAt ?? walkIn.createdAt).getTime(),
+        time: walkIn.createdAt,
+        patientName: walkIn.name || t("anonymousWalkIn"),
+        doctorName: walkIn.doctor?.user.name ?? "Any doctor",
+        specialty: walkIn.doctor?.specialty ?? null,
+        column: "CALLED",
+        action: (
+          <Link
+            href={`/staff/queue/walk-ins/${walkIn.id}`}
+            className="flex-1 rounded-md bg-purple-100 px-2 py-1 text-center text-xs font-semibold text-purple-700 hover:bg-purple-200"
+          >
+            Start
+          </Link>
+        ),
+      })
+    ),
+    ...inConsultation.map(
+      (appt): QueueCard => ({
+        key: `consult-${appt.id}`,
+        queuedAt: (appt.checkedInAt ?? appt.scheduledAt).getTime(),
+        time: appt.scheduledAt,
+        patientName: appt.patient.name,
+        doctorName: appt.doctor.user.name,
+        specialty: appt.doctor.specialty,
+        column: "IN_CONSULTATION",
+        action: (
+          <ActionButton formAction={completeAppointment.bind(null, appt.id)} variant="emerald">
+            Mark Done
+          </ActionButton>
+        ),
+      })
+    ),
+    ...completed.map(
+      (appt): QueueCard => ({
+        key: `completed-${appt.id}`,
+        queuedAt: (appt.checkedInAt ?? appt.scheduledAt).getTime(),
+        time: appt.scheduledAt,
+        patientName: appt.patient.name,
+        doctorName: appt.doctor.user.name,
+        specialty: appt.doctor.specialty,
+        column: "COMPLETED",
+        action: null,
+      })
+    ),
+    ...noShow.map(
+      (appt): QueueCard => ({
+        key: `noshow-${appt.id}`,
+        queuedAt: appt.scheduledAt.getTime(),
+        time: appt.scheduledAt,
+        patientName: appt.patient.name,
+        doctorName: appt.doctor.user.name,
+        specialty: appt.doctor.specialty,
+        column: "MISSED",
+        action: null,
+      })
+    ),
+  ];
+
+  const numbered = [...cards]
+    .sort((a, b) => a.queuedAt - b.queuedAt)
+    .map((card, index) => ({ ...card, queueNumber: index + 1 }));
+
+  const columns: Record<ColumnKey, (QueueCard & { queueNumber: number })[]> = {
+    WAITING: [],
+    CALLED: [],
+    IN_CONSULTATION: [],
+    COMPLETED: [],
+    MISSED: [],
+  };
+  for (const card of numbered) {
+    columns[card.column].push(card);
+  }
+  for (const column of COLUMN_ORDER) {
+    columns[column].sort((a, b) => a.queueNumber - b.queueNumber);
+  }
+
+  const today = new Date();
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{tNav("queue")}</h1>
-        {canManageWalkIns && (
-          <Button asChild variant="outline">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold">Queue Status Board</h1>
+          <p className="text-sm text-muted-foreground">
+            Track patients through the visit workflow in real time.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-muted-foreground">
+            Today — {today.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+          </p>
+          <Button asChild>
             <Link href="/queue-display" target="_blank">
               <Megaphone className="size-4" />
               {t("queueDisplay")}
             </Link>
           </Button>
-        )}
+        </div>
       </div>
 
-      {canManageWalkIns && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("registerWalkIn")}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <WalkInForm doctors={doctors.map((d) => ({ id: d.id, name: d.user.name }))} />
-          </CardContent>
-        </Card>
-      )}
-
-      {canManageWalkIns && calledWalkIns.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>{t("walkInsCalled")}</CardTitle>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {calledWalkIns.map((w) => (
+      <div className="grid gap-4 lg:grid-cols-5">
+        {COLUMN_ORDER.map((column) => {
+          const meta = COLUMN_META[column];
+          const columnCards = columns[column];
+          return (
+            <div key={column} className="grid content-start gap-3">
               <div
-                key={w.id}
-                className="flex items-center justify-between rounded-lg border p-3"
+                className={`flex items-center justify-between rounded-lg px-3 py-2 text-white ${meta.headerClass}`}
               >
-                <div className="flex items-center gap-3">
-                  <Badge className="text-base">#{w.tokenNumber}</Badge>
-                  <p className="font-medium">{w.name || t("anonymousWalkIn")}</p>
-                </div>
-                <Button asChild size="sm">
-                  <Link href={`/staff/queue/walk-ins/${w.id}`}>{t("startVisit")}</Link>
-                </Button>
+                <span className="font-semibold">{meta.label}</span>
+                <span className="flex size-6 items-center justify-center rounded-full bg-white/25 text-sm font-bold">
+                  {columnCards.length}
+                </span>
               </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
 
-      <Card>
-        <CardHeader>
-          <CardTitle>{canManageWalkIns ? t("waiting") : t("waitingToCheckIn")}</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2">
-          {mergedWaiting.length === 0 && (
-            <EmptyState
-              icon={Clock}
-              message={canManageWalkIns ? t("noOneWaiting") : t("noneWaiting")}
-            />
-          )}
-          {mergedWaiting.map((row, index) =>
-            row.kind === "appointment" ? (
-              <div
-                key={`appt-${row.appointment.id}`}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  {canManageWalkIns && <Badge variant="outline">{t("booked")}</Badge>}
-                  <div>
-                    <Link
-                      href={`/staff/patients/${row.appointment.patientId}`}
-                      className="font-medium underline"
-                    >
-                      {row.appointment.patient.name}
-                    </Link>
-                    <p className="text-sm text-muted-foreground">
-                      {new Date(row.appointment.scheduledAt).toLocaleTimeString([], {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                      {showDoctorColumn && ` — ${row.appointment.doctor.user.name}`}
-                    </p>
+              {columnCards.length === 0 ? (
+                <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
+                  Empty
+                </div>
+              ) : (
+                columnCards.map((card) => (
+                  <div key={card.key} className="rounded-lg border bg-card p-3 shadow-sm">
+                    <div className="mb-1 flex items-center justify-between">
+                      <span className={`font-bold ${meta.numberClass}`}>
+                        #{String(card.queueNumber).padStart(2, "0")}
+                      </span>
+                      <span className="text-sm text-muted-foreground">
+                        {card.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                      </span>
+                    </div>
+                    <p className="font-semibold">{card.patientName}</p>
+                    <p className="text-sm text-muted-foreground">{card.doctorName}</p>
+                    {card.specialty && (
+                      <p className="text-xs text-muted-foreground">{card.specialty}</p>
+                    )}
+                    {card.action && <div className="mt-3 flex gap-2">{card.action}</div>}
                   </div>
-                </div>
-                {session.user.role !== "DOCTOR" && (
-                  <div className="flex gap-2">
-                    <form action={checkInAppointment.bind(null, row.appointment.id)}>
-                      <Button size="sm" type="submit">
-                        {t("checkIn")}
-                      </Button>
-                    </form>
-                    <form action={markNoShow.bind(null, row.appointment.id)}>
-                      <Button size="sm" variant="outline" type="submit">
-                        {t("noShow")}
-                      </Button>
-                    </form>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div
-                key={`walkin-${row.walkIn.id}`}
-                className="flex items-center justify-between rounded-lg border p-3"
-              >
-                <div className="flex items-center gap-3">
-                  <Badge variant="secondary" className="text-base">
-                    #{row.walkIn.tokenNumber}
-                  </Badge>
-                  <div>
-                    <p className="font-medium">{row.walkIn.name || t("anonymousWalkIn")}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {row.walkIn.phone && `${row.walkIn.phone} — `}
-                      {row.walkIn.reason || t("noReasonGiven")}
-                      {row.walkIn.doctor && ` — ${row.walkIn.doctor.user.name}`}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {t("estimatedWait", { minutes: estimateWaitMinutes(index + 1) })}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex gap-2">
-                  <form action={callWalkIn.bind(null, row.walkIn.id)}>
-                    <Button size="sm" type="submit">
-                      {t("callToken")}
-                    </Button>
-                  </form>
-                  <form action={cancelWalkIn.bind(null, row.walkIn.id)}>
-                    <Button size="sm" variant="outline" type="submit">
-                      {t("cancel")}
-                    </Button>
-                  </form>
-                </div>
-              </div>
-            )
-          )}
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>{t("inQueue")}</CardTitle>
-        </CardHeader>
-        <CardContent className="grid gap-2">
-          {inQueue.length === 0 && <EmptyState icon={ListOrdered} message={t("queueEmpty")} />}
-          {inQueue.map((appt, index) => (
-            <div
-              key={appt.id}
-              className="flex items-center justify-between rounded-lg border p-3"
-            >
-              <div className="flex items-center gap-3">
-                <Badge variant="secondary" className="text-base">
-                  #{index + 1}
-                </Badge>
-                <div>
-                  <Link href={`/staff/patients/${appt.patientId}`} className="font-medium underline">
-                    {appt.patient.name}
-                  </Link>
-                  <p className="text-sm text-muted-foreground">
-                    {appt.checkedInAt &&
-                      t("checkedInAt", {
-                        time: appt.checkedInAt.toLocaleTimeString([], {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        }),
-                      })}
-                    {showDoctorColumn && ` — ${appt.doctor.user.name}`}
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-2">
-                <form action={completeAppointment.bind(null, appt.id)}>
-                  <Button size="sm" type="submit">
-                    {t("complete")}
-                  </Button>
-                </form>
-                <form action={cancelAppointment.bind(null, appt.id)}>
-                  <Button size="sm" variant="destructive" type="submit">
-                    {t("cancel")}
-                  </Button>
-                </form>
-              </div>
+                ))
+              )}
             </div>
-          ))}
-        </CardContent>
-      </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

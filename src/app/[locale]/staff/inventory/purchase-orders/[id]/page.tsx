@@ -1,8 +1,10 @@
 import { notFound } from "next/navigation";
+import { ChevronLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { markOrdered, cancelPurchaseOrder } from "@/actions/purchase-orders";
+import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +23,7 @@ export default async function PurchaseOrderDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requirePageRole(["ADMIN", "PHARMACIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const { id } = await params;
   const t = await getTranslations("inventory");
 
@@ -41,6 +43,14 @@ export default async function PurchaseOrderDetailPage({
 
   return (
     <div className="grid gap-6">
+      <Link
+        href="/staff/inventory/purchase-orders"
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" />
+        Back
+      </Link>
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{order.supplier.name}</h1>

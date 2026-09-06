@@ -146,7 +146,7 @@ export default async function ConsultationsPage() {
                     asChild
                     className={urgent ? "bg-red-600 text-white hover:bg-red-700" : "bg-emerald-600 text-white hover:bg-emerald-700"}
                   >
-                    <Link href={`/staff/appointments/${appt.id}`}>Start</Link>
+                    <Link href={`/doctor/appointments/${appt.id}`}>Start</Link>
                   </Button>
                 </div>
               );
@@ -164,7 +164,7 @@ export default async function ConsultationsPage() {
               return (
                 <Link
                   key={appt.id}
-                  href={`/staff/appointments/${appt.id}`}
+                  href={`/doctor/appointments/${appt.id}`}
                   className="flex flex-wrap items-center justify-between gap-4 rounded-xl border bg-card p-4 hover:bg-muted/50"
                 >
                   <div className="flex items-center gap-3">

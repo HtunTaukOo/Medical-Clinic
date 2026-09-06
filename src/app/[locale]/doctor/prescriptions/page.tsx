@@ -35,7 +35,7 @@ export default async function PrescriptionsPage() {
         <h1 className="text-2xl font-semibold">Prescriptions</h1>
         <p className="text-muted-foreground">
           Review and manage patient prescriptions. Write new ones from a{" "}
-          <Link href="/staff/consultations" className="text-primary underline">
+          <Link href="/doctor/consultations" className="underline">
             patient&apos;s consultation
           </Link>
           .

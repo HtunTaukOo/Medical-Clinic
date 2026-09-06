@@ -12,6 +12,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { DoctorFeeForm } from "@/components/staff/doctor-fee-form";
 import { SetPasswordForm } from "@/components/staff/set-password-form";
+import { StaffTitleForm } from "@/components/staff/staff-title-form";
 
 export default async function StaffUsersPage() {
   await requirePageRole(["ADMIN"]);
@@ -26,7 +27,12 @@ export default async function StaffUsersPage() {
   return (
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">
+            Manage doctor and staff accounts for the clinic.
+          </p>
+        </div>
         <Button asChild>
           <Link href="/staff/users/new">{t("new")}</Link>
         </Button>
@@ -48,7 +54,12 @@ export default async function StaffUsersPage() {
                     </Avatar>
                     <div>
                       <p className="font-semibold">{user.name}</p>
-                      <Badge variant="outline">{user.role}</Badge>
+                      <div className="flex items-center gap-1.5">
+                        <Badge variant="outline">{user.role}</Badge>
+                        {user.title && (
+                          <span className="text-xs text-muted-foreground">{user.title}</span>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -56,6 +67,12 @@ export default async function StaffUsersPage() {
                   <Mail className="size-4" />
                   {user.email}
                 </div>
+                {user.role === "STAFF" && (
+                  <div className="grid gap-1.5">
+                    <p className="text-xs font-medium text-muted-foreground">Job Title</p>
+                    <StaffTitleForm userId={user.id} title={user.title} />
+                  </div>
+                )}
                 {user.doctorProfile && (
                   <>
                     <DoctorFeeForm

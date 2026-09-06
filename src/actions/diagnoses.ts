@@ -65,7 +65,7 @@ export async function addDiagnosis(
     relatedId: `diagnosis-${diagnosis.id}`,
   });
 
-  revalidatePath(`/staff/appointments/${appointmentId}`);
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
   revalidatePath(`/portal/appointments/${appointmentId}`);
   revalidatePath("/portal/medical-records");
   revalidatePath("/portal/notifications");
@@ -82,7 +82,7 @@ export async function deleteDiagnosis(diagnosisId: string) {
 
   await prisma.diagnosis.delete({ where: { id: diagnosisId } });
 
-  revalidatePath(`/staff/appointments/${diagnosis.appointmentId}`);
+  revalidatePath(`/doctor/appointments/${diagnosis.appointmentId}`);
   revalidatePath(`/portal/appointments/${diagnosis.appointmentId}`);
   revalidatePath("/portal/medical-records");
 }
@@ -97,8 +97,8 @@ export async function setDiagnosisStatus(diagnosisId: string, status: "ACTIVE" |
 
   await prisma.diagnosis.update({ where: { id: diagnosisId }, data: { status } });
 
-  revalidatePath(`/staff/appointments/${diagnosis.appointmentId}`);
-  revalidatePath(`/staff/patients/${diagnosis.patientId}`);
+  revalidatePath(`/doctor/appointments/${diagnosis.appointmentId}`);
+  revalidatePath(`/doctor/patients/${diagnosis.patientId}`);
   revalidatePath(`/portal/appointments/${diagnosis.appointmentId}`);
   revalidatePath("/portal/medical-records");
 }

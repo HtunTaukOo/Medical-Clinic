@@ -1,4 +1,4 @@
-import { ClipboardList } from "lucide-react";
+import { ChevronLeft, ClipboardList } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
@@ -17,7 +17,7 @@ const STATUS_VARIANT: Record<string, "default" | "outline" | "destructive"> = {
 };
 
 export default async function PurchaseOrdersPage() {
-  await requirePageRole(["ADMIN", "PHARMACIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("inventory");
 
   const orders = await prisma.purchaseOrder.findMany({
@@ -27,6 +27,14 @@ export default async function PurchaseOrdersPage() {
 
   return (
     <div className="grid gap-4">
+      <Link
+        href="/staff/inventory"
+        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ChevronLeft className="size-4" />
+        Back
+      </Link>
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("purchaseOrders")}</h1>
         <div className="flex items-center gap-2">

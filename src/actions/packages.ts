@@ -3,9 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
-
-const BILLING_STAFF_ROLES = ["ADMIN", "RECEPTIONIST"] as const;
+import { requireRole, STAFF_ROLES } from "@/lib/authz";
 
 const packageSchema = z.object({
   name: z.string().min(1),
@@ -19,7 +17,7 @@ export async function createPackage(
   _prevState: PackageFormState,
   formData: FormData
 ): Promise<PackageFormState> {
-  await requireRole([...BILLING_STAFF_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const parsed = packageSchema.safeParse({
     name: formData.get("name"),
@@ -37,7 +35,7 @@ export async function createPackage(
 }
 
 export async function togglePackageActive(packageId: string) {
-  await requireRole([...BILLING_STAFF_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const pkg = await prisma.package.findUniqueOrThrow({ where: { id: packageId } });
   await prisma.package.update({

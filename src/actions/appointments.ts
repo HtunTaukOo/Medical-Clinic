@@ -25,7 +25,7 @@ import {
   WEEKDAY_LABELS,
 } from "@/lib/doctor-availability";
 import { notifyPatient, notifyStaff } from "@/lib/telegram";
-import { createNotification } from "@/lib/notifications";
+import { createNotification, notifyStaffUsers } from "@/lib/notifications";
 import { notifyWaitlistOfOpening } from "@/actions/waitlist";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
@@ -51,7 +51,7 @@ export async function createAppointment(
   _prevState: AppointmentFormState,
   formData: FormData
 ): Promise<AppointmentFormState> {
-  await requireRole(["ADMIN", "RECEPTIONIST", "DOCTOR"]);
+  await requireRole(["ADMIN", "STAFF", "DOCTOR"]);
 
   const parsed = bookingSchema.safeParse({
     patientId: formData.get("patientId"),
@@ -99,6 +99,7 @@ export async function createAppointment(
   }
 
   revalidatePath("/staff/appointments");
+  revalidatePath("/doctor/appointments");
 
   if (createdCount === 0) {
     return { error: "None of the requested weekly occurrences could be booked (conflicts or leave days)." };
@@ -227,12 +228,39 @@ export async function submitAppointmentRequest(
     `📅 New appointment request: ${appointment.patient.name} with ${appointment.doctor.user.name} at ${scheduledAt.toLocaleString()}.`
   );
 
+  const requestSummary = `${appointment.patient.name} requested an appointment with ${appointment.doctor.user.name} on ${scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`;
+
+  const staffRecipients = await prisma.user.findMany({
+    where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
+    select: { id: true },
+  });
+  await notifyStaffUsers({
+    userIds: staffRecipients.map((u) => u.id),
+    category: "APPOINTMENT",
+    tone: "INFO",
+    title: "New Appointment Request",
+    body: requestSummary,
+    href: `/staff/appointments/${appointment.id}`,
+    relatedId: `appt-request-${appointment.id}`,
+  });
+  if (doctor.notifyNewAppointments) {
+    await notifyStaffUsers({
+      userIds: [doctor.userId],
+      category: "APPOINTMENT",
+      tone: "INFO",
+      title: "New Appointment Request",
+      body: requestSummary,
+      href: `/doctor/appointments/${appointment.id}`,
+      relatedId: `appt-request-${appointment.id}`,
+    });
+  }
+
   revalidatePath("/portal/appointments");
   return { success: true };
 }
 
 async function assertCanManage(appointmentId: string) {
-  const session = await requireRole(["ADMIN", "RECEPTIONIST", "DOCTOR"]);
+  const session = await requireRole(["ADMIN", "STAFF", "DOCTOR"]);
   if (session.user.role === "DOCTOR") {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },
@@ -266,14 +294,68 @@ export async function confirmAppointment(appointmentId: string) {
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
+  revalidatePath("/doctor/appointments");
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
+  revalidatePath("/doctor/consultations");
   revalidatePath("/portal/notifications");
+}
+
+const rescheduleSchema = z.object({
+  scheduledAt: z.coerce.date(),
+});
+
+export type RescheduleAppointmentState = { error?: string; success?: boolean };
+
+export async function rescheduleAppointment(
+  appointmentId: string,
+  _prevState: RescheduleAppointmentState,
+  formData: FormData
+): Promise<RescheduleAppointmentState> {
+  await assertCanManage(appointmentId);
+
+  const parsed = rescheduleSchema.safeParse({
+    scheduledAt: formData.get("scheduledAt"),
+  });
+  if (!parsed.success) {
+    return { error: "Please choose a valid date and time" };
+  }
+
+  const appointment = await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: { scheduledAt: parsed.data.scheduledAt },
+    include: { doctor: { include: { user: true } } },
+  });
+
+  await notifyPatient(
+    appointment.patientId,
+    `🔄 Your appointment with ${appointment.doctor.user.name} has been rescheduled to ${appointment.scheduledAt.toLocaleString()}.`
+  );
+  await createNotification({
+    patientId: appointment.patientId,
+    category: "APPOINTMENT",
+    tone: "INFO",
+    title: "Appointment Rescheduled",
+    body: `Your appointment with ${appointment.doctor.user.name} has been moved to ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`,
+    href: `/portal/appointments/${appointment.id}`,
+    relatedId: `appt-reschedule-${appointment.id}-${appointment.updatedAt.getTime()}`,
+  });
+
+  revalidatePath("/staff/appointments");
+  revalidatePath(`/staff/appointments/${appointmentId}`);
+  revalidatePath("/staff/queue");
+  revalidatePath("/doctor/appointments");
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
+  revalidatePath("/portal/appointments");
+  revalidatePath(`/portal/appointments/${appointmentId}`);
+  revalidatePath("/portal/notifications");
+  return { success: true };
 }
 
 export async function checkInAppointment(appointmentId: string) {
   const session = await requireSession();
   const role = session.user.role;
 
-  if (role === "ADMIN" || role === "RECEPTIONIST") {
+  if (role === "ADMIN" || role === "STAFF") {
     // staff can check in any confirmed appointment, no time restriction
   } else if (role === "PATIENT") {
     const appointment = await prisma.appointment.findUnique({
@@ -292,19 +374,37 @@ export async function checkInAppointment(appointmentId: string) {
     throw new UnauthorizedError("Not allowed to check in appointments");
   }
 
-  await prisma.appointment.update({
+  const checkedIn = await prisma.appointment.update({
     where: { id: appointmentId },
     data: { status: "CHECKED_IN", checkedInAt: new Date() },
+    include: { doctor: true, patient: true },
   });
+
+  if (checkedIn.doctor.notifyPatientWaiting) {
+    await notifyStaffUsers({
+      userIds: [checkedIn.doctor.userId],
+      category: "APPOINTMENT",
+      tone: "INFO",
+      title: "Patient Waiting",
+      body: `${checkedIn.patient.name} has checked in and is waiting for their appointment.`,
+      href: `/doctor/appointments/${checkedIn.id}`,
+      relatedId: `appt-waiting-${checkedIn.id}-${checkedIn.checkedInAt?.getTime()}`,
+    });
+  }
+
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
+  revalidatePath("/staff");
+  revalidatePath("/doctor/appointments");
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
+  revalidatePath("/doctor/consultations");
   revalidatePath("/portal/appointments");
   revalidatePath("/portal");
 }
 
 export async function markNoShow(appointmentId: string) {
-  const session = await requireRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
+  const session = await requireRole(["ADMIN", "DOCTOR", "STAFF"]);
   const appointment = await prisma.appointment.findUnique({
     where: { id: appointmentId },
   });
@@ -326,6 +426,9 @@ export async function markNoShow(appointmentId: string) {
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
+  revalidatePath("/doctor/appointments");
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
+  revalidatePath("/doctor/consultations");
 }
 
 export async function cancelAppointment(appointmentId: string) {
@@ -333,7 +436,7 @@ export async function cancelAppointment(appointmentId: string) {
   const role = session.user.role;
   let cancelledByPatient = false;
 
-  if (role === "ADMIN" || role === "RECEPTIONIST") {
+  if (role === "ADMIN" || role === "STAFF") {
     // staff can cancel any appointment, no restriction
   } else if (role === "DOCTOR") {
     const appointment = await prisma.appointment.findUnique({
@@ -367,6 +470,31 @@ export async function cancelAppointment(appointmentId: string) {
     await notifyStaff(
       `❌ ${appointment.patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} via the patient portal.`
     );
+    const cancelSummary = `${appointment.patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`;
+    const staffRecipients = await prisma.user.findMany({
+      where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
+      select: { id: true },
+    });
+    await notifyStaffUsers({
+      userIds: staffRecipients.map((u) => u.id),
+      category: "APPOINTMENT",
+      tone: "WARNING",
+      title: "Appointment Cancelled",
+      body: cancelSummary,
+      href: `/staff/appointments/${appointment.id}`,
+      relatedId: `appt-cancel-${appointment.id}`,
+    });
+    if (appointment.doctor.notifyAppointmentCancelled) {
+      await notifyStaffUsers({
+        userIds: [appointment.doctor.userId],
+        category: "APPOINTMENT",
+        tone: "WARNING",
+        title: "Appointment Cancelled",
+        body: cancelSummary,
+        href: `/doctor/appointments/${appointment.id}`,
+        relatedId: `appt-cancel-${appointment.id}`,
+      });
+    }
   } else {
     await notifyPatient(
       appointment.patientId,
@@ -379,6 +507,9 @@ export async function cancelAppointment(appointmentId: string) {
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
+  revalidatePath("/doctor/appointments");
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
+  revalidatePath("/doctor/consultations");
   revalidatePath("/portal/appointments");
   revalidatePath(`/portal/appointments/${appointmentId}`);
   revalidatePath("/portal");
@@ -393,6 +524,9 @@ export async function completeAppointment(appointmentId: string) {
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
+  revalidatePath("/doctor/appointments");
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
+  revalidatePath("/doctor/consultations");
 }
 
 const consultationSchema = z.object({
@@ -462,9 +596,9 @@ export async function updateConsultation(
     },
   });
 
-  revalidatePath(`/staff/appointments/${appointmentId}`);
-  revalidatePath("/staff/appointments");
-  revalidatePath("/staff/consultations");
-  revalidatePath("/staff");
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
+  revalidatePath("/doctor/appointments");
+  revalidatePath("/doctor/consultations");
+  revalidatePath("/doctor");
   return { success: true };
 }

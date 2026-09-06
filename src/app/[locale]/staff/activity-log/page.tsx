@@ -22,7 +22,12 @@ export default async function ActivityLogPage() {
 
   return (
     <div className="grid gap-4">
-      <h1 className="text-2xl font-semibold">Activity Log</h1>
+      <div>
+        <h1 className="text-2xl font-semibold">Activity Log</h1>
+        <p className="text-sm text-muted-foreground">
+          A record of recent actions taken across the clinic.
+        </p>
+      </div>
 
       {entries.length === 0 ? (
         <EmptyState icon={History} message="No activity recorded yet." />

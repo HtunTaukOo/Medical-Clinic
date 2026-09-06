@@ -38,7 +38,6 @@ export default async function PortalLayout({
       userName={session.user.name ?? ""}
       roleLabel="Patient Portal"
       navItems={NAV_ITEMS}
-      contentClassName="mx-auto w-full max-w-5xl"
       sidebarDark
     >
       {children}

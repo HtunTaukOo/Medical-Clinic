@@ -4,59 +4,13 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { getLocale } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { redirect } from "@/i18n/navigation";
-import { getNextTokenNumber } from "@/lib/walk-ins";
 import { logActivity } from "@/lib/audit";
 import { generatePatientCode } from "@/lib/patients";
 
-const QUEUE_STAFF_ROLES = ["ADMIN", "RECEPTIONIST"] as const;
-
-const registerSchema = z.object({
-  name: z.string().optional(),
-  phone: z.string().optional(),
-  reason: z.string().optional(),
-  doctorId: z.string().optional(),
-});
-
-export type RegisterWalkInState = { error?: string; success?: boolean; tokenNumber?: number };
-
-export async function registerWalkIn(
-  _prevState: RegisterWalkInState,
-  formData: FormData
-): Promise<RegisterWalkInState> {
-  const session = await requireRole([...QUEUE_STAFF_ROLES]);
-
-  const parsed = registerSchema.safeParse({
-    name: formData.get("name") || undefined,
-    phone: formData.get("phone") || undefined,
-    reason: formData.get("reason") || undefined,
-    doctorId: formData.get("doctorId") || undefined,
-  });
-  if (!parsed.success) {
-    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
-  }
-
-  const tokenNumber = await getNextTokenNumber();
-
-  const walkIn = await prisma.walkIn.create({
-    data: { tokenNumber, ...parsed.data },
-  });
-
-  await logActivity({
-    actorId: session.user.id,
-    actorName: session.user.name ?? session.user.email ?? "Unknown",
-    actorRole: session.user.role,
-    action: `Registered walk-in, token #${tokenNumber}`,
-    target: `Walk-in ${walkIn.id}`,
-  });
-
-  revalidatePath("/staff/queue");
-  return { success: true, tokenNumber };
-}
-
 export async function callWalkIn(walkInId: string) {
-  await requireRole([...QUEUE_STAFF_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const walkIn = await prisma.walkIn.findUniqueOrThrow({ where: { id: walkInId } });
   if (walkIn.status !== "WAITING") {
@@ -69,10 +23,11 @@ export async function callWalkIn(walkInId: string) {
   });
 
   revalidatePath("/staff/queue");
+  revalidatePath("/staff");
 }
 
 export async function cancelWalkIn(walkInId: string) {
-  await requireRole([...QUEUE_STAFF_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const walkIn = await prisma.walkIn.findUniqueOrThrow({ where: { id: walkInId } });
   if (walkIn.status === "COMPLETED" || walkIn.status === "CANCELLED") {
@@ -100,7 +55,7 @@ export async function convertWalkInToAppointment(
   _prevState: ConvertWalkInState,
   formData: FormData
 ): Promise<ConvertWalkInState> {
-  const session = await requireRole([...QUEUE_STAFF_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const walkIn = await prisma.walkIn.findUniqueOrThrow({ where: { id: walkInId } });
   if (walkIn.status !== "CALLED") {

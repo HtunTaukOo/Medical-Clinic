@@ -31,7 +31,12 @@ export default async function ReportsPage() {
   return (
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Reports</h1>
+        <div>
+          <h1 className="text-2xl font-semibold">Reports</h1>
+          <p className="text-sm text-muted-foreground">
+            Revenue, patient, and appointment metrics at a glance.
+          </p>
+        </div>
         <Button asChild variant="outline">
           <a href="/api/reports/export">
             <Download />

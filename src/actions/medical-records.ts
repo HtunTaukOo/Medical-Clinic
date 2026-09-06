@@ -33,7 +33,7 @@ export async function addMedicalNote(
     },
   });
 
-  revalidatePath(`/staff/patients/${patientId}`);
+  revalidatePath(`/doctor/patients/${patientId}`);
   return { success: true };
 }
 
@@ -49,7 +49,7 @@ export async function uploadMedicalDocument(
   if (role === "PATIENT") {
     if (!session.user.patientId) throw new UnauthorizedError("No patient profile");
     targetPatientId = session.user.patientId;
-  } else if (role === "ADMIN" || role === "RECEPTIONIST") {
+  } else if (role === "ADMIN" || role === "STAFF") {
     targetPatientId = patientId;
   } else {
     throw new UnauthorizedError("Not allowed to upload documents");
@@ -94,5 +94,6 @@ export async function deleteMedicalRecord(recordId: string) {
   await prisma.medicalRecord.delete({ where: { id: recordId } });
 
   revalidatePath(`/staff/patients/${record.patientId}`);
+  revalidatePath(`/doctor/patients/${record.patientId}`);
   revalidatePath("/portal/medical-records");
 }

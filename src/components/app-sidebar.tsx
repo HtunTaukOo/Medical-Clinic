@@ -25,6 +25,8 @@ import {
   Megaphone,
   CalendarRange,
   ClipboardPlus,
+  UserPlus,
+  PillBottle,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -53,10 +55,12 @@ export type SidebarNavItem = {
 
 const ICONS: Record<string, LucideIcon> = {
   dashboard: LayoutDashboard,
+  checkIn: UserPlus,
   patients: Users,
   appointments: CalendarDays,
   billing: Receipt,
   inventory: Pill,
+  pharmacy: PillBottle,
   staff: UserCog,
   findDoctors: Stethoscope,
   myAppointments: CalendarCheck,

@@ -3,10 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
-
-const INVENTORY_ROLES = ["ADMIN", "PHARMACIST"] as const;
 
 const poItemsSchema = z
   .array(
@@ -24,7 +22,7 @@ export async function createPurchaseOrder(
   _prevState: PurchaseOrderFormState,
   formData: FormData
 ): Promise<PurchaseOrderFormState> {
-  const session = await requireRole([...INVENTORY_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const supplierId = formData.get("supplierId");
   if (typeof supplierId !== "string" || !supplierId) {
@@ -55,7 +53,7 @@ export async function createPurchaseOrder(
 }
 
 export async function markOrdered(purchaseOrderId: string) {
-  const session = await requireRole([...INVENTORY_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const order = await prisma.purchaseOrder.findUniqueOrThrow({
     where: { id: purchaseOrderId },
@@ -82,7 +80,7 @@ export async function markOrdered(purchaseOrderId: string) {
 }
 
 export async function cancelPurchaseOrder(purchaseOrderId: string) {
-  const session = await requireRole([...INVENTORY_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const order = await prisma.purchaseOrder.findUniqueOrThrow({
     where: { id: purchaseOrderId },
@@ -115,7 +113,7 @@ export async function receiveStock(
   _prevState: ReceiveStockState,
   formData: FormData
 ): Promise<ReceiveStockState> {
-  const session = await requireRole([...INVENTORY_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const order = await prisma.purchaseOrder.findUniqueOrThrow({
     where: { id: purchaseOrderId },

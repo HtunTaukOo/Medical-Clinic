@@ -29,7 +29,7 @@ export default async function ReceiptPage({
 
   const role = session.user.role;
   const isOwnPatient = role === "PATIENT" && session.user.patientId === invoice.patientId;
-  const isFrontOfficeStaff = role === "ADMIN" || role === "RECEPTIONIST";
+  const isFrontOfficeStaff = role === "ADMIN" || role === "STAFF";
   if (!isOwnPatient && !isFrontOfficeStaff) notFound();
 
   if (invoice.status !== "PAID") notFound();

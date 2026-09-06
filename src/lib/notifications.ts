@@ -1,4 +1,9 @@
-import { Prisma, type NotificationCategory, type NotificationTone } from "@prisma/client";
+import {
+  Prisma,
+  type NotificationCategory,
+  type NotificationTone,
+  type StaffNotificationCategory,
+} from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 
 // Idempotent: `relatedId` is unique per patient, so calling this more than
@@ -61,6 +66,38 @@ export async function notifyAllPatients(input: {
 
 export async function getUnreadNotificationCount(patientId: string) {
   return prisma.notification.count({ where: { patientId, read: false } });
+}
+
+// Fans an event out to any number of staff/doctor/admin User rows in one go —
+// e.g. every STAFF user with notifyLowStock on. Silently no-ops on an empty
+// list so call sites don't need to check first.
+export async function notifyStaffUsers(input: {
+  userIds: string[];
+  category: StaffNotificationCategory;
+  tone?: NotificationTone;
+  title: string;
+  body: string;
+  href?: string;
+  relatedId: string;
+}) {
+  if (input.userIds.length === 0) return;
+
+  await prisma.staffNotification.createMany({
+    data: input.userIds.map((userId) => ({
+      userId,
+      category: input.category,
+      tone: input.tone ?? "INFO",
+      title: input.title,
+      body: input.body,
+      href: input.href,
+      relatedId: input.relatedId,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+export async function getUnreadStaffNotificationCount(userId: string) {
+  return prisma.staffNotification.count({ where: { userId, read: false } });
 }
 
 const RENEWAL_WINDOW_DAYS = 7;

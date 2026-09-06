@@ -191,6 +191,8 @@ async function handleCheckInCommand(chatId: string) {
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointment.id}`);
   revalidatePath("/staff/queue");
+  revalidatePath("/doctor/appointments");
+  revalidatePath(`/doctor/appointments/${appointment.id}`);
   revalidatePath("/portal/appointments");
   revalidatePath("/portal");
 }
@@ -245,5 +247,7 @@ async function handleCancelCommand(chatId: string) {
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointment.id}`);
   revalidatePath("/staff/queue");
+  revalidatePath("/doctor/appointments");
+  revalidatePath(`/doctor/appointments/${appointment.id}`);
   revalidatePath("/portal/appointments");
 }

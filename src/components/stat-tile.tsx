@@ -25,7 +25,7 @@ export function StatTile({
     <Card>
       <CardContent className="flex items-center gap-4">
         <div
-          className={`flex size-11 shrink-0 items-center justify-center rounded-full ${COLOR_CLASSES[color]}`}
+          className={`flex size-12 shrink-0 items-center justify-center rounded-2xl ${COLOR_CLASSES[color]}`}
         >
           <Icon className="size-5" />
         </div>

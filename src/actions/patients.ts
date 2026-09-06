@@ -3,11 +3,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole, requireSession, UnauthorizedError } from "@/lib/authz";
+import { requireRole, requireSession, UnauthorizedError, STAFF_ROLES } from "@/lib/authz";
 import { generatePatientCode } from "@/lib/patients";
 
-const PATIENT_STAFF_ROLES = ["ADMIN", "DOCTOR", "RECEPTIONIST"] as const;
-const PATIENT_EDIT_ROLES = ["ADMIN", "RECEPTIONIST"] as const;
+const PATIENT_STAFF_ROLES = [...STAFF_ROLES, "DOCTOR"] as const;
 
 const patientSchema = z.object({
   name: z.string().min(1),
@@ -109,7 +108,7 @@ export async function updatePatient(
   _prevState: PatientFormState,
   formData: FormData
 ): Promise<PatientFormState> {
-  await requireRole([...PATIENT_EDIT_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const parsed = parsePatientForm(formData);
   if (!parsed.success) {

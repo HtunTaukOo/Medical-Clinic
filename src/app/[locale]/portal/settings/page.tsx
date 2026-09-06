@@ -77,27 +77,27 @@ export default async function PortalSettingsPage() {
       >
         <TabsList className={SIDEBAR_TAB_LIST}>
           <TabsTrigger value="personal" className={SIDEBAR_TAB_TRIGGER}>
-            <User className="size-4" />
+            <User className="size-4 text-violet-500" />
             Personal Details
           </TabsTrigger>
           <TabsTrigger value="emergency" className={SIDEBAR_TAB_TRIGGER}>
-            <HeartPulse className="size-4" />
+            <HeartPulse className="size-4 text-rose-500" />
             Emergency Contact
           </TabsTrigger>
           <TabsTrigger value="insurance" className={SIDEBAR_TAB_TRIGGER}>
-            <ShieldCheck className="size-4" />
+            <ShieldCheck className="size-4 text-emerald-500" />
             Insurance
           </TabsTrigger>
           <TabsTrigger value="security" className={SIDEBAR_TAB_TRIGGER}>
-            <Lock className="size-4" />
+            <Lock className="size-4 text-amber-500" />
             Security
           </TabsTrigger>
           <TabsTrigger value="privacy" className={SIDEBAR_TAB_TRIGGER}>
-            <Settings2 className="size-4" />
+            <Settings2 className="size-4 text-indigo-500" />
             Privacy
           </TabsTrigger>
           <TabsTrigger value="telegram" className={SIDEBAR_TAB_TRIGGER}>
-            <Send className="size-4" />
+            <Send className="size-4 text-sky-500" />
             Telegram
           </TabsTrigger>
         </TabsList>

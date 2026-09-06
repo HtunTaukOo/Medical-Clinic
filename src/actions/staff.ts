@@ -4,9 +4,10 @@ import { z } from "zod";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole, requireSession, UnauthorizedError } from "@/lib/authz";
+import { requireRole, requireSession, STAFF_ROLES, UnauthorizedError } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
 import { parseDateOnlyInput } from "@/lib/doctor-availability";
+import { STAFF_TITLES } from "@/lib/staff-titles";
 
 async function assertCanManageDoctorLeave(doctorId: string) {
   const session = await requireSession();
@@ -19,7 +20,8 @@ const staffSchema = z.object({
   name: z.string().min(1),
   email: z.email(),
   password: z.string().min(8),
-  role: z.enum(["ADMIN", "DOCTOR", "RECEPTIONIST", "PHARMACIST", "LAB_TECH"]),
+  role: z.enum(["ADMIN", "DOCTOR", "STAFF"]),
+  title: z.enum(STAFF_TITLES).optional(),
   specialty: z.string().optional(),
   consultationFee: z.coerce.number().nonnegative().optional(),
 });
@@ -37,6 +39,7 @@ export async function createStaff(
     email: formData.get("email"),
     password: formData.get("password"),
     role: formData.get("role"),
+    title: formData.get("title") || undefined,
     specialty: formData.get("specialty") || undefined,
     consultationFee: formData.get("consultationFee") || undefined,
   });
@@ -44,7 +47,7 @@ export async function createStaff(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { name, email, password, role, specialty, consultationFee } = parsed.data;
+  const { name, email, password, role, title, specialty, consultationFee } = parsed.data;
 
   const existing = await prisma.user.findUnique({ where: { email: email.toLowerCase() } });
   if (existing) {
@@ -59,6 +62,7 @@ export async function createStaff(
       email: email.toLowerCase(),
       passwordHash,
       role,
+      title: role === "STAFF" ? title : undefined,
       doctorProfile:
         role === "DOCTOR" ? { create: { specialty, consultationFee } } : undefined,
     },
@@ -167,7 +171,7 @@ export async function addDoctorLeave(
   });
 
   revalidatePath(`/staff/users/${doctorId}/availability`);
-  revalidatePath("/staff/schedule");
+  revalidatePath("/doctor/schedule");
   return { success: true };
 }
 
@@ -177,7 +181,7 @@ export async function removeDoctorLeave(leaveId: string) {
 
   await prisma.doctorLeave.delete({ where: { id: leaveId } });
   revalidatePath(`/staff/users/${leave.doctorId}/availability`);
-  revalidatePath("/staff/schedule");
+  revalidatePath("/doctor/schedule");
 }
 
 const setPasswordSchema = z.object({
@@ -239,6 +243,35 @@ export async function toggleStaffActive(userId: string) {
   revalidatePath("/staff/users");
 }
 
+const staffTitleSchema = z.object({
+  title: z.enum(STAFF_TITLES),
+});
+
+export type UpdateStaffTitleState = { error?: string; success?: boolean };
+
+export async function updateStaffTitle(
+  userId: string,
+  _prevState: UpdateStaffTitleState,
+  formData: FormData
+): Promise<UpdateStaffTitleState> {
+  await requireRole(["ADMIN"]);
+
+  const parsed = staffTitleSchema.safeParse({ title: formData.get("title") });
+  if (!parsed.success) {
+    return { error: "Select a valid job title" };
+  }
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  if (user.role !== "STAFF") {
+    return { error: "Job titles only apply to staff accounts" };
+  }
+
+  await prisma.user.update({ where: { id: userId }, data: { title: parsed.data.title } });
+
+  revalidatePath("/staff/users");
+  return { success: true };
+}
+
 const ownPersonalInfoSchema = z.object({
   name: z.string().min(1),
   dob: z.string().optional(),
@@ -288,7 +321,7 @@ export async function updateOwnPersonalInfo(
     }),
   ]);
 
-  revalidatePath("/staff/profile");
+  revalidatePath("/doctor/profile");
   return { success: true };
 }
 
@@ -341,7 +374,7 @@ export async function updateOwnDoctorProfile(
     },
   });
 
-  revalidatePath("/staff/profile");
+  revalidatePath("/doctor/profile");
   return { success: true };
 }
 
@@ -364,6 +397,52 @@ export async function updateDoctorNotificationSetting(
 
   await prisma.doctorProfile.update({
     where: { id: doctorId },
+    data: { [field]: value },
+  });
+
+  revalidatePath("/doctor/profile");
+}
+
+const ownStaffPersonalInfoSchema = z.object({
+  name: z.string().min(1),
+  phone: z.string().optional(),
+});
+
+export type UpdateOwnStaffPersonalInfoState = { error?: string; success?: boolean };
+
+export async function updateOwnStaffPersonalInfo(
+  _prevState: UpdateOwnStaffPersonalInfoState,
+  formData: FormData
+): Promise<UpdateOwnStaffPersonalInfoState> {
+  const session = await requireRole(STAFF_ROLES);
+
+  const parsed = ownStaffPersonalInfoSchema.safeParse({
+    name: formData.get("name"),
+    phone: formData.get("phone") || undefined,
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.user.update({
+    where: { id: session.user.id },
+    data: { name: parsed.data.name, phone: parsed.data.phone ?? null },
+  });
+
+  revalidatePath("/staff/profile");
+  return { success: true };
+}
+
+export type StaffPreferenceField =
+  | "notifyNewAppointments"
+  | "notifyLowStock"
+  | "notifyAnnouncements";
+
+export async function updateStaffNotificationSetting(field: StaffPreferenceField, value: boolean) {
+  const session = await requireRole(STAFF_ROLES);
+
+  await prisma.user.update({
+    where: { id: session.user.id },
     data: { [field]: value },
   });
 

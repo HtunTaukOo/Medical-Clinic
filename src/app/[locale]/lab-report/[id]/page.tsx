@@ -25,8 +25,7 @@ export default async function LabReportPage({
   const role = session.user.role;
   const isOwnPatient = role === "PATIENT" && session.user.patientId === order.patientId;
   const isOwnDoctor = role === "DOCTOR" && session.user.doctorId === order.doctorId;
-  const isFrontOfficeStaff =
-    role === "ADMIN" || role === "LAB_TECH" || role === "RECEPTIONIST";
+  const isFrontOfficeStaff = role === "ADMIN" || role === "STAFF";
   if (!isOwnPatient && !isOwnDoctor && !isFrontOfficeStaff) notFound();
 
   if (order.status !== "COMPLETED") notFound();

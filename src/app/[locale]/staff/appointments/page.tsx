@@ -1,31 +1,35 @@
-import { CalendarDays, Stethoscope } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
 import { todayRange } from "@/lib/queue";
-import { clinicDateKey, clinicDateParts, formatClinicDateTime } from "@/lib/clinic-hours";
-import { initials, calculateAge } from "@/lib/format";
-import { isAppointmentUrgent } from "@/lib/clinical-alerts";
+import { clinicDateKey, clinicDateParts } from "@/lib/clinic-hours";
 import {
   confirmAppointment,
   checkInAppointment,
   cancelAppointment,
   completeAppointment,
-  markNoShow,
 } from "@/actions/appointments";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
-import { AppointmentRow, GENDER_LETTER } from "@/components/appointments/appointment-row";
+import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 
 const STATUS_STYLES: Record<string, string> = {
-  REQUESTED: "bg-amber-100 text-amber-800",
+  REQUESTED: "bg-blue-100 text-blue-800",
   CONFIRMED: "bg-blue-100 text-blue-800",
-  CHECKED_IN: "bg-emerald-100 text-emerald-800",
+  CHECKED_IN: "bg-purple-100 text-purple-800",
   COMPLETED: "bg-muted text-muted-foreground",
   CANCELLED: "bg-rose-100 text-rose-800 line-through",
   NO_SHOW: "bg-orange-100 text-orange-800",
@@ -33,24 +37,26 @@ const STATUS_STYLES: Record<string, string> = {
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-const DOCTOR_TABS = [
+const TABS = [
   { value: "today", label: "Today" },
   { value: "upcoming", label: "Upcoming" },
   { value: "completed", label: "Completed" },
   { value: "cancelled", label: "Cancelled" },
 ] as const;
-type DoctorTab = (typeof DOCTOR_TABS)[number]["value"];
+type Tab = (typeof TABS)[number]["value"];
 
 function getRowDisplay(
   status: string,
   { isInProgress, isWaiting }: { isInProgress: boolean; isWaiting: boolean }
 ) {
-  if (status === "COMPLETED") return { label: "Completed", className: "bg-indigo-100 text-indigo-700" };
+  if (status === "COMPLETED") return { label: "Completed", className: "bg-emerald-100 text-emerald-700" };
   if (status === "CANCELLED") return { label: "Cancelled", className: "bg-rose-100 text-rose-700" };
   if (status === "NO_SHOW") return { label: "No-show", className: "bg-rose-100 text-rose-700" };
-  if (isInProgress) return { label: "In Progress", className: "bg-blue-100 text-blue-700" };
-  if (isWaiting) return { label: "Waiting", className: "bg-amber-100 text-amber-700" };
-  return { label: "Scheduled", className: "bg-slate-100 text-slate-700" };
+  if (isInProgress) return { label: "In Progress", className: "bg-purple-100 text-purple-700" };
+  if (isWaiting || status === "CONFIRMED") {
+    return { label: "Waiting", className: "bg-amber-100 text-amber-700" };
+  }
+  return { label: "Scheduled", className: "bg-blue-100 text-blue-700" };
 }
 
 export default async function AppointmentsPage({
@@ -58,16 +64,13 @@ export default async function AppointmentsPage({
 }: {
   searchParams: Promise<{ view?: string; year?: string; month?: string; tab?: string }>;
 }) {
-  const session = await requirePageRole(["ADMIN", "DOCTOR", "RECEPTIONIST"]);
+  await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("appointments");
-  const isDoctor = session.user.role === "DOCTOR";
 
   const { view: viewParam, year: yearParam, month: monthParam, tab: tabParam } =
     await searchParams;
   const view = viewParam === "calendar" ? "calendar" : "list";
-  const tab: DoctorTab = DOCTOR_TABS.some(({ value }) => value === tabParam)
-    ? (tabParam as DoctorTab)
-    : "today";
+  const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "today";
 
   const now = new Date();
   const clinicToday = clinicDateParts(now);
@@ -75,22 +78,16 @@ export default async function AppointmentsPage({
   const month = monthParam ? Number(monthParam) : clinicToday.month;
 
   const appointments = await prisma.appointment.findMany({
-    where: isDoctor ? { doctorId: session.user.doctorId } : undefined,
     orderBy: { scheduledAt: "desc" },
     include: {
-      patient: {
-        include: {
-          allergyRecords: { where: { severity: "SEVERE" }, take: 1 },
-          diagnoses: { where: { severity: "SEVERE", status: "ACTIVE" }, take: 1 },
-        },
-      },
+      patient: true,
       doctor: { include: { user: true } },
     },
   });
 
   const { start: todayStart, end: todayEnd } = todayRange();
 
-  function matchesTab(appt: (typeof appointments)[number], value: DoctorTab) {
+  function matchesTab(appt: (typeof appointments)[number], value: Tab) {
     if (value === "today") {
       return (
         appt.scheduledAt >= todayStart &&
@@ -108,7 +105,7 @@ export default async function AppointmentsPage({
     return appt.status === "CANCELLED" || appt.status === "NO_SHOW";
   }
 
-  const tabCounts: Record<DoctorTab, number> = {
+  const tabCounts: Record<Tab, number> = {
     today: appointments.filter((a) => matchesTab(a, "today")).length,
     upcoming: appointments.filter((a) => matchesTab(a, "upcoming")).length,
     completed: appointments.filter((a) => matchesTab(a, "completed")).length,
@@ -121,7 +118,7 @@ export default async function AppointmentsPage({
   const inProgressApptId = checkedInToday[0]?.id ?? null;
   const waitingApptIds = new Set(checkedInToday.slice(1).map((a) => a.id));
 
-  const doctorVisibleAppointments = appointments
+  const visibleAppointments = appointments
     .filter((a) => matchesTab(a, tab))
     .sort((a, b) =>
       tab === "completed" || tab === "cancelled"
@@ -143,34 +140,30 @@ export default async function AppointmentsPage({
 
   return (
     <div className="grid gap-4">
-      <div>
-        <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between">
+        <div>
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
-          {session.user.role !== "DOCTOR" && (
-            <Button asChild>
-              <Link href="/staff/appointments/new">{t("new")}</Link>
-            </Button>
-          )}
-        </div>
-        {isDoctor && (
           <p className="text-sm text-muted-foreground">
-            Manage your patient appointments and consultations.
+            Manage patient appointments, confirmations, and check-ins.
           </p>
-        )}
+        </div>
+        <Button asChild>
+          <Link href="/staff/appointments/new">{t("new")}</Link>
+        </Button>
       </div>
 
       <div className="flex items-center gap-2">
         <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
-          <Link href={`/staff/appointments?view=list${isDoctor ? `&tab=${tab}` : ""}`}>List</Link>
+          <Link href={`/staff/appointments?view=list&tab=${tab}`}>List</Link>
         </Button>
         <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
           <Link href="/staff/appointments?view=calendar">Calendar</Link>
         </Button>
       </div>
 
-      {isDoctor && view === "list" && (
+      {view === "list" && (
         <div className="flex flex-wrap items-center gap-2">
-          {DOCTOR_TABS.map(({ value, label }) => (
+          {TABS.map(({ value, label }) => (
             <Button key={value} asChild variant={tab === value ? "default" : "outline"} className="gap-2">
               <Link href={`/staff/appointments?tab=${value}`}>
                 {label}
@@ -238,11 +231,7 @@ export default async function AppointmentsPage({
                           key={appt.id}
                           href={`/staff/appointments/${appt.id}`}
                           className={`truncate rounded px-1 py-0.5 text-xs ${STATUS_STYLES[appt.status]}`}
-                          title={
-                            isDoctor
-                              ? `${appt.patient.name} — ${appt.status}`
-                              : `${appt.patient.name} — ${appt.doctor.user.name}`
-                          }
+                          title={`${appt.patient.name} — ${appt.doctor.user.name}`}
                         >
                           {new Date(appt.scheduledAt).toLocaleTimeString([], {
                             hour: "2-digit",
@@ -263,134 +252,162 @@ export default async function AppointmentsPage({
             </div>
           </div>
         </div>
-      ) : isDoctor ? (
-        <div className="grid gap-2">
-          {doctorVisibleAppointments.length === 0 ? (
-            <EmptyState icon={CalendarDays} message={t("noResults")} />
-          ) : (
-            doctorVisibleAppointments.map((appt, index) => {
-              const isInProgress = tab === "today" && appt.id === inProgressApptId;
-              const isWaiting = tab === "today" && waitingApptIds.has(appt.id);
-              const { label, className } = getRowDisplay(appt.status, { isInProgress, isWaiting });
-              const isUrgent = tab === "today" && isAppointmentUrgent(appt);
-              const age = calculateAge(appt.patient.dob);
-              const genderLetter = appt.patient.gender ? GENDER_LETTER[appt.patient.gender] : null;
-              return (
-                <AppointmentRow
-                  key={appt.id}
-                  href={`/staff/appointments/${appt.id}`}
-                  time={appt.scheduledAt.toLocaleTimeString([], {
-                    hour: "2-digit",
-                    minute: "2-digit",
-                  })}
-                  dateLabel={
-                    tab === "today"
-                      ? undefined
-                      : appt.scheduledAt.toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                        })
-                  }
-                  avatarIndex={index}
-                  patientName={appt.patient.name}
-                  age={age}
-                  genderLetter={genderLetter}
-                  reason={appt.reason ?? ""}
-                  isUrgent={isUrgent}
-                  statusLabel={label}
-                  statusClassName={className}
-                />
-              );
-            })
-          )}
-        </div>
+      ) : visibleAppointments.length === 0 ? (
+        <EmptyState icon={CalendarDays} message={t("noResults")} />
       ) : (
-        appointments.length === 0 ? (
-          <EmptyState icon={CalendarDays} message={t("noResults")} />
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {appointments.map((appt) => (
-              <Card key={appt.id}>
-                <CardContent className="grid gap-3">
-                  <div className="flex items-start justify-between gap-2">
-                    <Link
-                      href={`/staff/patients/${appt.patientId}`}
-                      className="flex items-center gap-3"
-                    >
-                      <Avatar className="size-12">
-                        <AvatarFallback className="bg-secondary text-secondary-foreground">
-                          {initials(appt.patient.name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      <p className="font-semibold">{appt.patient.name}</p>
-                    </Link>
-                    <Badge variant="outline">{appt.status}</Badge>
-                  </div>
-                  <div className="grid gap-1 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-2">
-                      <Stethoscope className="size-4" />
-                      {appt.doctor.user.name}
-                    </div>
-                    <Link
-                      href={`/staff/appointments/${appt.id}`}
-                      className="flex items-center gap-2 hover:underline"
-                    >
-                      <CalendarDays className="size-4" />
-                      {formatClinicDateTime(appt.scheduledAt)}
-                    </Link>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {appt.status === "REQUESTED" && (
-                      <form action={confirmAppointment.bind(null, appt.id)}>
-                        <Button size="sm" variant="secondary" type="submit">
-                          {t("confirm")}
-                        </Button>
-                      </form>
-                    )}
-                    {appt.status === "CONFIRMED" && session.user.role !== "DOCTOR" && (
-                      <form action={checkInAppointment.bind(null, appt.id)}>
-                        <Button size="sm" variant="secondary" type="submit">
-                          {t("checkIn")}
-                        </Button>
-                      </form>
-                    )}
-                    {appt.status === "CONFIRMED" && (
-                      <form action={markNoShow.bind(null, appt.id)}>
-                        <Button size="sm" variant="outline" type="submit">
-                          {t("noShow")}
-                        </Button>
-                      </form>
-                    )}
-                    {(appt.status === "REQUESTED" ||
-                      appt.status === "CONFIRMED" ||
-                      appt.status === "CHECKED_IN") && (
-                      <>
-                        <form action={completeAppointment.bind(null, appt.id)}>
-                          <Button size="sm" type="submit">
-                            {t("complete")}
-                          </Button>
-                        </form>
-                        <form action={cancelAppointment.bind(null, appt.id)}>
-                          <Button size="sm" variant="destructive" type="submit">
-                            {t("cancel")}
-                          </Button>
-                        </form>
-                      </>
-                    )}
-                    {session.user.role === "DOCTOR" &&
-                      (appt.status === "CHECKED_IN" || appt.status === "COMPLETED") && (
-                      <Button asChild size="sm" variant="outline">
-                        <Link href={`/staff/appointments/${appt.id}`}>
-                          {t("writePrescription")}
+        <Card>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>#</TableHead>
+                  <TableHead>Patient</TableHead>
+                  <TableHead>Doctor</TableHead>
+                  <TableHead>Specialty</TableHead>
+                  <TableHead>Time</TableHead>
+                  <TableHead>Type</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleAppointments.map((appt, index) => {
+                  const isInProgress = tab === "today" && appt.id === inProgressApptId;
+                  const isWaiting = tab === "today" && waitingApptIds.has(appt.id);
+                  const { label, className } = getRowDisplay(appt.status, { isInProgress, isWaiting });
+                  return (
+                    <TableRow key={appt.id}>
+                      <TableCell className="text-muted-foreground">{index + 1}</TableCell>
+                      <TableCell>
+                        <Link
+                          href={`/staff/patients/${appt.patientId}`}
+                          className="font-medium underline underline-offset-2"
+                        >
+                          {appt.patient.name}
                         </Link>
-                      </Button>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{appt.doctor.user.name}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {appt.doctor.specialty ?? "—"}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {tab === "today"
+                          ? appt.scheduledAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })
+                          : appt.scheduledAt.toLocaleString([], {
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {appt.reason || "Consultation"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className={className}>
+                          {label}
+                        </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-wrap items-center gap-3">
+                          {appt.status === "REQUESTED" && (
+                            <>
+                              <form action={confirmAppointment.bind(null, appt.id)}>
+                                <button
+                                  type="submit"
+                                  className="font-medium text-primary underline underline-offset-2"
+                                >
+                                  Confirm
+                                </button>
+                              </form>
+                              <RescheduleDialog
+                                appointmentId={appt.id}
+                                patientName={appt.patient.name}
+                                trigger={
+                                  <button
+                                    type="button"
+                                    className="font-medium text-primary underline underline-offset-2"
+                                  >
+                                    Reschedule
+                                  </button>
+                                }
+                              />
+                              <form action={cancelAppointment.bind(null, appt.id)}>
+                                <button
+                                  type="submit"
+                                  className="font-medium text-destructive underline underline-offset-2"
+                                >
+                                  Cancel
+                                </button>
+                              </form>
+                            </>
+                          )}
+                          {appt.status === "CONFIRMED" && (
+                            <>
+                              <form action={checkInAppointment.bind(null, appt.id)}>
+                                <button
+                                  type="submit"
+                                  className="font-medium text-primary underline underline-offset-2"
+                                >
+                                  {t("checkIn")}
+                                </button>
+                              </form>
+                              <RescheduleDialog
+                                appointmentId={appt.id}
+                                patientName={appt.patient.name}
+                                trigger={
+                                  <button
+                                    type="button"
+                                    className="font-medium text-primary underline underline-offset-2"
+                                  >
+                                    Reschedule
+                                  </button>
+                                }
+                              />
+                              <form action={cancelAppointment.bind(null, appt.id)}>
+                                <button
+                                  type="submit"
+                                  className="font-medium text-destructive underline underline-offset-2"
+                                >
+                                  Cancel
+                                </button>
+                              </form>
+                            </>
+                          )}
+                          {appt.status === "CHECKED_IN" && (
+                            <>
+                              <form action={completeAppointment.bind(null, appt.id)}>
+                                <button
+                                  type="submit"
+                                  className="font-medium text-primary underline underline-offset-2"
+                                >
+                                  {t("complete")}
+                                </button>
+                              </form>
+                              <form action={cancelAppointment.bind(null, appt.id)}>
+                                <button
+                                  type="submit"
+                                  className="font-medium text-destructive underline underline-offset-2"
+                                >
+                                  Cancel
+                                </button>
+                              </form>
+                            </>
+                          )}
+                          {(appt.status === "COMPLETED" ||
+                            appt.status === "CANCELLED" ||
+                            appt.status === "NO_SHOW") && (
+                            <span className="text-muted-foreground">—</span>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
     </div>
   );

@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   createAnnouncement,
   type AnnouncementFormState,
@@ -18,11 +18,20 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-export function AnnouncementForm() {
+export function AnnouncementForm({ onPosted }: { onPosted?: () => void }) {
   const [state, formAction, pending] = useActionState<
     AnnouncementFormState,
     FormData
   >(createAnnouncement, {});
+
+  // Derived during render (not an effect): notify the parent the instant a
+  // post succeeds, so a wrapping dialog can close itself without an extra
+  // render pass or a set-state-in-effect lint violation.
+  const [handledState, setHandledState] = useState(state);
+  if (state !== handledState) {
+    setHandledState(state);
+    if (state.success) onPosted?.();
+  }
 
   return (
     <form

@@ -5,10 +5,12 @@
   },
   "nav": {
     "dashboard": "Dashboard",
+    "checkIn": "Patient Check-in",
     "patients": "Patients",
     "appointments": "Appointments",
     "billing": "Billing",
     "inventory": "Inventory",
+    "pharmacy": "Pharmacy",
     "staff": "Staff",
     "myAppointments": "My Appointments",
     "myInvoices": "My Invoices",
@@ -21,7 +23,6 @@
     "lab": "Laboratory",
     "labResults": "Lab Results",
     "myAvailability": "My Availability",
-    "attendance": "Attendance",
     "signOut": "Sign out",
     "sectionOverview": "Overview",
     "sectionCare": "Patient Care",
@@ -224,20 +225,6 @@
     "inactive": "Inactive",
     "activate": "Activate",
     "deactivate": "Deactivate"
-  },
-  "attendance": {
-    "title": "Attendance",
-    "clockIn": "Clock in",
-    "clockOut": "Clock out",
-    "clockedInSince": "Clocked in since {time}",
-    "notClockedIn": "Not clocked in",
-    "myHistory": "My history",
-    "noHistory": "No attendance records yet.",
-    "date": "Date",
-    "duration": "Duration",
-    "inProgress": "In progress",
-    "todayAllStaff": "Today — all staff",
-    "staffMember": "Staff member"
   },
   "staff": {
     "title": "Staff",

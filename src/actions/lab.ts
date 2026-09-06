@@ -3,11 +3,9 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole, UnauthorizedError } from "@/lib/authz";
+import { requireRole, UnauthorizedError, STAFF_ROLES } from "@/lib/authz";
 import { notifyStaff, notifyPatient } from "@/lib/telegram";
-import { createNotification } from "@/lib/notifications";
-
-const LAB_STAFF_ROLES = ["ADMIN", "LAB_TECH"] as const;
+import { createNotification, notifyStaffUsers } from "@/lib/notifications";
 
 const labTestSchema = z.object({
   name: z.string().min(1),
@@ -22,7 +20,7 @@ export async function createLabTest(
   _prevState: LabTestFormState,
   formData: FormData
 ): Promise<LabTestFormState> {
-  await requireRole([...LAB_STAFF_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const parsed = labTestSchema.safeParse({
     name: formData.get("name"),
@@ -88,13 +86,60 @@ export async function orderLabTests(
     },
   });
 
-  revalidatePath(`/staff/appointments/${appointmentId}`);
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
   revalidatePath("/staff/lab");
   return { success: true };
 }
 
+const staffOrderSchema = z.object({
+  patientId: z.string().min(1),
+  doctorId: z.string().min(1),
+  testIds: z.array(z.string().min(1)).min(1),
+});
+
+export type StaffOrderLabTestsState = { error?: string; success?: boolean; orderId?: string };
+
+export async function orderLabTestsByStaff(
+  _prevState: StaffOrderLabTestsState,
+  formData: FormData
+): Promise<StaffOrderLabTestsState> {
+  await requireRole(STAFF_ROLES);
+
+  const parsed = staffOrderSchema.safeParse({
+    patientId: formData.get("patientId"),
+    doctorId: formData.get("doctorId"),
+    testIds: formData.getAll("testIds"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Select a patient, doctor, and at least one test" };
+  }
+
+  const tests = await prisma.labTest.findMany({
+    where: { id: { in: parsed.data.testIds } },
+  });
+  if (tests.length === 0) {
+    return { error: "Select at least one test" };
+  }
+
+  const order = await prisma.labOrder.create({
+    data: {
+      patientId: parsed.data.patientId,
+      doctorId: parsed.data.doctorId,
+      items: {
+        create: tests.map((test) => ({
+          labTestId: test.id,
+          price: test.price,
+        })),
+      },
+    },
+  });
+
+  revalidatePath("/staff/lab");
+  return { success: true, orderId: order.id };
+}
+
 export async function collectSample(labOrderId: string) {
-  await requireRole([...LAB_STAFF_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   await prisma.labOrder.update({
     where: { id: labOrderId },
@@ -112,7 +157,7 @@ export async function enterResults(
   _prevState: EnterResultsState,
   formData: FormData
 ): Promise<EnterResultsState> {
-  await requireRole([...LAB_STAFF_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const order = await prisma.labOrder.findUnique({
     where: { id: labOrderId },
@@ -170,6 +215,17 @@ export async function enterResults(
     href: "/portal/medical-records",
     relatedId: `lab-${order.id}`,
   });
+  if (order.doctor.notifyLabResults) {
+    await notifyStaffUsers({
+      userIds: [order.doctor.userId],
+      category: "LAB_RESULT",
+      tone: "SUCCESS",
+      title: "Lab Results Ready",
+      body: `${testNames} results for ${order.patient.name} are ready to review.`,
+      href: `/doctor/patients/${order.patientId}`,
+      relatedId: `lab-${order.id}`,
+    });
+  }
 
   revalidatePath("/staff/lab");
   revalidatePath(`/staff/lab/${labOrderId}`);

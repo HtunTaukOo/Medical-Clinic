@@ -20,8 +20,9 @@ export const proxy = auth((req) => {
 
   const isStaffRoute = rest.startsWith("/staff");
   const isPortalRoute = rest.startsWith("/portal");
+  const isDoctorRoute = rest.startsWith("/doctor");
 
-  if (isStaffRoute || isPortalRoute) {
+  if (isStaffRoute || isPortalRoute || isDoctorRoute) {
     if (!session?.user) {
       const loginUrl = new URL(`/${locale}/login`, nextUrl);
       loginUrl.searchParams.set("callbackUrl", nextUrl.pathname);
@@ -29,12 +30,16 @@ export const proxy = auth((req) => {
     }
 
     const role = session.user.role;
+    const home = role === "PATIENT" ? "/portal" : role === "DOCTOR" ? "/doctor" : "/staff";
 
-    if (isStaffRoute && role === "PATIENT") {
-      return NextResponse.redirect(new URL(`/${locale}/portal`, nextUrl));
+    if (isStaffRoute && role !== "ADMIN" && role !== "STAFF") {
+      return NextResponse.redirect(new URL(`/${locale}${home}`, nextUrl));
     }
     if (isPortalRoute && role !== "PATIENT") {
-      return NextResponse.redirect(new URL(`/${locale}/staff`, nextUrl));
+      return NextResponse.redirect(new URL(`/${locale}${home}`, nextUrl));
+    }
+    if (isDoctorRoute && role !== "DOCTOR") {
+      return NextResponse.redirect(new URL(`/${locale}${home}`, nextUrl));
     }
     if (rest.startsWith("/staff/users") && role !== "ADMIN") {
       return NextResponse.redirect(new URL(`/${locale}/staff`, nextUrl));

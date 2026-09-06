@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { CLINIC_SETTINGS_ID } from "@/lib/clinic-hours";
+import { notifyStaffUsers } from "@/lib/notifications";
 
 const TELEGRAM_API = "https://api.telegram.org/bot";
 
@@ -63,5 +64,19 @@ export async function notifyIfLowStock(medicineId: string) {
     await notifyStaff(
       `⚠️ Low stock: ${medicine.name} is at ${medicine.stockQty} ${medicine.unit} (reorder level ${medicine.reorderLevel}).`
     );
+
+    const recipients = await prisma.user.findMany({
+      where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyLowStock: true },
+      select: { id: true },
+    });
+    await notifyStaffUsers({
+      userIds: recipients.map((u) => u.id),
+      category: "INVENTORY",
+      tone: "WARNING",
+      title: "Low Stock Alert",
+      body: `${medicine.name} is at ${medicine.stockQty} ${medicine.unit} (reorder level ${medicine.reorderLevel}).`,
+      href: "/staff/inventory",
+      relatedId: `low-stock-${medicineId}-${medicine.stockQty}`,
+    });
   }
 }

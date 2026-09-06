@@ -3,10 +3,8 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole } from "@/lib/authz";
+import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
-
-const BILLING_STAFF_ROLES = ["ADMIN", "RECEPTIONIST"] as const;
 
 const itemsSchema = z
   .array(
@@ -20,11 +18,14 @@ const itemsSchema = z
 
 export type InvoiceFormState = { error?: string; success?: boolean };
 
+const amountPaidSchema = z.coerce.number().nonnegative().optional();
+const paymentMethodSchema = z.enum(["CASH", "CARD", "MOBILE_BANKING", "OTHER"]).optional();
+
 export async function createInvoice(
   _prevState: InvoiceFormState,
   formData: FormData
 ): Promise<InvoiceFormState> {
-  await requireRole([...BILLING_STAFF_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const patientId = formData.get("patientId");
   if (typeof patientId !== "string" || !patientId) {
@@ -41,6 +42,13 @@ export async function createInvoice(
     return { error: "Add at least one valid line item" };
   }
 
+  const amountPaidParsed = amountPaidSchema.safeParse(formData.get("amountPaid") || undefined);
+  const paymentMethodParsed = paymentMethodSchema.safeParse(
+    formData.get("paymentMethod") || undefined
+  );
+  const amountPaid = amountPaidParsed.success ? (amountPaidParsed.data ?? 0) : 0;
+  const paymentMethod = paymentMethodParsed.success ? (paymentMethodParsed.data ?? "CASH") : "CASH";
+
   const total = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
   if (appointmentId) {
@@ -50,14 +58,21 @@ export async function createInvoice(
     }
   }
 
-  await prisma.invoice.create({
+  const invoice = await prisma.invoice.create({
     data: {
       patientId,
       appointmentId,
       total,
+      status: amountPaid >= total && total > 0 ? "PAID" : amountPaid > 0 ? "PARTIAL" : "UNPAID",
       items: { create: items },
     },
   });
+
+  if (amountPaid > 0) {
+    await prisma.payment.create({
+      data: { invoiceId: invoice.id, amount: amountPaid, method: paymentMethod },
+    });
+  }
 
   revalidatePath("/staff/billing");
   if (appointmentId) revalidatePath(`/staff/appointments/${appointmentId}`);
@@ -95,7 +110,7 @@ export async function addInvoiceItem(
   _prevState: InvoiceItemFormState,
   formData: FormData
 ): Promise<InvoiceItemFormState> {
-  const session = await requireRole([...BILLING_STAFF_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
   if (invoice.status === "PAID") {
@@ -128,7 +143,7 @@ export async function addInvoiceItem(
 }
 
 export async function removeInvoiceItem(invoiceId: string, itemId: string) {
-  const session = await requireRole([...BILLING_STAFF_ROLES]);
+  const session = await requireRole(STAFF_ROLES);
 
   const invoice = await prisma.invoice.findUniqueOrThrow({
     where: { id: invoiceId },
@@ -241,7 +256,7 @@ export async function recordPayment(
   _prevState: PaymentFormState,
   formData: FormData
 ): Promise<PaymentFormState> {
-  await requireRole([...BILLING_STAFF_ROLES]);
+  await requireRole(STAFF_ROLES);
 
   const parsed = paymentSchema.safeParse({
     amount: formData.get("amount"),
