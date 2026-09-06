@@ -142,11 +142,16 @@ export function AppSidebar({
                 {navItems
                   .filter((item) => hideSectionLabels || item.group === group)
                   .map((item) => {
+                    // A "root" item (e.g. the Dashboard/Home link) is one that
+                    // prefixes another nav item's href — for those, only an
+                    // exact match should highlight it, otherwise it would stay
+                    // lit up on every sub-page of that section too.
+                    const isRootItem = navItems.some(
+                      (other) => other.href !== item.href && other.href.startsWith(`${item.href}/`)
+                    );
                     const isActive =
                       pathname === item.href ||
-                      (item.href !== "/staff" &&
-                        item.href !== "/portal" &&
-                        pathname.startsWith(item.href));
+                      (!isRootItem && pathname.startsWith(`${item.href}/`));
                     const Icon = ICONS[item.labelKey] ?? LayoutDashboard;
                     return (
                       <SidebarMenuItem key={item.href}>
