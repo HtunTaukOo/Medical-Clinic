@@ -5,6 +5,7 @@ import { requirePageRole } from "@/lib/authz";
 import { initials } from "@/lib/format";
 import { getClinicHoursRange, formatTime } from "@/lib/clinic-hours";
 import { WEEKDAY_LABELS } from "@/lib/doctor-availability";
+import { getActiveSpecialties } from "@/lib/specialties-data";
 import { DoctorPersonalInfoForm } from "@/components/staff/doctor-personal-info-form";
 import { DoctorSpecialtyForm } from "@/components/staff/doctor-specialty-form";
 import { DoctorNotificationToggle } from "@/components/staff/doctor-notification-toggle";
@@ -34,9 +35,10 @@ export default async function DoctorProfilePage() {
   const doctorId = session.user.doctorId;
   if (!doctorId) notFound();
 
-  const [doctor, clinicHours] = await Promise.all([
+  const [doctor, clinicHours, specialties] = await Promise.all([
     prisma.doctorProfile.findUnique({ where: { id: doctorId }, include: { user: true } }),
     getClinicHoursRange(),
+    getActiveSpecialties(),
   ]);
   if (!doctor) notFound();
 
@@ -122,6 +124,7 @@ export default async function DoctorProfilePage() {
                 professionalBio={doctor.professionalBio ?? ""}
                 clinicRoom={doctor.clinicRoom ?? ""}
                 consultationHours={consultationHours}
+                specialties={specialties.map((s) => ({ name: s.name }))}
               />
             </TabsContent>
 

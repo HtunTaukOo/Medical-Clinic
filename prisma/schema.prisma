@@ -52,12 +52,12 @@ model User {
   notifyLowStock        Boolean @default(true)
   notifyAnnouncements   Boolean @default(true)
 
-  patient        Patient?
-  doctorProfile  DoctorProfile?
-  medicalRecords MedicalRecord[]
-  purchaseOrders PurchaseOrder[]
-  announcements  Announcement[]
-  pharmacySales  PharmacySale[]
+  patient            Patient?
+  doctorProfile      DoctorProfile?
+  medicalRecords     MedicalRecord[]
+  purchaseOrders     PurchaseOrder[]
+  announcements      Announcement[]
+  pharmacySales      PharmacySale[]
   staffNotifications StaffNotification[]
 }
 
@@ -68,50 +68,50 @@ enum Gender {
 }
 
 model Patient {
-  id             String    @id @default(cuid())
-  userId         String?   @unique
-  user           User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  patientCode    String?   @unique
-  active         Boolean   @default(true)
-  name           String
-  gender         Gender?
-  email          String?
-  dob            DateTime?
-  phone          String?
-  address        String?
-  notes          String?
-  bloodType      String?
-  nationality    String?
-  nrcNumber      String?
-  heightCm       Float?
-  weightKg       Float?
-  insuranceProvider     String?
-  insurancePolicyNumber String?
-  insuranceGroupNumber  String?
-  insuranceCoverageType String?
-  insurancePolicyHolder String?
-  insuranceExpiryDate   DateTime?
+  id                           String    @id @default(cuid())
+  userId                       String?   @unique
+  user                         User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  patientCode                  String?   @unique
+  active                       Boolean   @default(true)
+  name                         String
+  gender                       Gender?
+  email                        String?
+  dob                          DateTime?
+  phone                        String?
+  address                      String?
+  notes                        String?
+  bloodType                    String?
+  nationality                  String?
+  nrcNumber                    String?
+  heightCm                     Float?
+  weightKg                     Float?
+  insuranceProvider            String?
+  insurancePolicyNumber        String?
+  insuranceGroupNumber         String?
+  insuranceCoverageType        String?
+  insurancePolicyHolder        String?
+  insuranceExpiryDate          DateTime?
   emergencyContactName         String?
   emergencyContactPhone        String?
   emergencyContactRelationship String?
   emergencyContactAltPhone     String?
   emergencyContactAddress      String?
-  notifyAppointmentReminders  Boolean @default(true)
-  notifyLabResults            Boolean @default(true)
-  notifyPrescriptionRenewals  Boolean @default(true)
-  notifyAnnouncements         Boolean @default(false)
-  notifyPromotions            Boolean @default(false)
-  shareRecordsWithSpecialist  Boolean @default(true)
-  allowAnalytics               Boolean @default(false)
-  telegramChatId String?
-  createdAt      DateTime  @default(now())
+  notifyAppointmentReminders   Boolean   @default(true)
+  notifyLabResults             Boolean   @default(true)
+  notifyPrescriptionRenewals   Boolean   @default(true)
+  notifyAnnouncements          Boolean   @default(false)
+  notifyPromotions             Boolean   @default(false)
+  shareRecordsWithSpecialist   Boolean   @default(true)
+  allowAnalytics               Boolean   @default(false)
+  telegramChatId               String?
+  createdAt                    DateTime  @default(now())
 
-  appointments        Appointment[]
-  invoices            Invoice[]
-  prescriptions       Prescription[]
-  medicalRecords      MedicalRecord[]
-  pillReminders       PillReminder[]
-  labOrders           LabOrder[]
+  appointments         Appointment[]
+  invoices             Invoice[]
+  prescriptions        Prescription[]
+  medicalRecords       MedicalRecord[]
+  pillReminders        PillReminder[]
+  labOrders            LabOrder[]
   telegramChatMessages TelegramChatMessage[]
   waitlistEntries      Waitlist[]
   diagnoses            Diagnosis[]
@@ -158,24 +158,24 @@ model TelegramChatMessage {
 }
 
 model DoctorProfile {
-  id               String   @id @default(cuid())
-  userId           String   @unique
-  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialty        String?
-  consultationFee  Decimal  @default(0) @db.Decimal(10, 2)
-  workingDays      Int[]    @default([1, 2, 3, 4, 5])
-  workStartTime    String?
-  workEndTime      String?
-  experienceYears  Int?
-  qualifications   String?
-  createdAt        DateTime @default(now())
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialty       String?
+  consultationFee Decimal  @default(0) @db.Decimal(10, 2)
+  workingDays     Int[]    @default([1, 2, 3, 4, 5])
+  workStartTime   String?
+  workEndTime     String?
+  experienceYears Int?
+  qualifications  String?
+  createdAt       DateTime @default(now())
 
-  dob               DateTime?
-  gender            Gender?
-  phone             String?
-  address           String?
-  nrcNumber         String?
-  emergencyContact  String?
+  dob              DateTime?
+  gender           Gender?
+  phone            String?
+  address          String?
+  nrcNumber        String?
+  emergencyContact String?
 
   medicalLicenseNo String?
   mbbsUniversity   String?
@@ -192,13 +192,13 @@ model DoctorProfile {
   notifyScheduleReminders    Boolean @default(true)
   notifyLeaveRequestStatus   Boolean @default(true)
 
-  appointments     Appointment[]
-  prescriptions    Prescription[]
-  labOrders        LabOrder[]
-  leaveDays        DoctorLeave[]
-  waitlistEntries  Waitlist[]
-  diagnoses        Diagnosis[]
-  walkIns          WalkIn[]
+  appointments    Appointment[]
+  prescriptions   Prescription[]
+  labOrders       LabOrder[]
+  leaveDays       DoctorLeave[]
+  waitlistEntries Waitlist[]
+  diagnoses       Diagnosis[]
+  walkIns         WalkIn[]
 }
 
 enum WaitlistStatus {
@@ -244,25 +244,28 @@ enum AppointmentStatus {
 }
 
 model Appointment {
-  id          String            @id @default(cuid())
-  patientId   String
-  patient     Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId    String
-  doctor      DoctorProfile     @relation(fields: [doctorId], references: [id])
-  scheduledAt DateTime
-  durationMinutes Int           @default(30)
-  status      AppointmentStatus @default(REQUESTED)
-  reason      String?
-  notes       String?
-  checkedInAt DateTime?
-  reminderSent Boolean          @default(false)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  id              String            @id @default(cuid())
+  patientId       String
+  patient         Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  doctorId        String
+  doctor          DoctorProfile     @relation(fields: [doctorId], references: [id])
+  scheduledAt     DateTime
+  durationMinutes Int               @default(30)
+  status          AppointmentStatus @default(REQUESTED)
+  reason          String?
+  notes           String?
+  checkedInAt     DateTime?
+  reminderSent    Boolean           @default(false)
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  clinicServiceId String?
+  clinicService   ClinicService? @relation(fields: [clinicServiceId], references: [id], onDelete: SetNull)
 
   bpSystolic      Int?
   bpDiastolic     Int?
   heartRateBpm    Int?
-  temperatureC    Decimal?       @db.Decimal(4, 1)
+  temperatureC    Decimal? @db.Decimal(4, 1)
   respiratoryRate Int?
   spo2Percent     Int?
   weightKg        Float?
@@ -281,6 +284,7 @@ model Appointment {
 
   @@index([doctorId, scheduledAt])
   @@index([patientId])
+  @@index([clinicServiceId])
 }
 
 enum WalkInStatus {
@@ -291,21 +295,21 @@ enum WalkInStatus {
 }
 
 model WalkIn {
-  id            String        @id @default(cuid())
+  id            String         @id @default(cuid())
   tokenNumber   Int
   name          String?
   phone         String?
   reason        String?
   doctorId      String?
   doctor        DoctorProfile? @relation(fields: [doctorId], references: [id])
-  status        WalkInStatus  @default(WAITING)
+  status        WalkInStatus   @default(WAITING)
   patientId     String?
-  patient       Patient?      @relation(fields: [patientId], references: [id])
-  appointmentId String?       @unique
-  appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
+  patient       Patient?       @relation(fields: [patientId], references: [id])
+  appointmentId String?        @unique
+  appointment   Appointment?   @relation(fields: [appointmentId], references: [id])
   calledAt      DateTime?
   completedAt   DateTime?
-  createdAt     DateTime      @default(now())
+  createdAt     DateTime       @default(now())
 
   @@index([status, createdAt])
 }
@@ -322,19 +326,19 @@ enum DiagnosisSeverity {
 }
 
 model Diagnosis {
-  id            String            @id @default(cuid())
+  id            String             @id @default(cuid())
   appointmentId String
-  appointment   Appointment       @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  appointment   Appointment        @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   patientId     String
-  patient       Patient           @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  patient       Patient            @relation(fields: [patientId], references: [id], onDelete: Cascade)
   doctorId      String
-  doctor        DoctorProfile     @relation(fields: [doctorId], references: [id])
+  doctor        DoctorProfile      @relation(fields: [doctorId], references: [id])
   code          String?
   description   String
   notes         String?
-  status        DiagnosisStatus   @default(ACTIVE)
+  status        DiagnosisStatus    @default(ACTIVE)
   severity      DiagnosisSeverity?
-  createdAt     DateTime          @default(now())
+  createdAt     DateTime           @default(now())
 
   @@index([patientId])
   @@index([appointmentId])
@@ -501,17 +505,17 @@ enum StaffNotificationCategory {
 }
 
 model StaffNotification {
-  id        String                     @id @default(cuid())
+  id        String                    @id @default(cuid())
   userId    String
-  user      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
   category  StaffNotificationCategory
-  tone      NotificationTone           @default(INFO)
+  tone      NotificationTone          @default(INFO)
   title     String
   body      String
   href      String?
   relatedId String
-  read      Boolean                    @default(false)
-  createdAt DateTime                   @default(now())
+  read      Boolean                   @default(false)
+  createdAt DateTime                  @default(now())
 
   @@unique([userId, relatedId])
   @@index([userId, read])
@@ -656,8 +660,8 @@ model PharmacySale {
   soldById       String
   soldBy         User               @relation(fields: [soldById], references: [id])
   subtotal       Decimal            @db.Decimal(10, 2)
-  discount       Decimal            @db.Decimal(10, 2) @default(0)
-  tax            Decimal            @db.Decimal(10, 2) @default(0)
+  discount       Decimal            @default(0) @db.Decimal(10, 2)
+  tax            Decimal            @default(0) @db.Decimal(10, 2)
   total          Decimal            @db.Decimal(10, 2)
   paymentMethod  PaymentMethod      @default(CASH)
   status         PharmacySaleStatus @default(COMPLETED)
@@ -791,6 +795,26 @@ model LabOrderItem {
   resultEnteredAt DateTime?
 }
 
+model Specialty {
+  id              String   @id @default(cuid())
+  name            String   @unique
+  icon            String   @default("Stethoscope")
+  description     String?
+  active          Boolean  @default(true)
+  // When true, the booking wizard skips doctor selection for this specialty
+  // and has the patient pick a clinic service instead (e.g. Laboratory) — a
+  // doctor is still assigned behind the scenes since Appointment requires one.
+  bookByService   Boolean  @default(false)
+  // How many visits this specialty can handle in the same 30-min slot at
+  // once (e.g. a lab with 3 stations) — only meaningful when bookByService
+  // is true; availability is checked against the clinic's hours and this
+  // capacity instead of any one doctor's calendar.
+  capacityPerSlot Int      @default(1)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
 model ClinicService {
   id              String   @id @default(cuid())
   name            String
@@ -803,4 +827,5 @@ model ClinicService {
   updatedAt       DateTime @updatedAt
 
   invoiceItems InvoiceItem[]
+  appointments Appointment[]
 }

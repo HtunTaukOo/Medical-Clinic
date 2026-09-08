@@ -21,9 +21,11 @@ const ROLES = ["ADMIN", "DOCTOR", "STAFF"] as const;
 export function StaffForm({
   lockRole,
   redirectTo = "/staff/users",
+  specialties,
 }: {
   lockRole?: (typeof ROLES)[number];
   redirectTo?: string;
+  specialties: { name: string }[];
 }) {
   const t = useTranslations("staff");
   const router = useRouter();
@@ -91,7 +93,18 @@ export function StaffForm({
         <>
           <div className="grid gap-2">
             <Label htmlFor="specialty">Specialty</Label>
-            <Input id="specialty" name="specialty" />
+            <Select name="specialty">
+              <SelectTrigger id="specialty" className="w-full">
+                <SelectValue placeholder="Select specialty" />
+              </SelectTrigger>
+              <SelectContent>
+                {specialties.map((s) => (
+                  <SelectItem key={s.name} value={s.name}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <div className="grid gap-2">
             <Label htmlFor="consultationFee">Consultation fee</Label>

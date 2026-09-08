@@ -4,6 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
+import { getActiveSpecialties } from "@/lib/specialties-data";
 
 const clinicServiceSchema = z.object({
   name: z.string().min(1),
@@ -15,6 +16,15 @@ const clinicServiceSchema = z.object({
 });
 
 export type ClinicServiceFormState = { error?: string; success?: boolean };
+
+async function validateSpecialty(specialty: string | undefined) {
+  if (!specialty) return null;
+  const specialties = await getActiveSpecialties();
+  if (!specialties.some((s) => s.name === specialty)) {
+    return "Invalid specialty";
+  }
+  return null;
+}
 
 export async function createClinicService(
   _prevState: ClinicServiceFormState,
@@ -33,6 +43,8 @@ export async function createClinicService(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+  const specialtyError = await validateSpecialty(parsed.data.specialty);
+  if (specialtyError) return { error: specialtyError };
 
   await prisma.clinicService.create({ data: parsed.data });
 
@@ -58,6 +70,8 @@ export async function updateClinicService(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+  const specialtyError = await validateSpecialty(parsed.data.specialty);
+  if (specialtyError) return { error: specialtyError };
 
   await prisma.clinicService.update({ where: { id: serviceId }, data: parsed.data });
 

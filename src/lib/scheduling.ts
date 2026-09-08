@@ -37,3 +37,33 @@ export async function findConflictingAppointment(
     }) ?? null
   );
 }
+
+// The "book by service" counterpart to findConflictingAppointment — instead
+// of one doctor being exclusively booked or free, a specialty like Laboratory
+// can absorb multiple simultaneous visits (e.g. several stations) up to
+// capacityPerSlot. Counts every REQUESTED/CONFIRMED appointment across every
+// doctor tagged with this specialty whose range overlaps the requested one.
+export async function isResourceSlotAvailable(
+  resource: { specialtyName: string; capacityPerSlot: number },
+  scheduledAt: Date,
+  durationMinutes: number = APPOINTMENT_SLOT_MINUTES
+): Promise<boolean> {
+  const rangeEnd = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
+  const maxExistingDurationMs = MAX_APPOINTMENT_SLOTS * APPOINTMENT_SLOT_MINUTES * 60 * 1000;
+
+  const candidates = await prisma.appointment.findMany({
+    where: {
+      doctor: { specialty: resource.specialtyName },
+      status: { in: ["REQUESTED", "CONFIRMED"] },
+      scheduledAt: { gte: new Date(scheduledAt.getTime() - maxExistingDurationMs), lt: rangeEnd },
+    },
+    select: { scheduledAt: true, durationMinutes: true },
+  });
+
+  const occupied = candidates.filter((appt) => {
+    const apptEnd = new Date(appt.scheduledAt.getTime() + appt.durationMinutes * 60 * 1000);
+    return apptEnd > scheduledAt;
+  }).length;
+
+  return occupied < resource.capacityPerSlot;
+}

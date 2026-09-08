@@ -90,6 +90,77 @@ export async function getAvailableSlots(
   return slots.filter((s) => s.available).map((s) => s.time);
 }
 
+export type ResourceForSlots = { specialtyName: string; capacityPerSlot: number };
+
+// The "book by service" counterpart to isDayBookable/getDaySlots above — for
+// specialties where availability comes from clinic hours + a shared capacity
+// (e.g. a lab with 3 stations) rather than any one doctor's calendar. Every
+// active doctor tagged with this specialty contributes to (and shares) the
+// same pool of bookings when checking whether a slot is full.
+export async function isResourceDayBookable(
+  year: number,
+  month: number,
+  day: number
+): Promise<boolean> {
+  const dayStart = clinicMidnightForYMD(year, month, day);
+  const clinicHours = await getClinicHoursForDate(dayStart);
+  return clinicHours.isOpen;
+}
+
+export async function getResourceDaySlots(
+  resource: ResourceForSlots,
+  year: number,
+  month: number,
+  day: number
+): Promise<DaySlot[]> {
+  if (!(await isResourceDayBookable(year, month, day))) return [];
+
+  const dayStart = clinicMidnightForYMD(year, month, day);
+  const clinicHours = await getClinicHoursForDate(dayStart);
+  const startMinutes = toMinutes(clinicHours.openTime);
+  const endMinutes = toMinutes(clinicHours.closeTime);
+
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  const maxExistingDurationMs = MAX_APPOINTMENT_SLOTS * APPOINTMENT_SLOT_MINUTES * 60 * 1000;
+  const existing = await prisma.appointment.findMany({
+    where: {
+      doctor: { specialty: resource.specialtyName },
+      status: { in: ["REQUESTED", "CONFIRMED"] },
+      scheduledAt: { gte: new Date(dayStart.getTime() - maxExistingDurationMs), lt: dayEnd },
+    },
+    select: { scheduledAt: true, durationMinutes: true },
+  });
+  const takenRanges = existing.map((a) => ({
+    start: a.scheduledAt.getTime(),
+    end: a.scheduledAt.getTime() + a.durationMinutes * 60 * 1000,
+  }));
+
+  const now = Date.now();
+  const slots: DaySlot[] = [];
+  for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) {
+    const slotStart = dayStart.getTime() + m * 60 * 1000;
+    const slotEnd = slotStart + APPOINTMENT_SLOT_MINUTES * 60 * 1000;
+    const occupied = takenRanges.filter((r) => r.start < slotEnd && r.end > slotStart).length;
+    const hh = String(Math.floor(m / 60)).padStart(2, "0");
+    const mm = String(m % 60).padStart(2, "0");
+    slots.push({
+      time: `${hh}:${mm}`,
+      available: slotStart > now && occupied < resource.capacityPerSlot,
+    });
+  }
+  return slots;
+}
+
+export async function getResourceAvailableSlots(
+  resource: ResourceForSlots,
+  year: number,
+  month: number,
+  day: number
+): Promise<string[]> {
+  const slots = await getResourceDaySlots(resource, year, month, day);
+  return slots.filter((s) => s.available).map((s) => s.time);
+}
+
 export type NextAvailability = { label: string; year: number; month: number; day: number };
 
 // Looks ahead up to 14 clinic-local days to find the next day this doctor has

@@ -1,6 +1,7 @@
 import { Building2, Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
+import { getActiveSpecialties } from "@/lib/specialties-data";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,7 +41,11 @@ function specialtyColorClass(specialty: string | null) {
 export default async function ClinicServicesPage() {
   await requirePageRole(["ADMIN"]);
 
-  const services = await prisma.clinicService.findMany({ orderBy: { name: "asc" } });
+  const [services, specialties] = await Promise.all([
+    prisma.clinicService.findMany({ orderBy: { name: "asc" } }),
+    getActiveSpecialties(),
+  ]);
+  const specialtyOptions = specialties.map((s) => ({ name: s.name }));
 
   return (
     <div className="grid gap-4">
@@ -115,6 +120,7 @@ export default async function ClinicServicesPage() {
                           room: service.room,
                           active: service.active,
                         }}
+                        specialties={specialtyOptions}
                       />
                     </TableCell>
                   </TableRow>

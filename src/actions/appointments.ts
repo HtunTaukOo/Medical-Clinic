@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, requireSession, UnauthorizedError } from "@/lib/authz";
 import {
   findConflictingAppointment,
+  isResourceSlotAvailable,
   APPOINTMENT_SLOT_MINUTES,
   MAX_APPOINTMENT_SLOTS,
 } from "@/lib/scheduling";
@@ -148,7 +149,13 @@ export async function submitAppointmentRequest(
   doctorId: string,
   scheduledAt: Date,
   reason?: string,
-  durationMinutes: number = APPOINTMENT_SLOT_MINUTES
+  durationMinutes: number = APPOINTMENT_SLOT_MINUTES,
+  clinicServiceId?: string | null,
+  // Set for "book by service" specialties (e.g. Laboratory): availability is
+  // governed by clinic hours + shared capacity rather than this particular
+  // doctor's own calendar, so the doctor-specific leave/hours/conflict checks
+  // below are skipped in favor of a capacity check.
+  resourceCapacity?: { specialtyName: string; capacityPerSlot: number } | null
 ): Promise<AppointmentFormState> {
   if (
     !Number.isInteger(durationMinutes) ||
@@ -182,37 +189,61 @@ export async function submitAppointmentRequest(
     return { error: "Doctor not found" };
   }
 
-  const onLeave = await isDoctorOnLeave(doctor.id, scheduledAt);
-  if (onLeave) {
-    return { error: "This doctor is unavailable on the selected date. Please choose another day." };
-  }
-  if (!isWorkingDay(doctor.workingDays, scheduledAt)) {
-    return {
-      error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[clinicWeekday(scheduledAt)]}s. Please choose another day.`,
-    };
-  }
-  const doctorCloseInstant = doctor.workEndTime
-    ? new Date(dayStart.getTime() + toMinutes(doctor.workEndTime) * 60 * 1000)
-    : null;
-  if (
-    !isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime) ||
-    (doctorCloseInstant != null && scheduledEnd.getTime() > doctorCloseInstant.getTime())
-  ) {
-    return {
-      error: `Please choose a time between ${formatTime(doctor.workStartTime!)} and ${formatTime(doctor.workEndTime!)} for this doctor that leaves room for the full ${durationMinutes}-minute visit.`,
-    };
+  // Trust but verify: the service picker only ever sends an id it just fetched,
+  // but validate anyway rather than let a stale/tampered id hit the FK constraint.
+  let clinicService: { id: string; name: string } | null = null;
+  if (clinicServiceId) {
+    clinicService = await prisma.clinicService.findUnique({
+      where: { id: clinicServiceId },
+      select: { id: true, name: true },
+    });
   }
 
-  const conflict = await findConflictingAppointment(doctorId, scheduledAt, durationMinutes);
-  if (conflict) {
-    return {
-      error: CONFLICT_MESSAGE,
-      conflict: {
-        doctorId,
-        scheduledAt: scheduledAt.toISOString(),
-        reason,
-      },
-    };
+  if (resourceCapacity) {
+    const available = await isResourceSlotAvailable(resourceCapacity, scheduledAt, durationMinutes);
+    if (!available) {
+      return {
+        error: CONFLICT_MESSAGE,
+        conflict: {
+          doctorId,
+          scheduledAt: scheduledAt.toISOString(),
+          reason,
+        },
+      };
+    }
+  } else {
+    const onLeave = await isDoctorOnLeave(doctor.id, scheduledAt);
+    if (onLeave) {
+      return { error: "This doctor is unavailable on the selected date. Please choose another day." };
+    }
+    if (!isWorkingDay(doctor.workingDays, scheduledAt)) {
+      return {
+        error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[clinicWeekday(scheduledAt)]}s. Please choose another day.`,
+      };
+    }
+    const doctorCloseInstant = doctor.workEndTime
+      ? new Date(dayStart.getTime() + toMinutes(doctor.workEndTime) * 60 * 1000)
+      : null;
+    if (
+      !isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime) ||
+      (doctorCloseInstant != null && scheduledEnd.getTime() > doctorCloseInstant.getTime())
+    ) {
+      return {
+        error: `Please choose a time between ${formatTime(doctor.workStartTime!)} and ${formatTime(doctor.workEndTime!)} for this doctor that leaves room for the full ${durationMinutes}-minute visit.`,
+      };
+    }
+
+    const conflict = await findConflictingAppointment(doctorId, scheduledAt, durationMinutes);
+    if (conflict) {
+      return {
+        error: CONFLICT_MESSAGE,
+        conflict: {
+          doctorId,
+          scheduledAt: scheduledAt.toISOString(),
+          reason,
+        },
+      };
+    }
   }
 
   const appointment = await prisma.appointment.create({
@@ -221,8 +252,9 @@ export async function submitAppointmentRequest(
       doctorId,
       scheduledAt,
       durationMinutes,
-      reason,
+      reason: reason || clinicService?.name,
       status: "REQUESTED",
+      clinicServiceId: clinicService?.id,
     },
     include: { patient: true, doctor: { include: { user: true } } },
   });

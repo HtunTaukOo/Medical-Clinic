@@ -12,6 +12,7 @@ import { ClinicServiceForm } from "@/components/staff/clinic-service-form";
 
 export function ClinicServiceEditDialog({
   service,
+  specialties,
 }: {
   service: {
     id: string;
@@ -22,6 +23,7 @@ export function ClinicServiceEditDialog({
     room: string | null;
     active: boolean;
   };
+  specialties: { name: string }[];
 }) {
   const [open, setOpen] = useState(false);
 
@@ -36,7 +38,7 @@ export function ClinicServiceEditDialog({
         <DialogHeader>
           <DialogTitle>Edit {service.name}</DialogTitle>
         </DialogHeader>
-        <ClinicServiceForm service={service} onSaved={() => setOpen(false)} />
+        <ClinicServiceForm service={service} specialties={specialties} onSaved={() => setOpen(false)} />
       </DialogContent>
     </Dialog>
   );

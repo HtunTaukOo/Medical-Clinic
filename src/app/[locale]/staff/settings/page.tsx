@@ -1,10 +1,17 @@
-import { DatabaseBackup } from "lucide-react";
+import { DatabaseBackup, Plus } from "lucide-react";
 import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { getClinicSettings, getClinicWeeklyHours } from "@/lib/clinic-hours";
+import { getAllSpecialties } from "@/lib/specialties-data";
+import { getSpecialtyIcon } from "@/lib/specialties";
+import { toggleSpecialtyActive } from "@/actions/specialties";
 import { ClinicProfileForm } from "@/components/clinic/clinic-profile-form";
 import { WeeklyHoursForm } from "@/components/clinic/weekly-hours-form";
 import { ClinicNotificationsForm } from "@/components/clinic/clinic-notifications-form";
+import { SpecialtyDialog } from "@/components/staff/specialty-dialog";
+import { ActiveToggle } from "@/components/staff/active-toggle";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
@@ -56,10 +63,11 @@ function PermissionCheck({ checked }: { checked: boolean }) {
 export default async function ClinicSettingsPage() {
   await requirePageRole(["ADMIN"]);
 
-  const [settings, weeklyHours, auditLog] = await Promise.all([
+  const [settings, weeklyHours, auditLog, specialties] = await Promise.all([
     getClinicSettings(),
     getClinicWeeklyHours(),
     prisma.activityLog.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
+    getAllSpecialties(),
   ]);
 
   return (
@@ -81,6 +89,9 @@ export default async function ClinicSettingsPage() {
           </TabsTrigger>
           <TabsTrigger value="notifications" className={PILL_TAB_TRIGGER}>
             Notifications
+          </TabsTrigger>
+          <TabsTrigger value="specialties" className={PILL_TAB_TRIGGER}>
+            Specialties
           </TabsTrigger>
           <TabsTrigger value="permissions" className={PILL_TAB_TRIGGER}>
             Roles & Permissions
@@ -119,6 +130,93 @@ export default async function ClinicSettingsPage() {
             <CardContent>
               <p className="mb-4 text-lg font-semibold">Notifications</p>
               <ClinicNotificationsForm staffTelegramChatId={settings.staffTelegramChatId} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="specialties" className="mt-4">
+          <Card>
+            <CardContent>
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-lg font-semibold">Specialties</p>
+                  <p className="text-sm text-muted-foreground">
+                    Used for doctor profiles, clinic services, and the patient booking wizard.
+                  </p>
+                </div>
+                <SpecialtyDialog
+                  trigger={
+                    <Button size="sm">
+                      <Plus className="size-4" />
+                      Add Specialty
+                    </Button>
+                  }
+                />
+              </div>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Icon</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Description</TableHead>
+                    <TableHead>Booking</TableHead>
+                    <TableHead>Active</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {specialties.map((s) => {
+                    const Icon = getSpecialtyIcon(s.icon);
+                    return (
+                      <TableRow key={s.id}>
+                        <TableCell>
+                          <div className="flex size-8 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
+                            <Icon className="size-4" />
+                          </div>
+                        </TableCell>
+                        <TableCell className="font-medium">{s.name}</TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {s.description ?? "—"}
+                        </TableCell>
+                        <TableCell>
+                          {s.bookByService ? (
+                            <Badge variant="outline" className="bg-violet-100 text-violet-700">
+                              By Service · capacity {s.capacityPerSlot}
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="bg-slate-100 text-slate-600">
+                              By Doctor
+                            </Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <ActiveToggle
+                            active={s.active}
+                            action={toggleSpecialtyActive.bind(null, s.id)}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <SpecialtyDialog
+                            specialty={{
+                              id: s.id,
+                              name: s.name,
+                              icon: s.icon,
+                              description: s.description,
+                              bookByService: s.bookByService,
+                              capacityPerSlot: s.capacityPerSlot,
+                            }}
+                            trigger={
+                              <button className="font-medium text-primary underline underline-offset-2">
+                                Edit
+                              </button>
+                            }
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
             </CardContent>
           </Card>
         </TabsContent>

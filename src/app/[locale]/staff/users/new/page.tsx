@@ -1,6 +1,7 @@
 import { ChevronLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { requirePageRole } from "@/lib/authz";
+import { getActiveSpecialties } from "@/lib/specialties-data";
 import { Link } from "@/i18n/navigation";
 import { StaffForm } from "@/components/staff/staff-form";
 
@@ -14,6 +15,7 @@ export default async function NewStaffPage({
   const { role } = await searchParams;
   const lockRole = role === "DOCTOR" ? "DOCTOR" : undefined;
   const backHref = lockRole ? "/staff/doctors" : "/staff/users";
+  const specialties = await getActiveSpecialties();
 
   return (
     <div className="grid gap-4">
@@ -25,7 +27,11 @@ export default async function NewStaffPage({
         Back
       </Link>
       <h1 className="text-2xl font-semibold">{lockRole ? "Add Doctor" : t("new")}</h1>
-      <StaffForm lockRole={lockRole} redirectTo={lockRole ? "/staff/doctors" : "/staff/users"} />
+      <StaffForm
+        lockRole={lockRole}
+        redirectTo={lockRole ? "/staff/doctors" : "/staff/users"}
+        specialties={specialties.map((s) => ({ name: s.name }))}
+      />
     </div>
   );
 }

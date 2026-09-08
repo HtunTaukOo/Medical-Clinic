@@ -8,12 +8,22 @@ import { requireRole, requireSession, STAFF_ROLES, UnauthorizedError } from "@/l
 import { logActivity } from "@/lib/audit";
 import { parseDateOnlyInput } from "@/lib/doctor-availability";
 import { STAFF_TITLES } from "@/lib/staff-titles";
+import { getActiveSpecialties } from "@/lib/specialties-data";
 
 async function assertCanManageDoctorLeave(doctorId: string) {
   const session = await requireSession();
   if (session.user.role === "ADMIN") return;
   if (session.user.role === "DOCTOR" && session.user.doctorId === doctorId) return;
   throw new UnauthorizedError("Not allowed to manage this doctor's leave days");
+}
+
+async function validateSpecialty(specialty: string | undefined) {
+  if (!specialty) return null;
+  const specialties = await getActiveSpecialties();
+  if (!specialties.some((s) => s.name === specialty)) {
+    return "Invalid specialty";
+  }
+  return null;
 }
 
 const staffSchema = z.object({
@@ -46,6 +56,8 @@ export async function createStaff(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+  const specialtyError = await validateSpecialty(parsed.data.specialty);
+  if (specialtyError) return { error: specialtyError };
 
   const { name, email, password, role, title, specialty, consultationFee } = parsed.data;
 
@@ -359,6 +371,8 @@ export async function updateOwnDoctorProfile(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+  const specialtyError = await validateSpecialty(parsed.data.specialty);
+  if (specialtyError) return { error: specialtyError };
 
   await prisma.doctorProfile.update({
     where: { id: doctorId },

@@ -7,10 +7,13 @@ import {
   fetchDaySlots,
   fetchMonthBookability,
   confirmBooking,
+  fetchResourceDaySlots,
+  fetchResourceMonthBookability,
+  confirmResourceBooking,
 } from "@/actions/booking";
 import type { DaySlot } from "@/lib/booking-slots";
 import type { AppointmentFormState } from "@/actions/appointments";
-import { SPECIALTY_TAXONOMY } from "@/lib/specialties";
+import { getSpecialtyIcon, matchSpecialty } from "@/lib/specialties";
 import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
 import { JoinWaitlistForm } from "@/components/appointments/join-waitlist-form";
 import { Button } from "@/components/ui/button";
@@ -29,9 +32,34 @@ type Doctor = {
   nextAvailability: { label: string; year: number; month: number; day: number } | null;
 };
 
+type Service = {
+  id: string;
+  name: string;
+  specialty: string | null;
+  durationMinutes: number;
+  price: number;
+};
+
+type SpecialtyOption = {
+  name: string;
+  icon: string;
+  description: string | null;
+  bookByService: boolean;
+  capacityPerSlot: number;
+};
+
 type YMD = { year: number; month: number; day: number };
 
-const STEPS = ["Specialty", "Doctor", "Date & Time", "Details", "Confirm"];
+// Auto-assigns a doctor of record for "book by service" specialties, where
+// the patient picks a service instead of a doctor (e.g. Laboratory) and
+// availability is capacity-based rather than tied to any one doctor's
+// calendar. Sorted deterministically by id so this always agrees with the
+// server's own pick in confirmResourceBooking (which re-resolves the doctor
+// independently rather than trusting whatever the client sends).
+function pickAutoDoctor(pool: Doctor[]): Doctor | null {
+  if (pool.length === 0) return null;
+  return [...pool].sort((a, b) => a.id.localeCompare(b.id))[0];
+}
 
 // Keep in sync with MAX_APPOINTMENT_SLOTS in src/lib/scheduling.ts (a
 // server-only module this client component can't import directly).
@@ -71,6 +99,10 @@ function formatTimeLabel(time: string) {
   return `${hour12}:${String(m).padStart(2, "0")} ${period}`;
 }
 
+function formatKyat(value: number) {
+  return `K ${Math.round(value).toLocaleString()}`;
+}
+
 function addMinutesToTime(time: string, minutesToAdd: number) {
   const [h, m] = time.split(":").map(Number);
   const total = h * 60 + m + minutesToAdd;
@@ -93,11 +125,22 @@ function maxConsecutiveAvailable(daySlots: DaySlot[], time: string, cap: number)
   return count;
 }
 
-export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YMD }) {
+export function BookingWizard({
+  doctors,
+  services,
+  specialtyOptions,
+  today,
+}: {
+  doctors: Doctor[];
+  services: Service[];
+  specialtyOptions: SpecialtyOption[];
+  today: YMD;
+}) {
   const router = useRouter();
   const [step, setStep] = useState(1);
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [doctorId, setDoctorId] = useState<string | null>(null);
+  const [clinicServiceId, setClinicServiceId] = useState<string | null>(null);
   const [calendarYear, setCalendarYear] = useState(today.year);
   const [calendarMonth, setCalendarMonth] = useState(today.month);
   const [date, setDate] = useState<YMD | null>(null);
@@ -112,13 +155,15 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
   const [submitState, setSubmitState] = useState<AppointmentFormState>({});
   const [submitPending, startSubmitTransition] = useTransition();
 
+  const specialtyNames = useMemo(() => specialtyOptions.map((s) => s.name), [specialtyOptions]);
+
   const specialties = useMemo(
     () =>
-      SPECIALTY_TAXONOMY.map((s) => ({
+      specialtyOptions.map((s) => ({
         ...s,
         count: doctors.filter((d) => d.specialty === s.name).length,
       })),
-    [doctors]
+    [specialtyOptions, doctors]
   );
 
   const doctorsForSpecialty = useMemo(
@@ -126,7 +171,17 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
     [doctors, specialty]
   );
 
+  const servicesForSpecialty = useMemo(
+    () => services.filter((s) => matchSpecialty(s.specialty, specialtyNames) === specialty),
+    [services, specialty, specialtyNames]
+  );
+
+  const currentSpecialtyOption = specialtyOptions.find((s) => s.name === specialty) ?? null;
+  const isBookByService = currentSpecialtyOption?.bookByService ?? false;
+  const steps = ["Specialty", isBookByService ? "Service" : "Doctor", "Date & Time", "Details", "Confirm"];
+
   const selectedDoctor = doctors.find((d) => d.id === doctorId) ?? null;
+  const selectedService = services.find((s) => s.id === clinicServiceId) ?? null;
   const timeRangeLabel = time
     ? slotCount > 1
       ? `${formatTimeLabel(time)} – ${formatTimeLabel(addMinutesToTime(time, slotCount * 30))} (${slotCount * 30} min)`
@@ -136,10 +191,12 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
   useEffect(() => {
     if (!doctorId) return;
     startMonthTransition(async () => {
-      const result = await fetchMonthBookability(doctorId, calendarYear, calendarMonth);
+      const result = isBookByService
+        ? await fetchResourceMonthBookability(calendarYear, calendarMonth)
+        : await fetchMonthBookability(doctorId, calendarYear, calendarMonth);
       setMonthBookability(result);
     });
-  }, [doctorId, calendarYear, calendarMonth]);
+  }, [doctorId, isBookByService, calendarYear, calendarMonth]);
 
   function pickDate(d: YMD) {
     if (!doctorId) return;
@@ -148,14 +205,27 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
     setSlotCount(1);
     setDaySlots([]);
     startSlotsTransition(async () => {
-      const result = await fetchDaySlots(doctorId, d.year, d.month, d.day);
+      const result =
+        isBookByService && currentSpecialtyOption
+          ? await fetchResourceDaySlots(
+              currentSpecialtyOption.name,
+              currentSpecialtyOption.capacityPerSlot,
+              d.year,
+              d.month,
+              d.day
+            )
+          : await fetchDaySlots(doctorId, d.year, d.month, d.day);
       setDaySlots(result);
     });
   }
 
   function pickTime(t: string) {
     setTime(t);
-    setSlotCount(1);
+    const maxAvailable = maxConsecutiveAvailable(daySlots, t, MAX_SLOTS);
+    const recommended = selectedService
+      ? Math.ceil(selectedService.durationMinutes / 30)
+      : 1;
+    setSlotCount(Math.min(Math.max(recommended, 1), Math.max(maxAvailable, 1)));
   }
 
   function handleConfirm() {
@@ -163,15 +233,28 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
     const reason = notes ? `${reasonCategory}: ${notes}` : reasonCategory;
     const durationMinutes = slotCount * 30;
     startSubmitTransition(async () => {
-      const result = await confirmBooking(
-        doctorId,
-        date.year,
-        date.month,
-        date.day,
-        time,
-        reason,
-        durationMinutes
-      );
+      const result =
+        isBookByService && currentSpecialtyOption
+          ? await confirmResourceBooking(
+              currentSpecialtyOption.name,
+              date.year,
+              date.month,
+              date.day,
+              time,
+              reason,
+              durationMinutes,
+              clinicServiceId
+            )
+          : await confirmBooking(
+              doctorId,
+              date.year,
+              date.month,
+              date.day,
+              time,
+              reason,
+              durationMinutes,
+              clinicServiceId
+            );
       setSubmitState(result);
       if (result.success) setStep(6);
     });
@@ -191,6 +274,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
           {[
             ["Specialty", specialty],
             ["Doctor", selectedDoctor?.name],
+            ...(selectedService ? [["Service", selectedService.name]] : []),
             ["Date", date && formatDateLabel(date)],
             ["Time", timeRangeLabel],
             ["Reason", reasonCategory],
@@ -221,11 +305,13 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
     <div className="mx-auto grid w-full max-w-4xl gap-6">
       <div>
         <h1 className="text-2xl font-bold">Book an Appointment</h1>
-        <p className="text-muted-foreground">Choose your specialty, doctor, date, and time.</p>
+        <p className="text-muted-foreground">
+          Choose your specialty, {isBookByService ? "service" : "doctor"}, date, and time.
+        </p>
       </div>
 
       <div className="flex items-center justify-center">
-        {STEPS.map((label, i) => {
+        {steps.map((label, i) => {
           const n = i + 1;
           const isDone = n < step;
           const isCurrent = n === step;
@@ -249,7 +335,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
                   {label}
                 </span>
               </div>
-              {n < STEPS.length && (
+              {n < steps.length && (
                 <div className={`mx-2 h-0.5 flex-1 ${isDone ? "bg-primary" : "bg-muted"}`} />
               )}
             </div>
@@ -264,12 +350,16 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {specialties.map((s) => {
                 const selected = specialty === s.name;
-                const Icon = s.icon;
+                const Icon = getSpecialtyIcon(s.icon);
                 return (
                   <button
                     key={s.name}
                     type="button"
-                    onClick={() => setSpecialty(s.name)}
+                    onClick={() => {
+                      setSpecialty(s.name);
+                      setDoctorId(null);
+                      setClinicServiceId(null);
+                    }}
                     className={`rounded-xl border p-4 text-left transition-colors ${
                       selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
                     }`}
@@ -289,55 +379,135 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
         {step === 2 && (
           <div className="grid gap-6">
             <div>
-              <h2 className="text-xl font-semibold">Select a Doctor</h2>
+              <h2 className="text-xl font-semibold">
+                {isBookByService ? "Select a Service" : "Select a Doctor"}
+              </h2>
               <p className="text-muted-foreground">{specialty}</p>
             </div>
-            {doctorsForSpecialty.length === 0 ? (
-              <p className="text-sm text-muted-foreground">
-                No doctors available in this specialty yet.
-              </p>
-            ) : (
-              <div className="grid gap-3">
-                {doctorsForSpecialty.map((d) => {
-                  const selected = doctorId === d.id;
-                  return (
-                    <button
-                      key={d.id}
-                      type="button"
-                      onClick={() => setDoctorId(d.id)}
-                      className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
-                        selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
-                      }`}
-                    >
-                      <Avatar className="size-12">
-                        <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                          {d.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-0.5">
-                        <p className="font-semibold">{d.name}</p>
-                        {d.qualifications && (
-                          <p className="text-sm text-muted-foreground">{d.qualifications}</p>
-                        )}
+
+            {isBookByService ? (
+              servicesForSpecialty.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No services configured for this specialty yet.
+                </p>
+              ) : doctorsForSpecialty.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No staff are set up for this specialty yet. Please check back soon.
+                </p>
+              ) : (
+                <div className="grid gap-3 sm:grid-cols-2">
+                  {servicesForSpecialty.map((s) => {
+                    const selected = clinicServiceId === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          const autoDoctor = pickAutoDoctor(doctorsForSpecialty);
+                          if (!autoDoctor) return;
+                          setClinicServiceId(s.id);
+                          setDoctorId(autoDoctor.id);
+                          setReasonCategory(s.name);
+                        }}
+                        className={`rounded-xl border p-4 text-left transition-colors ${
+                          selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <p className="font-semibold">{s.name}</p>
                         <p className="text-sm text-muted-foreground">
-                          {d.experienceYears != null && `${d.experienceYears} yrs exp. · `}
-                          {d.slotsAvailableToday > 0 ? (
-                            <span className="text-success">
-                              {d.slotsAvailableToday} slot{d.slotsAvailableToday === 1 ? "" : "s"} available today
-                            </span>
-                          ) : d.nextAvailability ? (
-                            <span className="text-muted-foreground">
-                              Next available: {d.nextAvailability.label}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">No upcoming availability</span>
-                          )}
+                          {s.durationMinutes} min · {formatKyat(s.price)}
                         </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              )
+            ) : (
+              <>
+                {servicesForSpecialty.length > 0 && (
+                  <div className="grid gap-2">
+                    <Label>Is this for a specific service? (optional)</Label>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      {servicesForSpecialty.map((s) => {
+                        const selected = clinicServiceId === s.id;
+                        return (
+                          <button
+                            key={s.id}
+                            type="button"
+                            onClick={() => {
+                              if (selected) {
+                                setClinicServiceId(null);
+                                setReasonCategory((r) => (r === s.name ? null : r));
+                              } else {
+                                setClinicServiceId(s.id);
+                                setReasonCategory(s.name);
+                              }
+                            }}
+                            className={`rounded-lg border p-3 text-left transition-colors ${
+                              selected
+                                ? "border-primary bg-primary/5 ring-1 ring-primary"
+                                : "hover:bg-muted/50"
+                            }`}
+                          >
+                            <p className="text-sm font-medium">{s.name}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {s.durationMinutes} min · {formatKyat(s.price)}
+                            </p>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {doctorsForSpecialty.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">
+                    No doctors available in this specialty yet.
+                  </p>
+                ) : (
+                  <div className="grid gap-3">
+                    {doctorsForSpecialty.map((d) => {
+                      const selected = doctorId === d.id;
+                      return (
+                        <button
+                          key={d.id}
+                          type="button"
+                          onClick={() => setDoctorId(d.id)}
+                          className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
+                            selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <Avatar className="size-12">
+                            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                              {d.initials}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="grid gap-0.5">
+                            <p className="font-semibold">{d.name}</p>
+                            {d.qualifications && (
+                              <p className="text-sm text-muted-foreground">{d.qualifications}</p>
+                            )}
+                            <p className="text-sm text-muted-foreground">
+                              {d.experienceYears != null && `${d.experienceYears} yrs exp. · `}
+                              {d.slotsAvailableToday > 0 ? (
+                                <span className="text-success">
+                                  {d.slotsAvailableToday} slot{d.slotsAvailableToday === 1 ? "" : "s"} available today
+                                </span>
+                              ) : d.nextAvailability ? (
+                                <span className="text-muted-foreground">
+                                  Next available: {d.nextAvailability.label}
+                                </span>
+                              ) : (
+                                <span className="text-muted-foreground">No upcoming availability</span>
+                              )}
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}
@@ -530,6 +700,7 @@ export function BookingWizard({ doctors, today }: { doctors: Doctor[]; today: YM
               {[
                 ["Specialty", specialty],
                 ["Doctor", selectedDoctor.name],
+                ...(selectedService ? [["Service", selectedService.name]] : []),
                 ["Date", formatDateLabel(date)],
                 ["Time", timeRangeLabel],
                 ["Reason", reasonCategory],

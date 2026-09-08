@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import {
   updateOwnDoctorProfile,
   type UpdateOwnDoctorProfileState,
@@ -10,6 +10,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const FIELD_LABEL = "text-xs font-semibold tracking-wide text-muted-foreground uppercase";
 
@@ -23,6 +30,7 @@ export function DoctorSpecialtyForm({
   professionalBio,
   clinicRoom,
   consultationHours,
+  specialties,
 }: {
   specialty: string;
   qualifications: string;
@@ -33,11 +41,13 @@ export function DoctorSpecialtyForm({
   professionalBio: string;
   clinicRoom: string;
   consultationHours: string;
+  specialties: { name: string }[];
 }) {
   const [state, formAction, pending] = useActionState<
     UpdateOwnDoctorProfileState,
     FormData
   >(updateOwnDoctorProfile, {});
+  const [specialtyValue, setSpecialtyValue] = useState(specialty);
 
   return (
     <form action={formAction} className="grid gap-5">
@@ -46,7 +56,18 @@ export function DoctorSpecialtyForm({
           <Label htmlFor="specialty" className={FIELD_LABEL}>
             Specialty
           </Label>
-          <Input id="specialty" name="specialty" defaultValue={specialty} />
+          <Select name="specialty" value={specialtyValue} onValueChange={setSpecialtyValue}>
+            <SelectTrigger id="specialty" className="w-full">
+              <SelectValue placeholder="Select specialty" />
+            </SelectTrigger>
+            <SelectContent>
+              {specialties.map((s) => (
+                <SelectItem key={s.name} value={s.name}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="medicalLicenseNo" className={FIELD_LABEL}>

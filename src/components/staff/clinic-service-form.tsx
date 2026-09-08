@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect } from "react";
+import { useActionState, useEffect, useState } from "react";
 import {
   createClinicService,
   updateClinicService,
@@ -10,9 +10,19 @@ import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+
+const NO_SPECIALTY = "__none__";
 
 export function ClinicServiceForm({
   service,
+  specialties,
   onSaved,
 }: {
   service?: {
@@ -24,6 +34,7 @@ export function ClinicServiceForm({
     room: string | null;
     active: boolean;
   };
+  specialties: { name: string }[];
   onSaved?: () => void;
 }) {
   const router = useRouter();
@@ -32,6 +43,7 @@ export function ClinicServiceForm({
     action,
     {}
   );
+  const [specialty, setSpecialty] = useState(service?.specialty ?? NO_SPECIALTY);
 
   useEffect(() => {
     if (state.success) {
@@ -49,12 +61,20 @@ export function ClinicServiceForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label htmlFor="specialty">Specialty</Label>
-          <Input
-            id="specialty"
-            name="specialty"
-            defaultValue={service?.specialty ?? ""}
-            placeholder="e.g. Cardiology"
-          />
+          <Select value={specialty} onValueChange={setSpecialty}>
+            <SelectTrigger id="specialty" className="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={NO_SPECIALTY}>No specialty</SelectItem>
+              {specialties.map((s) => (
+                <SelectItem key={s.name} value={s.name}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <input type="hidden" name="specialty" value={specialty === NO_SPECIALTY ? "" : specialty} />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="room">Room</Label>

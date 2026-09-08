@@ -93,6 +93,24 @@ async function main() {
     },
   });
 
+  const specialties = [
+    { name: "General Medicine", icon: "Stethoscope", description: "Check-ups, fever, cough, general health" },
+    { name: "Cardiology", icon: "HeartPulse", description: "Heart health, blood pressure, chest pain" },
+    { name: "Pediatrics", icon: "Baby", description: "Children's health, vaccinations, growth" },
+    { name: "Dermatology", icon: "Sparkles", description: "Skin, hair, nail conditions & cosmetic" },
+    { name: "Orthopedics", icon: "Bone", description: "Joints, bones, muscles, sports injuries" },
+    { name: "ENT", icon: "Ear", description: "Ear, nose, throat, sinuses & voice" },
+    { name: "Obs & Gynecology", icon: "Venus", description: "Maternal health, women's wellness" },
+    { name: "Ophthalmology", icon: "Eye", description: "Vision, eye disease, glasses & surgery" },
+  ];
+  for (const [i, s] of specialties.entries()) {
+    await prisma.specialty.upsert({
+      where: { name: s.name },
+      update: {},
+      create: { ...s, sortOrder: i },
+    });
+  }
+
   await prisma.medicine.upsert({
     where: { id: "seed-medicine-paracetamol" },
     update: {},

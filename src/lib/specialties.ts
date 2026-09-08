@@ -1,36 +1,65 @@
-import { Stethoscope, HeartPulse, Baby, Sparkles, Bone, Ear, Venus, Eye } from "lucide-react";
+import {
+  Stethoscope,
+  HeartPulse,
+  Baby,
+  Sparkles,
+  Bone,
+  Ear,
+  Venus,
+  Eye,
+  Brain,
+  Pill,
+  Syringe,
+  Microscope,
+  Activity,
+  Thermometer,
+  TestTube,
+  Bandage,
+  ShieldPlus,
+  Droplet,
+  type LucideIcon,
+} from "lucide-react";
 
-export const SPECIALTY_TAXONOMY = [
-  {
-    name: "General Medicine",
-    icon: Stethoscope,
-    description: "Check-ups, fever, cough, general health",
-  },
-  {
-    name: "Cardiology",
-    icon: HeartPulse,
-    description: "Heart health, blood pressure, chest pain",
-  },
-  { name: "Pediatrics", icon: Baby, description: "Children's health, vaccinations, growth" },
-  {
-    name: "Dermatology",
-    icon: Sparkles,
-    description: "Skin, hair, nail conditions & cosmetic",
-  },
-  { name: "Orthopedics", icon: Bone, description: "Joints, bones, muscles, sports injuries" },
-  { name: "ENT", icon: Ear, description: "Ear, nose, throat, sinuses & voice" },
-  { name: "Obs & Gynecology", icon: Venus, description: "Maternal health, women's wellness" },
-  { name: "Ophthalmology", icon: Eye, description: "Vision, eye disease, glasses & surgery" },
-] as const;
+// The fixed set of icons an admin can assign to a specialty — icons are React
+// components, so unlike name/description they can't come from the database
+// itself; this is the closed palette to pick from instead.
+export const SPECIALTY_ICONS = {
+  Stethoscope,
+  HeartPulse,
+  Baby,
+  Sparkles,
+  Bone,
+  Ear,
+  Venus,
+  Eye,
+  Brain,
+  Pill,
+  Syringe,
+  Microscope,
+  Activity,
+  Thermometer,
+  TestTube,
+  Bandage,
+  ShieldPlus,
+  Droplet,
+} satisfies Record<string, LucideIcon>;
 
-export type SpecialtyName = (typeof SPECIALTY_TAXONOMY)[number]["name"];
+export type SpecialtyIconName = keyof typeof SPECIALTY_ICONS;
+export const SPECIALTY_ICON_NAMES = Object.keys(SPECIALTY_ICONS) as SpecialtyIconName[];
 
-// Matches a doctor's free-text specialty field to one of the fixed taxonomy
-// entries above (case-insensitive), so real doctor data lines up with the
-// booking wizard's specialty grid regardless of exact casing.
-export function matchSpecialty(specialty: string | null | undefined): SpecialtyName | null {
+export function getSpecialtyIcon(icon: string | null | undefined): LucideIcon {
+  if (icon && icon in SPECIALTY_ICONS) return SPECIALTY_ICONS[icon as SpecialtyIconName];
+  return Stethoscope;
+}
+
+// Matches a doctor's or service's free-text specialty field to one of the
+// clinic's configured specialty names (case-insensitive), so real data lines
+// up with the booking wizard's specialty grid regardless of exact casing.
+export function matchSpecialty(
+  specialty: string | null | undefined,
+  specialtyNames: readonly string[]
+): string | null {
   if (!specialty) return null;
   const trimmed = specialty.trim().toLowerCase();
-  const match = SPECIALTY_TAXONOMY.find((s) => s.name.toLowerCase() === trimmed);
-  return match?.name ?? null;
+  return specialtyNames.find((name) => name.toLowerCase() === trimmed) ?? null;
 }
