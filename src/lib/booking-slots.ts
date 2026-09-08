@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getClinicHoursForDate, toMinutes, clinicMidnightForYMD, clinicDateParts } from "@/lib/clinic-hours";
 import { isDoctorOnLeave, isWorkingDay } from "@/lib/doctor-availability";
-import { APPOINTMENT_SLOT_MINUTES, MAX_APPOINTMENT_SLOTS } from "@/lib/scheduling";
+import { APPOINTMENT_SLOT_MINUTES, MAX_APPOINTMENT_SLOTS, MIN_BOOKING_LEAD_MINUTES } from "@/lib/scheduling";
 
 export type DoctorForSlots = {
   id: string;
@@ -65,7 +65,7 @@ export async function getDaySlots(
     end: a.scheduledAt.getTime() + a.durationMinutes * 60 * 1000,
   }));
 
-  const now = Date.now();
+  const earliestBookable = Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000;
   const slots: DaySlot[] = [];
   for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) {
     const slotStart = dayStart.getTime() + m * 60 * 1000;
@@ -73,7 +73,7 @@ export async function getDaySlots(
     const conflicts = takenRanges.some((r) => r.start < slotEnd && r.end > slotStart);
     const hh = String(Math.floor(m / 60)).padStart(2, "0");
     const mm = String(m % 60).padStart(2, "0");
-    slots.push({ time: `${hh}:${mm}`, available: slotStart > now && !conflicts });
+    slots.push({ time: `${hh}:${mm}`, available: slotStart > earliestBookable && !conflicts });
   }
   return slots;
 }
@@ -135,7 +135,7 @@ export async function getResourceDaySlots(
     end: a.scheduledAt.getTime() + a.durationMinutes * 60 * 1000,
   }));
 
-  const now = Date.now();
+  const earliestBookable = Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000;
   const slots: DaySlot[] = [];
   for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) {
     const slotStart = dayStart.getTime() + m * 60 * 1000;
@@ -145,7 +145,7 @@ export async function getResourceDaySlots(
     const mm = String(m % 60).padStart(2, "0");
     slots.push({
       time: `${hh}:${mm}`,
-      available: slotStart > now && occupied < resource.capacityPerSlot,
+      available: slotStart > earliestBookable && occupied < resource.capacityPerSlot,
     });
   }
   return slots;

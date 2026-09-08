@@ -6,6 +6,13 @@ export const APPOINTMENT_SLOT_MINUTES = 30;
 // appointment, for visits they expect to run long.
 export const MAX_APPOINTMENT_SLOTS = 3;
 
+// Patient self-booking (portal slot picker + free-form request) can't be used
+// to book an appointment starting sooner than this — walk-in registration
+// (staff-mediated, goes straight to CHECKED_IN) is the right path for "I'm
+// here right now." Doesn't apply to staff/doctor booking on a patient's
+// behalf via createAppointment.
+export const MIN_BOOKING_LEAD_MINUTES = 60;
+
 // Finds an existing REQUESTED/CONFIRMED appointment for this doctor whose
 // occupied time range overlaps [scheduledAt, scheduledAt + durationMinutes).
 // Appointments can now span multiple slots (see durationMinutes on the

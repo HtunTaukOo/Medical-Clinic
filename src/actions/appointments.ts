@@ -9,6 +9,7 @@ import {
   isResourceSlotAvailable,
   APPOINTMENT_SLOT_MINUTES,
   MAX_APPOINTMENT_SLOTS,
+  MIN_BOOKING_LEAD_MINUTES,
 } from "@/lib/scheduling";
 import {
   getClinicHoursForDate,
@@ -166,6 +167,12 @@ export async function submitAppointmentRequest(
   ) {
     return { error: "Invalid appointment duration." };
   }
+  if (scheduledAt.getTime() < Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000) {
+    return {
+      error: `Online booking needs at least ${MIN_BOOKING_LEAD_MINUTES} minutes' notice. If you need to be seen right now, please visit the clinic for walk-in registration.`,
+    };
+  }
+
   const scheduledEnd = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
   const dayStart = clinicMidnight(scheduledAt);
 
@@ -385,7 +392,13 @@ export async function rescheduleAppointment(
   }
   const scheduledAt = parsed.data.scheduledAt;
 
-  if (scheduledAt.getTime() <= Date.now()) {
+  if (actorIsPatient) {
+    if (scheduledAt.getTime() < Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000) {
+      return {
+        error: `Online rescheduling needs at least ${MIN_BOOKING_LEAD_MINUTES} minutes' notice. If you need to be seen sooner, please visit the clinic for walk-in registration.`,
+      };
+    }
+  } else if (scheduledAt.getTime() <= Date.now()) {
     return { error: "Please choose a time in the future" };
   }
 
