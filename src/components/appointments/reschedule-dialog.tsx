@@ -16,6 +16,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export function RescheduleDialog({
   appointmentId,
@@ -60,6 +61,15 @@ export function RescheduleDialog({
               name="scheduledAt"
               type="datetime-local"
               required
+            />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor={`reason-${appointmentId}`}>Reason (optional)</Label>
+            <Textarea
+              id={`reason-${appointmentId}`}
+              name="reason"
+              placeholder="Why is this being rescheduled?"
+              rows={2}
             />
           </div>
           {state.error && <p className="text-sm text-destructive">{state.error}</p>}

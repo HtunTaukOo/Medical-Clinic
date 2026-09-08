@@ -3,6 +3,7 @@ import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { Link } from "@/i18n/navigation";
 import { markAllStaffNotificationsRead } from "@/actions/notifications";
+import { ensureMedicineExpiryNotifications } from "@/lib/notifications";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -100,6 +101,8 @@ export default async function StaffNotificationsPage() {
   const session = await requirePageRole(["ADMIN", "STAFF"]);
   const now = new Date();
 
+  await ensureMedicineExpiryNotifications();
+
   const notifications = await prisma.staffNotification.findMany({
     where: { userId: session.user.id },
     orderBy: { createdAt: "desc" },
@@ -110,7 +113,9 @@ export default async function StaffNotificationsPage() {
   const byCategory = (category: StaffNotificationCategory) =>
     notifications.filter((n) => n.category === category);
 
-  const categories = Object.keys(CATEGORY_META) as StaffNotificationCategory[];
+  const categories = (Object.keys(CATEGORY_META) as StaffNotificationCategory[]).filter(
+    (category) => category !== "LAB_RESULT"
+  );
 
   return (
     <div className="grid gap-4">

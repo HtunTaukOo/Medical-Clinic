@@ -13,15 +13,17 @@ export function UserActionDialog({
   title,
   trigger,
   children,
+  contentClassName,
 }: {
   title: string;
   trigger: ReactNode;
   children: ReactNode;
+  contentClassName?: string;
 }) {
   return (
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
-      <DialogContent>
+      <DialogContent className={contentClassName}>
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>

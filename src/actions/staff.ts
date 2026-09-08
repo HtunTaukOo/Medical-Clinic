@@ -84,22 +84,33 @@ export async function createStaff(
   return { success: true };
 }
 
-const feeSchema = z.object({
+const adminDoctorAccountSchema = z.object({
+  name: z.string().min(1),
+  email: z.email(),
+  phone: z.string().optional(),
+  specialty: z.string().optional(),
   consultationFee: z.coerce.number().nonnegative(),
   experienceYears: z.coerce.number().int().nonnegative().optional(),
   qualifications: z.string().optional(),
 });
 
-export type DoctorFeeFormState = { error?: string; success?: boolean };
+export type AdminUpdateDoctorAccountState = { error?: string; success?: boolean };
 
-export async function updateDoctorFee(
+// The admin-facing counterpart to updateOwnDoctorProfile/updateOwnPersonalInfo
+// above — those are gated to the doctor editing themselves, so User Management
+// needs its own action to let an admin edit a doctor's account on their behalf.
+export async function adminUpdateDoctorAccount(
   doctorId: string,
-  _prevState: DoctorFeeFormState,
+  _prevState: AdminUpdateDoctorAccountState,
   formData: FormData
-): Promise<DoctorFeeFormState> {
+): Promise<AdminUpdateDoctorAccountState> {
   await requireRole(["ADMIN"]);
 
-  const parsed = feeSchema.safeParse({
+  const parsed = adminDoctorAccountSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone") || undefined,
+    specialty: formData.get("specialty") || undefined,
     consultationFee: formData.get("consultationFee"),
     experienceYears: formData.get("experienceYears") || undefined,
     qualifications: formData.get("qualifications") || undefined,
@@ -107,17 +118,35 @@ export async function updateDoctorFee(
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
+  const specialtyError = await validateSpecialty(parsed.data.specialty);
+  if (specialtyError) return { error: specialtyError };
 
-  await prisma.doctorProfile.update({
-    where: { id: doctorId },
-    data: {
-      consultationFee: parsed.data.consultationFee,
-      experienceYears: parsed.data.experienceYears ?? null,
-      qualifications: parsed.data.qualifications ?? null,
-    },
-  });
+  const doctor = await prisma.doctorProfile.findUniqueOrThrow({ where: { id: doctorId } });
+  const email = parsed.data.email.toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing && existing.id !== doctor.userId) {
+    return { error: "An account with this email already exists" };
+  }
+
+  await prisma.$transaction([
+    prisma.user.update({
+      where: { id: doctor.userId },
+      data: { name: parsed.data.name, email },
+    }),
+    prisma.doctorProfile.update({
+      where: { id: doctorId },
+      data: {
+        phone: parsed.data.phone || null,
+        specialty: parsed.data.specialty || null,
+        consultationFee: parsed.data.consultationFee,
+        experienceYears: parsed.data.experienceYears ?? null,
+        qualifications: parsed.data.qualifications ?? null,
+      },
+    }),
+  ]);
 
   revalidatePath("/staff/users");
+  revalidatePath("/staff/doctors");
   return { success: true };
 }
 
@@ -255,30 +284,50 @@ export async function toggleStaffActive(userId: string) {
   revalidatePath("/staff/users");
 }
 
-const staffTitleSchema = z.object({
-  title: z.enum(STAFF_TITLES),
+const adminStaffAccountSchema = z.object({
+  name: z.string().min(1),
+  email: z.email(),
+  phone: z.string().optional(),
+  title: z.enum(STAFF_TITLES).optional(),
 });
 
-export type UpdateStaffTitleState = { error?: string; success?: boolean };
+export type AdminUpdateStaffAccountState = { error?: string; success?: boolean };
 
-export async function updateStaffTitle(
+// Admin-facing edit for Staff and Admin accounts in User Management. Title
+// only applies to Staff — silently ignored for Admin rows, same as before.
+export async function adminUpdateStaffAccount(
   userId: string,
-  _prevState: UpdateStaffTitleState,
+  _prevState: AdminUpdateStaffAccountState,
   formData: FormData
-): Promise<UpdateStaffTitleState> {
+): Promise<AdminUpdateStaffAccountState> {
   await requireRole(["ADMIN"]);
 
-  const parsed = staffTitleSchema.safeParse({ title: formData.get("title") });
+  const parsed = adminStaffAccountSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    phone: formData.get("phone") || undefined,
+    title: formData.get("title") || undefined,
+  });
   if (!parsed.success) {
-    return { error: "Select a valid job title" };
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  if (user.role !== "STAFF") {
-    return { error: "Job titles only apply to staff accounts" };
+  const email = parsed.data.email.toLowerCase();
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing && existing.id !== userId) {
+    return { error: "An account with this email already exists" };
   }
 
-  await prisma.user.update({ where: { id: userId }, data: { title: parsed.data.title } });
+  await prisma.user.update({
+    where: { id: userId },
+    data: {
+      name: parsed.data.name,
+      email,
+      phone: parsed.data.phone || null,
+      title: user.role === "STAFF" ? (parsed.data.title ?? null) : undefined,
+    },
+  });
 
   revalidatePath("/staff/users");
   return { success: true };

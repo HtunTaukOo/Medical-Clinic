@@ -125,8 +125,8 @@ export default async function StaffProfilePage() {
                   />
                   <StaffNotificationToggle
                     field="notifyLowStock"
-                    label="Low Stock Alerts"
-                    description="Alert when a medicine falls below its reorder level"
+                    label="Inventory Alerts"
+                    description="Alert on low stock, expired, or soon-to-expire medicines"
                     defaultChecked={user.notifyLowStock}
                   />
                   <StaffNotificationToggle

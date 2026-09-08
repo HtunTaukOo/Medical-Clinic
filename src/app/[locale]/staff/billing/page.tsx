@@ -16,7 +16,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
-import { CopySummaryButton } from "@/components/billing/copy-summary-button";
 
 function formatKyat(value: number) {
   return `K ${Math.round(value).toLocaleString()}`;
@@ -129,9 +128,9 @@ export default async function BillingPage({
             {paidInvoicesToday} paid invoice{paidInvoicesToday === 1 ? "" : "s"}
           </p>
         </div>
-        <CopySummaryButton
-          text={`Total revenue today: ${formatKyat(totalRevenueToday)} (${paidInvoicesToday} paid invoice${paidInvoicesToday === 1 ? "" : "s"})`}
-        />
+        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
+          <Receipt className="size-5" />
+        </div>
       </div>
 
       <div className="inline-flex w-fit items-center gap-1 rounded-xl bg-muted p-1">

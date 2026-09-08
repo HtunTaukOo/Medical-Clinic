@@ -14,7 +14,8 @@ export const MAX_APPOINTMENT_SLOTS = 3;
 export async function findConflictingAppointment(
   doctorId: string,
   scheduledAt: Date,
-  durationMinutes: number = APPOINTMENT_SLOT_MINUTES
+  durationMinutes: number = APPOINTMENT_SLOT_MINUTES,
+  excludeAppointmentId?: string
 ) {
   const rangeEnd = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
   const maxExistingDurationMs = MAX_APPOINTMENT_SLOTS * APPOINTMENT_SLOT_MINUTES * 60 * 1000;
@@ -22,6 +23,7 @@ export async function findConflictingAppointment(
   const candidates = await prisma.appointment.findMany({
     where: {
       doctorId,
+      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
       status: { in: ["REQUESTED", "CONFIRMED"] },
       scheduledAt: {
         gte: new Date(scheduledAt.getTime() - maxExistingDurationMs),
@@ -46,7 +48,8 @@ export async function findConflictingAppointment(
 export async function isResourceSlotAvailable(
   resource: { specialtyName: string; capacityPerSlot: number },
   scheduledAt: Date,
-  durationMinutes: number = APPOINTMENT_SLOT_MINUTES
+  durationMinutes: number = APPOINTMENT_SLOT_MINUTES,
+  excludeAppointmentId?: string
 ): Promise<boolean> {
   const rangeEnd = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
   const maxExistingDurationMs = MAX_APPOINTMENT_SLOTS * APPOINTMENT_SLOT_MINUTES * 60 * 1000;
@@ -54,6 +57,7 @@ export async function isResourceSlotAvailable(
   const candidates = await prisma.appointment.findMany({
     where: {
       doctor: { specialty: resource.specialtyName },
+      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
       status: { in: ["REQUESTED", "CONFIRMED"] },
       scheduledAt: { gte: new Date(scheduledAt.getTime() - maxExistingDurationMs), lt: rangeEnd },
     },

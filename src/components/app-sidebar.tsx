@@ -28,6 +28,7 @@ import {
   UserPlus,
   PillBottle,
   Building2,
+  HandCoins,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Link, usePathname } from "@/i18n/navigation";
@@ -60,6 +61,7 @@ const ICONS: Record<string, LucideIcon> = {
   patients: Users,
   appointments: CalendarDays,
   billing: Receipt,
+  expenses: HandCoins,
   inventory: Pill,
   pharmacy: PillBottle,
   staff: UserCog,

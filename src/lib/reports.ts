@@ -12,6 +12,7 @@ export const REPORT_TABS = [
   { value: "doctors", label: "Doctors" },
   { value: "revenue", label: "Revenue" },
   { value: "services", label: "Service Usage" },
+  { value: "expenses", label: "Expenses" },
 ] as const;
 export type ReportTab = (typeof REPORT_TABS)[number]["value"];
 
@@ -141,6 +142,10 @@ export type ReportsPageData =
   | (SummaryFields & {
       kind: "services";
       rows: { serviceId: string; name: string; units: number; revenue: number }[];
+    })
+  | (SummaryFields & {
+      kind: "expenses";
+      rows: { date: string; total: number; growthPercent: number | null }[];
     });
 
 export async function getAppointmentsReport(range: ReportRange): Promise<ReportsPageData> {
@@ -458,6 +463,73 @@ export async function getServiceUsageReport(range: ReportRange): Promise<Reports
   };
 }
 
+const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
+  RENT: "Rent",
+  UTILITIES: "Utilities",
+  SALARIES: "Salaries",
+  SUPPLIES: "Supplies",
+  EQUIPMENT: "Equipment",
+  MAINTENANCE: "Maintenance",
+  MARKETING: "Marketing",
+  INSURANCE: "Insurance",
+  OTHER: "Other",
+};
+
+export async function getExpensesReport(range: ReportRange): Promise<ReportsPageData> {
+  const extendedStart = new Date(range.start.getTime() - 86400000);
+  const [expenses, prevSum] = await Promise.all([
+    prisma.expense.findMany({
+      where: { paidAt: { gte: extendedStart, lt: range.endExclusive } },
+      select: { amount: true, paidAt: true, category: true },
+    }),
+    prisma.expense.aggregate({
+      _sum: { amount: true },
+      where: { paidAt: { gte: range.prevStart, lt: range.prevEndExclusive } },
+    }),
+  ]);
+
+  const inRange = expenses.filter((e) => e.paidAt >= range.start);
+  const totalExpenses = inRange.reduce((sum, e) => sum + Number(e.amount), 0);
+  const previousExpenses = Number(prevSum._sum.amount ?? 0);
+
+  const totalByCategory = new Map<string, number>();
+  for (const e of inRange) {
+    totalByCategory.set(e.category, (totalByCategory.get(e.category) ?? 0) + Number(e.amount));
+  }
+  let topCategory: string | null = null;
+  let topCategoryTotal = 0;
+  for (const [category, amt] of totalByCategory) {
+    if (amt > topCategoryTotal) {
+      topCategory = category;
+      topCategoryTotal = amt;
+    }
+  }
+
+  const byDay = new Map<string, number>();
+  for (const e of expenses) {
+    const key = clinicDateKey(e.paidAt);
+    byDay.set(key, (byDay.get(key) ?? 0) + Number(e.amount));
+  }
+
+  const tableRows = enumerateDayKeys(range.from, range.to)
+    .map((key) => {
+      const amount = byDay.get(key) ?? 0;
+      const prevAmount = byDay.get(shiftDateKey(key, -1)) ?? 0;
+      return { date: key, total: amount, growthPercent: pctChange(amount, prevAmount) };
+    })
+    .reverse();
+
+  return {
+    kind: "expenses",
+    totalLabel: "Total Expenses",
+    totalValue: formatKyat(totalExpenses),
+    growthPercent: pctChange(totalExpenses, previousExpenses),
+    topPerformerLabel: "Top Category",
+    topPerformerValue: topCategory ? EXPENSE_CATEGORY_LABELS[topCategory] : "—",
+    rows: tableRows,
+  };
+}
+
 export async function getReportsPageData(tab: ReportTab, range: ReportRange): Promise<ReportsPageData> {
   switch (tab) {
     case "appointments":
@@ -470,5 +542,7 @@ export async function getReportsPageData(tab: ReportTab, range: ReportRange): Pr
       return getRevenueReport(range);
     case "services":
       return getServiceUsageReport(range);
+    case "expenses":
+      return getExpensesReport(range);
   }
 }

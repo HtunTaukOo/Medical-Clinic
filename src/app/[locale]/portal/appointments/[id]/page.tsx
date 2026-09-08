@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { cancelAppointment, checkInAppointment } from "@/actions/appointments";
 import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
 import { Link } from "@/i18n/navigation";
+import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,17 @@ export default async function PortalAppointmentDetailPage({
               {t("checkIn")}
             </Button>
           </form>
+        )}
+        {canCancel && (
+          <RescheduleDialog
+            appointmentId={appointment.id}
+            patientName={session?.user.name ?? "your"}
+            trigger={
+              <Button variant="outline" className="w-fit">
+                {t("reschedule")}
+              </Button>
+            }
+          />
         )}
         {canCancel && (
           <form action={cancelAppointment.bind(null, appointment.id)}>

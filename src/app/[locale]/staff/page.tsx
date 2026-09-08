@@ -156,6 +156,7 @@ export default async function StaffDashboardPage() {
     todaysAppointmentCountAdmin,
     sixMonthPayments,
     monthRefunds,
+    sixMonthExpenses,
     weekAppointments,
     recentActivity,
   ] = await Promise.all([
@@ -272,6 +273,12 @@ export default async function StaffDashboardPage() {
         })
       : Promise.resolve({ _sum: { amount: null as unknown as number | null } }),
     role === "ADMIN"
+      ? prisma.expense.findMany({
+          where: { paidAt: { gte: sixMonthsAgo } },
+          select: { amount: true, paidAt: true },
+        })
+      : Promise.resolve([]),
+    role === "ADMIN"
       ? prisma.appointment.findMany({
           where: { scheduledAt: { gte: weekStart, lt: weekEnd } },
           select: { scheduledAt: true },
@@ -315,8 +322,30 @@ export default async function StaffDashboardPage() {
     if (idx !== undefined) revenueByMonth[idx].total += Number(payment.amount);
   }
   const lastMonthRevenue = revenueByMonth[revenueByMonth.length - 2]?.total ?? 0;
-  const revenueMonthChangePct =
-    lastMonthRevenue > 0 ? Math.round(((monthlyRevenue - lastMonthRevenue) / lastMonthRevenue) * 1000) / 10 : null;
+
+  const expensesThisMonth = sixMonthExpenses.filter((e) => e.paidAt >= monthStart);
+  const monthlyExpenses = expensesThisMonth.reduce((sum, e) => sum + Number(e.amount), 0);
+  const monthlyProfit = monthlyRevenue - monthlyExpenses;
+
+  const expensesByMonth: { key: string; total: number }[] = revenueByMonth.map((m) => ({
+    key: m.key,
+    total: 0,
+  }));
+  const expenseMonthIndex = new Map(expensesByMonth.map((m, i) => [m.key, i]));
+  for (const expense of sixMonthExpenses) {
+    const key = `${expense.paidAt.getFullYear()}-${expense.paidAt.getMonth()}`;
+    const idx = expenseMonthIndex.get(key);
+    if (idx !== undefined) expensesByMonth[idx].total += Number(expense.amount);
+  }
+  const profitByMonth = revenueByMonth.map((m, i) => ({
+    key: m.key,
+    label: m.label,
+    total: m.total - expensesByMonth[i].total,
+  }));
+  const lastMonthExpenses = expensesByMonth[expensesByMonth.length - 2]?.total ?? 0;
+  const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
+  const profitMonthChangePct =
+    lastMonthProfit > 0 ? Math.round(((monthlyProfit - lastMonthProfit) / lastMonthProfit) * 1000) / 10 : null;
 
   const weeklyAppointmentCounts = WEEKDAY_LABELS_MON_FIRST.map(() => 0);
   for (const appt of weekAppointments) {
@@ -493,9 +522,9 @@ export default async function StaffDashboardPage() {
             />
             <SolidStatCard
               icon={Wallet}
-              label="Monthly Revenue"
-              value={`K ${Math.round(monthlyRevenue).toLocaleString()}`}
-              className="bg-orange-600"
+              label="Monthly Profit"
+              value={`K ${Math.round(monthlyProfit).toLocaleString()}`}
+              className={monthlyProfit >= 0 ? "bg-orange-600" : "bg-rose-600"}
             />
           </div>
 
@@ -532,18 +561,18 @@ export default async function StaffDashboardPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Revenue Trend</CardTitle>
+                <CardTitle>Profit Trend</CardTitle>
               </CardHeader>
               <CardContent>
                 <div className="flex h-32 items-end gap-3">
                   {(() => {
-                    const max = Math.max(1, ...revenueByMonth.map((m) => m.total));
-                    return revenueByMonth.map((m) => (
+                    const max = Math.max(1, ...profitByMonth.map((m) => Math.abs(m.total)));
+                    return profitByMonth.map((m) => (
                       <div key={m.key} className="flex flex-1 flex-col items-center gap-2">
                         <div className="flex w-full flex-1 items-end">
                           <div
-                            className="w-full rounded-t-md bg-emerald-500"
-                            style={{ height: `${Math.max(2, (m.total / max) * 100)}%` }}
+                            className={`w-full rounded-t-md ${m.total >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
+                            style={{ height: `${Math.max(2, (Math.abs(m.total) / max) * 100)}%` }}
                           />
                         </div>
                         <span className="text-xs font-medium">{m.label}</span>
@@ -553,13 +582,13 @@ export default async function StaffDashboardPage() {
                 </div>
                 <div className="mt-4 border-t pt-3">
                   <p className="text-xs text-muted-foreground">This Month</p>
-                  <p className="text-xl font-bold text-emerald-600">
-                    K {Math.round(monthlyRevenue).toLocaleString()}
+                  <p className={`text-xl font-bold ${monthlyProfit >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                    K {Math.round(monthlyProfit).toLocaleString()}
                   </p>
-                  {revenueMonthChangePct !== null && (
-                    <p className={`text-xs ${revenueMonthChangePct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                      {revenueMonthChangePct >= 0 ? "+" : ""}
-                      {revenueMonthChangePct}% vs last month
+                  {profitMonthChangePct !== null && (
+                    <p className={`text-xs ${profitMonthChangePct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
+                      {profitMonthChangePct >= 0 ? "+" : ""}
+                      {profitMonthChangePct}% vs last month
                     </p>
                   )}
                 </div>
@@ -568,8 +597,11 @@ export default async function StaffDashboardPage() {
           </div>
 
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle>Recent Activity</CardTitle>
+              <Link href="/staff/activity-log" className="text-sm underline">
+                View All
+              </Link>
             </CardHeader>
             <CardContent>
               {recentActivity.length === 0 ? (

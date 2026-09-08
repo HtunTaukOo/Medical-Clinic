@@ -95,6 +95,12 @@ export async function GET(request: Request) {
         csv += row([r.name, r.units, formatKyat(r.revenue)]);
       }
       break;
+    case "expenses":
+      csv += row(["Date", "Total", "Growth"]);
+      for (const r of data.rows) {
+        csv += row([formatDateLabel(r.date), formatKyat(r.total), growthCell(r.growthPercent)]);
+      }
+      break;
   }
 
   const filename = `nca-clinic-${tab}-report-${range.from}-to-${range.to}.csv`;

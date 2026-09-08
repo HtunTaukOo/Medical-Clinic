@@ -1,6 +1,7 @@
-import { History } from "lucide-react";
+import { ArrowLeft, History } from "lucide-react";
 import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
+import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import {
@@ -23,6 +24,13 @@ export default async function ActivityLogPage() {
   return (
     <div className="grid gap-4">
       <div>
+        <Link
+          href="/staff"
+          className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="size-4" />
+          Back to Dashboard
+        </Link>
         <h1 className="text-2xl font-semibold">Activity Log</h1>
         <p className="text-sm text-muted-foreground">
           A record of recent actions taken across the clinic.

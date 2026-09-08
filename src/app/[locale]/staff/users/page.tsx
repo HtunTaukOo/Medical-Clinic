@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { toggleStaffActive } from "@/actions/staff";
 import { togglePatientActive } from "@/actions/patients";
+import { getActiveSpecialties } from "@/lib/specialties-data";
 import { initials } from "@/lib/format";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -21,8 +22,8 @@ import { EmptyState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
 import { ActiveToggle } from "@/components/staff/active-toggle";
 import { UserActionDialog } from "@/components/staff/user-action-dialog";
-import { DoctorFeeForm } from "@/components/staff/doctor-fee-form";
-import { StaffTitleForm } from "@/components/staff/staff-title-form";
+import { DoctorAccountForm } from "@/components/staff/doctor-account-form";
+import { StaffAccountForm } from "@/components/staff/staff-account-form";
 import { SetPasswordForm } from "@/components/staff/set-password-form";
 
 type RowType = "PATIENT" | "DOCTOR" | "STAFF" | "ADMIN";
@@ -77,14 +78,16 @@ export default async function UserManagementPage({
   const { tab: tabParam, q } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "all";
 
-  const [patients, doctors, staffAndAdmins] = await Promise.all([
+  const [patients, doctors, staffAndAdmins, specialties] = await Promise.all([
     prisma.patient.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.doctorProfile.findMany({ include: { user: true }, orderBy: { createdAt: "desc" } }),
     prisma.user.findMany({
       where: { role: { in: ["ADMIN", "STAFF"] } },
       orderBy: { createdAt: "desc" },
     }),
+    getActiveSpecialties(),
   ]);
+  const specialtyOptions = specialties.map((s) => ({ name: s.name }));
 
   const rows: UserRow[] = [
     ...patients.map((p): UserRow => ({
@@ -241,6 +244,7 @@ export default async function UserManagementPage({
                         {row.type === "DOCTOR" && (
                           <UserActionDialog
                             title={`Edit ${row.name}`}
+                            contentClassName="sm:max-w-lg"
                             trigger={
                               <button
                                 type="button"
@@ -250,11 +254,16 @@ export default async function UserManagementPage({
                               </button>
                             }
                           >
-                            <DoctorFeeForm
+                            <DoctorAccountForm
                               doctorId={row.doctorProfileId!}
+                              currentName={row.name}
+                              currentEmail={row.email}
+                              currentPhone={row.phone}
+                              currentSpecialty={row.specialty}
                               currentFee={row.doctorFee ?? 0}
                               currentExperienceYears={row.doctorExperienceYears}
                               currentQualifications={row.doctorQualifications}
+                              specialties={specialtyOptions}
                             />
                             <Link
                               href={`/staff/users/${row.doctorProfileId}/availability`}
@@ -264,9 +273,10 @@ export default async function UserManagementPage({
                             </Link>
                           </UserActionDialog>
                         )}
-                        {row.type === "STAFF" && (
+                        {(row.type === "STAFF" || row.type === "ADMIN") && (
                           <UserActionDialog
                             title={`Edit ${row.name}`}
+                            contentClassName="sm:max-w-md"
                             trigger={
                               <button
                                 type="button"
@@ -276,7 +286,14 @@ export default async function UserManagementPage({
                               </button>
                             }
                           >
-                            <StaffTitleForm userId={row.userId!} title={row.staffTitle ?? null} />
+                            <StaffAccountForm
+                              userId={row.userId!}
+                              currentName={row.name}
+                              currentEmail={row.email}
+                              currentPhone={row.phone}
+                              currentTitle={row.staffTitle}
+                              showTitle={row.type === "STAFF"}
+                            />
                           </UserActionDialog>
                         )}
 

@@ -28,6 +28,7 @@ import {
 import { notifyPatient, notifyStaff } from "@/lib/telegram";
 import { createNotification, notifyStaffUsers } from "@/lib/notifications";
 import { notifyWaitlistOfOpening } from "@/actions/waitlist";
+import { logActivity } from "@/lib/audit";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
 
@@ -337,6 +338,7 @@ export async function confirmAppointment(appointmentId: string) {
 
 const rescheduleSchema = z.object({
   scheduledAt: z.coerce.date(),
+  reason: z.string().max(500).optional(),
 });
 
 export type RescheduleAppointmentState = { error?: string; success?: boolean };
@@ -346,40 +348,190 @@ export async function rescheduleAppointment(
   _prevState: RescheduleAppointmentState,
   formData: FormData
 ): Promise<RescheduleAppointmentState> {
-  await assertCanManage(appointmentId);
+  const session = await requireSession();
+  const role = session.user.role;
+
+  const existing = await prisma.appointment.findUnique({ where: { id: appointmentId } });
+  if (!existing) return { error: "Appointment not found" };
+
+  let actorIsPatient = false;
+  if (role === "ADMIN" || role === "STAFF") {
+    // staff can reschedule any appointment, no restriction
+  } else if (role === "DOCTOR") {
+    if (existing.doctorId !== session.user.doctorId) {
+      throw new UnauthorizedError("Not your appointment");
+    }
+    if (existing.status !== "REQUESTED" && existing.status !== "CONFIRMED") {
+      return { error: "This appointment can no longer be rescheduled" };
+    }
+  } else if (role === "PATIENT") {
+    if (existing.patientId !== session.user.patientId) {
+      throw new UnauthorizedError("Not your appointment");
+    }
+    if (existing.status !== "REQUESTED" && existing.status !== "CONFIRMED") {
+      return { error: "This appointment can no longer be rescheduled" };
+    }
+    actorIsPatient = true;
+  } else {
+    throw new UnauthorizedError("Not allowed to reschedule appointments");
+  }
 
   const parsed = rescheduleSchema.safeParse({
     scheduledAt: formData.get("scheduledAt"),
+    reason: formData.get("reason") || undefined,
   });
   if (!parsed.success) {
     return { error: "Please choose a valid date and time" };
   }
+  const scheduledAt = parsed.data.scheduledAt;
+
+  if (scheduledAt.getTime() <= Date.now()) {
+    return { error: "Please choose a time in the future" };
+  }
+
+  const doctor = await prisma.doctorProfile.findUniqueOrThrow({ where: { id: existing.doctorId } });
+  const specialty = doctor.specialty
+    ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
+    : null;
+  const resourceCapacity =
+    specialty?.bookByService && specialty.capacityPerSlot
+      ? { specialtyName: specialty.name, capacityPerSlot: specialty.capacityPerSlot }
+      : null;
+
+  const dayStart = clinicMidnight(scheduledAt);
+  const clinicHours = await getClinicHoursForDate(scheduledAt);
+  const scheduledEnd = new Date(scheduledAt.getTime() + existing.durationMinutes * 60 * 1000);
+  const clinicCloseInstant = new Date(dayStart.getTime() + toMinutes(clinicHours.closeTime) * 60 * 1000);
+  if (
+    !clinicHours.isOpen ||
+    !isWithinOpeningHours(scheduledAt, clinicHours.openTime, clinicHours.closeTime) ||
+    scheduledEnd.getTime() > clinicCloseInstant.getTime()
+  ) {
+    return {
+      error: clinicHours.isOpen
+        ? `Please choose a time between ${formatTime(clinicHours.openTime)} and ${formatTime(clinicHours.closeTime)} that leaves room for the full ${existing.durationMinutes}-minute visit.`
+        : "The clinic is closed on the selected day. Please choose another day.",
+    };
+  }
+
+  if (resourceCapacity) {
+    const available = await isResourceSlotAvailable(
+      resourceCapacity,
+      scheduledAt,
+      existing.durationMinutes,
+      appointmentId
+    );
+    if (!available) return { error: CONFLICT_MESSAGE };
+  } else {
+    const onLeave = await isDoctorOnLeave(doctor.id, scheduledAt);
+    if (onLeave) {
+      return { error: "This doctor is unavailable on the selected date. Please choose another day." };
+    }
+    if (!isWorkingDay(doctor.workingDays, scheduledAt)) {
+      return {
+        error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[clinicWeekday(scheduledAt)]}s. Please choose another day.`,
+      };
+    }
+    const doctorCloseInstant = doctor.workEndTime
+      ? new Date(dayStart.getTime() + toMinutes(doctor.workEndTime) * 60 * 1000)
+      : null;
+    if (
+      !isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime) ||
+      (doctorCloseInstant != null && scheduledEnd.getTime() > doctorCloseInstant.getTime())
+    ) {
+      return {
+        error: `Please choose a time between ${formatTime(doctor.workStartTime!)} and ${formatTime(doctor.workEndTime!)} for this doctor that leaves room for the full ${existing.durationMinutes}-minute visit.`,
+      };
+    }
+    const conflict = await findConflictingAppointment(
+      doctor.id,
+      scheduledAt,
+      existing.durationMinutes,
+      appointmentId
+    );
+    if (conflict) return { error: CONFLICT_MESSAGE };
+  }
 
   const appointment = await prisma.appointment.update({
     where: { id: appointmentId },
-    data: { scheduledAt: parsed.data.scheduledAt },
-    include: { doctor: { include: { user: true } } },
+    data: { scheduledAt },
+    include: { doctor: { include: { user: true } }, patient: true },
   });
+
+  const reason = parsed.data.reason?.trim() || undefined;
+  const newTimeLabel = `${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
 
   await notifyPatient(
     appointment.patientId,
-    `🔄 Your appointment with ${appointment.doctor.user.name} has been rescheduled to ${appointment.scheduledAt.toLocaleString()}.`
+    `🔄 Your appointment with ${appointment.doctor.user.name} has been rescheduled to ${appointment.scheduledAt.toLocaleString()}.${reason ? `\n\nReason: ${reason}` : ""}`
   );
   await createNotification({
     patientId: appointment.patientId,
     category: "APPOINTMENT",
     tone: "INFO",
     title: "Appointment Rescheduled",
-    body: `Your appointment with ${appointment.doctor.user.name} has been moved to ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`,
+    body: `Your appointment with ${appointment.doctor.user.name} has been moved to ${newTimeLabel}.${reason ? ` Reason: ${reason}` : ""}`,
     href: `/portal/appointments/${appointment.id}`,
     relatedId: `appt-reschedule-${appointment.id}-${appointment.updatedAt.getTime()}`,
+  });
+
+  if (role === "DOCTOR") {
+    const staffRecipients = await prisma.user.findMany({
+      where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
+      select: { id: true },
+    });
+    await notifyStaffUsers({
+      userIds: staffRecipients.map((u) => u.id),
+      category: "APPOINTMENT",
+      tone: "INFO",
+      title: "Appointment Rescheduled by Doctor",
+      body: `Dr. ${appointment.doctor.user.name} moved ${appointment.patient.name}'s appointment to ${newTimeLabel}.${reason ? ` Reason: ${reason}` : ""}`,
+      href: `/staff/appointments/${appointment.id}`,
+      relatedId: `appt-reschedule-${appointment.id}-${appointment.updatedAt.getTime()}`,
+    });
+  } else if (actorIsPatient) {
+    const rescheduleSummary = `${appointment.patient.name} rescheduled their appointment with ${appointment.doctor.user.name} to ${newTimeLabel} via the patient portal.${reason ? ` Reason: ${reason}` : ""}`;
+    const staffRecipients = await prisma.user.findMany({
+      where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
+      select: { id: true },
+    });
+    await notifyStaffUsers({
+      userIds: staffRecipients.map((u) => u.id),
+      category: "APPOINTMENT",
+      tone: "INFO",
+      title: "Appointment Rescheduled",
+      body: rescheduleSummary,
+      href: `/staff/appointments/${appointment.id}`,
+      relatedId: `appt-reschedule-${appointment.id}-${appointment.updatedAt.getTime()}`,
+    });
+    if (appointment.doctor.notifyNewAppointments) {
+      await notifyStaffUsers({
+        userIds: [appointment.doctor.userId],
+        category: "APPOINTMENT",
+        tone: "INFO",
+        title: "Appointment Rescheduled",
+        body: rescheduleSummary,
+        href: `/doctor/appointments/${appointment.id}`,
+        relatedId: `appt-reschedule-${appointment.id}-${appointment.updatedAt.getTime()}`,
+      });
+    }
+  }
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: "Rescheduled an appointment",
+    target: `${appointment.patient.name} with ${appointment.doctor.user.name} → ${newTimeLabel}${reason ? ` (${reason})` : ""}`,
   });
 
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
+  revalidatePath("/staff/activity-log");
   revalidatePath("/doctor/appointments");
   revalidatePath(`/doctor/appointments/${appointmentId}`);
+  revalidatePath("/doctor/consultations");
   revalidatePath("/portal/appointments");
   revalidatePath(`/portal/appointments/${appointmentId}`);
   revalidatePath("/portal/notifications");
@@ -535,6 +687,23 @@ export async function cancelAppointment(appointmentId: string) {
       appointment.patientId,
       `❌ Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} has been cancelled.`
     );
+
+    if (role === "DOCTOR") {
+      const cancelSummary = `Dr. ${appointment.doctor.user.name} cancelled the appointment with ${appointment.patient.name} on ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`;
+      const staffRecipients = await prisma.user.findMany({
+        where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
+        select: { id: true },
+      });
+      await notifyStaffUsers({
+        userIds: staffRecipients.map((u) => u.id),
+        category: "APPOINTMENT",
+        tone: "WARNING",
+        title: "Appointment Cancelled by Doctor",
+        body: cancelSummary,
+        href: `/staff/appointments/${appointment.id}`,
+        relatedId: `appt-cancel-${appointment.id}`,
+      });
+    }
   }
 
   await notifyWaitlistOfOpening(appointment.doctorId, appointment.scheduledAt);

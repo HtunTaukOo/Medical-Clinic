@@ -9,6 +9,7 @@ import {
   completeAppointment,
   markNoShow,
 } from "@/actions/appointments";
+import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
 import { AllergyList } from "@/components/allergies/allergy-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,6 +116,11 @@ export default async function AppointmentDetailPage({
             <form action={completeAppointment.bind(null, appointment.id)}>
               <Button type="submit">{t("complete")}</Button>
             </form>
+            <RescheduleDialog
+              appointmentId={appointment.id}
+              patientName={appointment.patient.name}
+              trigger={<Button variant="outline">{t("reschedule")}</Button>}
+            />
             <form action={cancelAppointment.bind(null, appointment.id)}>
               <Button variant="destructive" type="submit">
                 {t("cancel")}

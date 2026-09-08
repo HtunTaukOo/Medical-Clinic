@@ -53,17 +53,9 @@ export default async function ReportsPage({
 
   return (
     <div className="grid gap-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold">Reports</h1>
-          <p className="text-sm text-muted-foreground">Generate and view clinic analytics.</p>
-        </div>
-        <Button asChild>
-          <a href={exportHref}>
-            <Download />
-            Export
-          </a>
-        </Button>
+      <div>
+        <h1 className="text-2xl font-semibold">Reports</h1>
+        <p className="text-sm text-muted-foreground">Generate and view clinic analytics.</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -84,7 +76,7 @@ export default async function ReportsPage({
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <DateRangeFilter defaultFrom={range.from} defaultTo={range.to} />
-        <Button asChild variant="outline" size="sm">
+        <Button asChild size="sm">
           <a href={exportHref}>
             <Download />
             Export CSV
@@ -263,6 +255,32 @@ export default async function ReportsPage({
                       <TableCell className="font-medium">{r.name}</TableCell>
                       <TableCell>{r.units}</TableCell>
                       <TableCell>{formatKyat(r.revenue)}</TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            ))}
+
+          {data.kind === "expenses" &&
+            (data.rows.every((r) => r.total === 0) ? (
+              <EmptyState icon={FileBarChart2} message="No expenses in this date range." />
+            ) : (
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Date</TableHead>
+                    <TableHead>Total</TableHead>
+                    <TableHead>Growth</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {data.rows.map((r) => (
+                    <TableRow key={r.date}>
+                      <TableCell className="font-medium">{formatDateLabel(r.date)}</TableCell>
+                      <TableCell>{formatKyat(r.total)}</TableCell>
+                      <TableCell>
+                        <GrowthText value={r.growthPercent} />
+                      </TableCell>
                     </TableRow>
                   ))}
                 </TableBody>

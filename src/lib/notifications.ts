@@ -5,6 +5,7 @@ import {
   type StaffNotificationCategory,
 } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
+import { getExpiryStatus } from "@/lib/inventory";
 
 // Idempotent: `relatedId` is unique per patient, so calling this more than
 // once for the same real-world event (e.g. a cron re-run) is a no-op.
@@ -130,6 +131,46 @@ export async function ensurePrescriptionRenewalNotifications(patientId: string) 
       body: `Your prescription for ${item.medicine.name} ${item.dosage} (${item.prescription.doctor.user.name}) is due for renewal in ${Math.max(daysLeft, 0)} day${daysLeft === 1 ? "" : "s"}. Book a follow-up to reorder.`,
       href: "/portal/medical-records",
       relatedId: `rx-renewal-${item.id}`,
+    });
+  }
+}
+
+// Not event-driven like the others — computed from live medicine data each
+// time the admin/staff notifications page loads, then upserted (relatedId
+// includes the status so a medicine that later expires re-notifies).
+export async function ensureMedicineExpiryNotifications() {
+  const [medicines, recipients] = await Promise.all([
+    prisma.medicine.findMany({
+      where: { expiryDate: { not: null } },
+      select: { id: true, name: true, expiryDate: true },
+    }),
+    prisma.user.findMany({
+      where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyLowStock: true },
+      select: { id: true },
+    }),
+  ]);
+  if (recipients.length === 0) return;
+  const userIds = recipients.map((u) => u.id);
+
+  for (const medicine of medicines) {
+    const status = getExpiryStatus(medicine.expiryDate);
+    if (!status || !medicine.expiryDate) continue;
+    const expiryLabel = medicine.expiryDate.toLocaleDateString(undefined, {
+      month: "long",
+      day: "numeric",
+      year: "numeric",
+    });
+    await notifyStaffUsers({
+      userIds,
+      category: "INVENTORY",
+      tone: status === "expired" ? "WARNING" : "INFO",
+      title: status === "expired" ? "Medicine Expired" : "Medicine Expiring Soon",
+      body:
+        status === "expired"
+          ? `${medicine.name} expired on ${expiryLabel}.`
+          : `${medicine.name} expires on ${expiryLabel}.`,
+      href: `/staff/inventory/${medicine.id}`,
+      relatedId: `medicine-expiry-${medicine.id}-${status}`,
     });
   }
 }

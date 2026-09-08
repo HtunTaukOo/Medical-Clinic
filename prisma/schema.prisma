@@ -59,6 +59,7 @@ model User {
   announcements      Announcement[]
   pharmacySales      PharmacySale[]
   staffNotifications StaffNotification[]
+  expenses           Expense[]
 }
 
 enum Gender {
@@ -449,6 +450,34 @@ model Package {
   active      Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+enum ExpenseCategory {
+  RENT
+  UTILITIES
+  SALARIES
+  SUPPLIES
+  EQUIPMENT
+  MAINTENANCE
+  MARKETING
+  INSURANCE
+  OTHER
+}
+
+model Expense {
+  id           String          @id @default(cuid())
+  category     ExpenseCategory
+  description  String
+  amount       Decimal         @db.Decimal(10, 2)
+  vendor       String?
+  paidAt       DateTime
+  recordedById String
+  recordedBy   User            @relation(fields: [recordedById], references: [id])
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([paidAt])
+  @@index([category])
 }
 
 model Announcement {
