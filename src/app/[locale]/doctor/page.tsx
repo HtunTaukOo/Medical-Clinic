@@ -12,6 +12,7 @@ import { prisma } from "@/lib/prisma";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { SolidStatCard } from "@/components/solid-stat-card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { getDisplayFirstName, initials, calculateAge, formatRelativeTime } from "@/lib/format";
@@ -213,54 +214,34 @@ export default async function DoctorDashboardPage() {
       )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardContent className="flex items-start justify-between">
-            <div>
-              <p className="text-2xl font-bold">{todaysAppointmentsFull.length}</p>
-              <p className="text-sm font-medium">Today&apos;s Total</p>
-              <p className="text-xs text-muted-foreground">appointments</p>
-            </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-              <CalendarDays className="size-4" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-start justify-between">
-            <div>
-              <p className="text-2xl font-bold text-amber-600">{waitingAppts.length}</p>
-              <p className="text-sm font-medium">Waiting</p>
-              <p className="text-xs text-muted-foreground">patients in queue</p>
-            </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-amber-100 text-amber-600">
-              <Clock className="size-4" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-start justify-between">
-            <div>
-              <p className="text-2xl font-bold text-blue-600">{inProgressAppt ? 1 : 0}</p>
-              <p className="text-sm font-medium">In Progress</p>
-              <p className="text-xs text-muted-foreground">active consultation</p>
-            </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
-              <Activity className="size-4" />
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-start justify-between">
-            <div>
-              <p className="text-2xl font-bold text-indigo-600">{completedAppts.length}</p>
-              <p className="text-sm font-medium">Completed</p>
-              <p className="text-xs text-muted-foreground">consultations today</p>
-            </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-indigo-100 text-indigo-600">
-              <CheckCircle2 className="size-4" />
-            </div>
-          </CardContent>
-        </Card>
+        <SolidStatCard
+          icon={CalendarDays}
+          label="Today's Total"
+          value={todaysAppointmentsFull.length}
+          sublabel="appointments"
+          className="bg-blue-600"
+        />
+        <SolidStatCard
+          icon={Clock}
+          label="Waiting"
+          value={waitingAppts.length}
+          sublabel="patients in queue"
+          className="bg-amber-600"
+        />
+        <SolidStatCard
+          icon={Activity}
+          label="In Progress"
+          value={inProgressAppt ? 1 : 0}
+          sublabel="active consultation"
+          className="bg-sky-600"
+        />
+        <SolidStatCard
+          icon={CheckCircle2}
+          label="Completed"
+          value={completedAppts.length}
+          sublabel="consultations today"
+          className="bg-indigo-600"
+        />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">

@@ -24,6 +24,7 @@ import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { SolidStatCard } from "@/components/solid-stat-card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { ClinicLogo } from "@/components/clinic-logo";
@@ -169,7 +170,7 @@ export default async function PortalDashboardPage() {
           strokeWidth={1.5}
           className="pointer-events-none absolute top-1/2 -right-10 size-56 -translate-y-1/2 text-white/5"
         />
-        <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-start">
+        <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div className="flex items-center gap-4">
             <ClinicLogo className="size-16 shrink-0 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.25)]" />
             <div className="grid gap-2">
@@ -206,7 +207,7 @@ export default async function PortalDashboardPage() {
               <Button
                 asChild
                 variant="outline"
-                className="border-white/30 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                className="bg-white text-primary hover:bg-white/90 hover:text-primary"
               >
                 <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
                   Get Directions
@@ -276,81 +277,46 @@ export default async function PortalDashboardPage() {
 
       {/* Stat tiles */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="border-none bg-blue-50 shadow-none dark:bg-blue-950/40">
-          <CardContent className="flex items-start justify-between">
-            <div>
-              <p className="text-2xl font-bold text-blue-900 dark:text-blue-100">
-                {upcomingAppointments.length}
-              </p>
-              <p className="text-sm text-blue-900/70 dark:text-blue-100/70">Upcoming Appointments</p>
-              {upcomingAppointments[0] && (
-                <p className="mt-1 text-xs text-blue-900/60 dark:text-blue-100/60">
-                  Next: {new Date(upcomingAppointments[0].scheduledAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
-                </p>
-              )}
-            </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-blue-600 text-white">
-              <CalendarClock className="size-4" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none bg-emerald-50 shadow-none dark:bg-emerald-950/40">
-          <CardContent className="flex items-start justify-between">
-            <div>
-              <p className="text-2xl font-bold text-emerald-900 dark:text-emerald-100">
-                {activePrescriptions.length}
-              </p>
-              <p className="text-sm text-emerald-900/70 dark:text-emerald-100/70">Active Prescriptions</p>
-              {renewalsDue.length > 0 && (
-                <p className="mt-1 text-xs text-emerald-900/60 dark:text-emerald-100/60">
-                  {renewalsDue.length} renewal{renewalsDue.length === 1 ? "" : "s"} due
-                </p>
-              )}
-            </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-emerald-600 text-white">
-              <ClipboardList className="size-4" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none bg-orange-50 shadow-none dark:bg-orange-950/40">
-          <CardContent className="flex items-start justify-between">
-            <div>
-              <p className="text-2xl font-bold text-orange-900 dark:text-orange-100">
-                {unpaidInvoices.length}
-              </p>
-              <p className="text-sm text-orange-900/70 dark:text-orange-100/70">Unpaid Bills</p>
-              {unpaidTotal > 0 && (
-                <p className="mt-1 text-xs text-orange-900/60 dark:text-orange-100/60">
-                  {formatK(unpaidTotal)} due
-                </p>
-              )}
-            </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-orange-600 text-white">
-              <Receipt className="size-4" />
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-none bg-purple-50 shadow-none dark:bg-purple-950/40">
-          <CardContent className="flex items-start justify-between">
-            <div>
-              <p className="text-2xl font-bold text-purple-900 dark:text-purple-100">
-                {lastVisit ? new Date(lastVisit.scheduledAt).toLocaleDateString(undefined, { month: "short", day: "numeric" }) : "—"}
-              </p>
-              <p className="text-sm text-purple-900/70 dark:text-purple-100/70">Last Visit</p>
-              {lastVisit && (
-                <p className="mt-1 text-xs text-purple-900/60 dark:text-purple-100/60">
-                  {lastVisit.doctor.user.name}
-                </p>
-              )}
-            </div>
-            <div className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-purple-600 text-white">
-              <History className="size-4" />
-            </div>
-          </CardContent>
-        </Card>
+        <SolidStatCard
+          icon={CalendarClock}
+          label="Upcoming Appointments"
+          value={upcomingAppointments.length}
+          sublabel={
+            upcomingAppointments[0]
+              ? `Next: ${new Date(upcomingAppointments[0].scheduledAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+              : undefined
+          }
+          className="bg-blue-600"
+        />
+        <SolidStatCard
+          icon={ClipboardList}
+          label="Active Prescriptions"
+          value={activePrescriptions.length}
+          sublabel={
+            renewalsDue.length > 0
+              ? `${renewalsDue.length} renewal${renewalsDue.length === 1 ? "" : "s"} due`
+              : undefined
+          }
+          className="bg-emerald-600"
+        />
+        <SolidStatCard
+          icon={Receipt}
+          label="Unpaid Bills"
+          value={unpaidInvoices.length}
+          sublabel={unpaidTotal > 0 ? `${formatK(unpaidTotal)} due` : undefined}
+          className="bg-orange-600"
+        />
+        <SolidStatCard
+          icon={History}
+          label="Last Visit"
+          value={
+            lastVisit
+              ? new Date(lastVisit.scheduledAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
+              : "—"
+          }
+          sublabel={lastVisit?.doctor.user.name}
+          className="bg-purple-600"
+        />
       </div>
 
       {/* Appointments + Announcements */}

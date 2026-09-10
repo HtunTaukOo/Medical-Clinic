@@ -34,37 +34,13 @@ import { getExpiryStatus } from "@/lib/inventory";
 import { getDisplayFirstName } from "@/lib/format";
 import { clinicLocalMinutes, clinicMidnight, clinicWeekday, formatClinicDateTime } from "@/lib/clinic-hours";
 import { MONTH_NAMES } from "@/lib/reports";
-import { StatTile } from "@/components/stat-tile";
+import { SolidStatCard } from "@/components/solid-stat-card";
 import { checkInAppointment } from "@/actions/appointments";
 import { callWalkIn } from "@/actions/walk-ins";
 import { NewAnnouncementDialog } from "@/components/staff/new-announcement-dialog";
 
 function Num({ children }: { children: ReactNode }) {
   return <span className="font-semibold text-primary">{children}</span>;
-}
-
-function SolidStatCard({
-  icon: Icon,
-  label,
-  value,
-  className,
-}: {
-  icon: React.ComponentType<{ className?: string }>;
-  label: string;
-  value: ReactNode;
-  className: string;
-}) {
-  return (
-    <div className={`flex items-center justify-between gap-3 rounded-xl p-5 text-white ${className}`}>
-      <div>
-        <p className="text-xs font-semibold tracking-wide text-white/80 uppercase">{label}</p>
-        <p className="mt-1 text-2xl font-bold">{value}</p>
-      </div>
-      <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white/20">
-        <Icon className="size-5" />
-      </div>
-    </div>
-  );
 }
 
 const WEEKDAY_LABELS_MON_FIRST = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
@@ -486,16 +462,36 @@ export default async function StaffDashboardPage() {
 
       {role === "STAFF" && (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-          <StatTile icon={Clock} value={waitingTotal} label="Patients Waiting" color="amber" />
-          <StatTile icon={Receipt} value={unpaidInvoices} label="Unpaid Bills" color="rose" />
-          <StatTile
+          <SolidStatCard
+            icon={Clock}
+            value={waitingTotal}
+            label="Patients Waiting"
+            className="bg-amber-600"
+          />
+          <SolidStatCard
+            icon={Receipt}
+            value={unpaidInvoices}
+            label="Unpaid Bills"
+            className="bg-rose-600"
+          />
+          <SolidStatCard
             icon={Pill}
             value={pendingPrescriptionsCount}
             label="Pending Prescriptions"
-            color="blue"
+            className="bg-blue-600"
           />
-          <StatTile icon={PackageX} value={lowStock} label="Low Stock Alerts" color="amber" />
-          <StatTile icon={FlaskConical} value={pendingLabOrders.length} label="Lab Orders" color="purple" />
+          <SolidStatCard
+            icon={PackageX}
+            value={lowStock}
+            label="Low Stock Alerts"
+            className="bg-orange-600"
+          />
+          <SolidStatCard
+            icon={FlaskConical}
+            value={pendingLabOrders.length}
+            label="Lab Orders"
+            className="bg-purple-600"
+          />
         </div>
       )}
 
