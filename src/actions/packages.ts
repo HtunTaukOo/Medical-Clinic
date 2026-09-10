@@ -34,6 +34,29 @@ export async function createPackage(
   return { success: true };
 }
 
+export async function updatePackage(
+  packageId: string,
+  _prevState: PackageFormState,
+  formData: FormData
+): Promise<PackageFormState> {
+  await requireRole(STAFF_ROLES);
+
+  const parsed = packageSchema.safeParse({
+    name: formData.get("name"),
+    description: formData.get("description") || undefined,
+    price: formData.get("price"),
+  });
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.package.update({ where: { id: packageId }, data: parsed.data });
+
+  revalidatePath("/staff/billing/packages");
+  revalidatePath("/staff/billing/new");
+  return { success: true };
+}
+
 export async function togglePackageActive(packageId: string) {
   await requireRole(STAFF_ROLES);
 

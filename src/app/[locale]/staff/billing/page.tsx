@@ -51,7 +51,12 @@ export default async function BillingPage({
   const [invoicesAsc, todaysPayments, paidInvoicesToday] = await Promise.all([
     prisma.invoice.findMany({
       orderBy: { createdAt: "asc" },
-      include: { patient: true, items: true, payments: { include: { refunds: true } } },
+      include: {
+        patient: true,
+        items: true,
+        payments: { include: { refunds: true } },
+        claims: { where: { status: "REJECTED" }, select: { id: true } },
+      },
     }),
     prisma.payment.findMany({
       where: { paidAt: { gte: todayStart, lt: todayEnd } },
@@ -73,6 +78,7 @@ export default async function BillingPage({
     const netPaid = grossPaid - totalRefunded;
     const balanceDue = Math.max(0, Number(invoice.total) - netPaid);
     const hasRefund = totalRefunded > 0;
+    const hasRejectedClaim = invoice.claims.length > 0 && balanceDue > 0;
     const description = invoice.items.map((i) => i.description).join(" + ") || "—";
     return {
       invoice,
@@ -82,6 +88,7 @@ export default async function BillingPage({
       netPaid,
       balanceDue,
       hasRefund,
+      hasRejectedClaim,
     };
   });
   rows.reverse();
@@ -167,7 +174,7 @@ export default async function BillingPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleRows.map(({ invoice, invoiceNumber, description, grossPaid, netPaid, balanceDue, hasRefund }) => (
+                {visibleRows.map(({ invoice, invoiceNumber, description, grossPaid, netPaid, balanceDue, hasRefund, hasRejectedClaim }) => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">
                       INV-{String(invoiceNumber).padStart(4, "0")}
@@ -194,6 +201,11 @@ export default async function BillingPage({
                         {hasRefund && (
                           <Badge variant="outline" className="bg-slate-100 text-slate-600">
                             {t("refunded")}
+                          </Badge>
+                        )}
+                        {hasRejectedClaim && (
+                          <Badge variant="outline" className="bg-rose-100 text-rose-700">
+                            Claim Rejected
                           </Badge>
                         )}
                       </div>

@@ -15,7 +15,11 @@ export default async function NewInvoicePage({
   const t = await getTranslations("billing");
   const { appointmentId } = await searchParams;
 
-  const invoiceCount = await prisma.invoice.count();
+  const [invoiceCount, packages] = await Promise.all([
+    prisma.invoice.count(),
+    prisma.package.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+  ]);
+  const packageOptions = packages.map((p) => ({ id: p.id, name: p.name, price: Number(p.price) }));
 
   if (appointmentId) {
     const appointment = await prisma.appointment.findUnique({
@@ -49,6 +53,7 @@ export default async function NewInvoicePage({
           redirectOnSuccess={`/staff/appointments/${appointment.id}`}
           defaultConsultationFee={Number(appointment.doctor.consultationFee)}
           nextInvoiceNumber={invoiceCount + 1}
+          packages={packageOptions}
         />
       </div>
     );
@@ -68,6 +73,7 @@ export default async function NewInvoicePage({
       <InvoiceForm
         patients={patients.map((p) => ({ id: p.id, name: p.name }))}
         nextInvoiceNumber={invoiceCount + 1}
+        packages={packageOptions}
       />
     </div>
   );

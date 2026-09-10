@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
 import { recomputeInvoiceStatus } from "@/actions/billing";
+import { notifyStaffUsers } from "@/lib/notifications";
 
 const submitClaimSchema = z.object({
   insuranceProvider: z.string().min(1),
@@ -78,7 +79,10 @@ export async function decideClaim(
 ): Promise<ClaimDecisionState> {
   const session = await requireRole(STAFF_ROLES);
 
-  const claim = await prisma.insuranceClaim.findUniqueOrThrow({ where: { id: claimId } });
+  const claim = await prisma.insuranceClaim.findUniqueOrThrow({
+    where: { id: claimId },
+    include: { patient: true },
+  });
   if (claim.status !== "SUBMITTED") {
     return { error: "This claim has already been decided" };
   }
@@ -118,6 +122,28 @@ export async function decideClaim(
       parsed.data.status === "APPROVED" ? ` for ${parsed.data.approvedAmount!.toFixed(2)}` : ""
     }`,
     target: `Invoice ${claim.invoiceId}`,
+  });
+
+  const billingRecipients = await prisma.user.findMany({
+    where: {
+      role: { in: ["ADMIN", "STAFF"] },
+      active: true,
+      notifyBilling: true,
+      id: { not: session.user.id },
+    },
+    select: { id: true },
+  });
+  await notifyStaffUsers({
+    userIds: billingRecipients.map((u) => u.id),
+    category: "BILLING",
+    tone: parsed.data.status === "APPROVED" ? "SUCCESS" : "WARNING",
+    title: parsed.data.status === "APPROVED" ? "Insurance Claim Approved" : "Insurance Claim Rejected",
+    body:
+      parsed.data.status === "APPROVED"
+        ? `${claim.insuranceProvider} approved ${claim.patient.name}'s claim for ${parsed.data.approvedAmount!.toFixed(2)}.`
+        : `${claim.insuranceProvider} rejected ${claim.patient.name}'s claim for ${Number(claim.claimedAmount).toFixed(2)}. The patient may need to be billed directly.`,
+    href: `/staff/billing/${claim.invoiceId}`,
+    relatedId: `claim-decision-${claim.id}`,
   });
 
   revalidatePath("/staff/billing/claims");

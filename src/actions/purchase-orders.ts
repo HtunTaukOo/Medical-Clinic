@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
+import { notifyStaffUsers } from "@/lib/notifications";
 
 const poItemsSchema = z
   .array(
@@ -117,7 +118,7 @@ export async function receiveStock(
 
   const order = await prisma.purchaseOrder.findUniqueOrThrow({
     where: { id: purchaseOrderId },
-    include: { items: true },
+    include: { items: true, supplier: true },
   });
   if (order.status !== "ORDERED" && order.status !== "PARTIALLY_RECEIVED") {
     return { error: "This purchase order is not open for receiving" };
@@ -138,7 +139,7 @@ export async function receiveStock(
     return { error: "Enter a quantity to receive for at least one item" };
   }
 
-  await prisma.$transaction(async (tx) => {
+  const allReceived = await prisma.$transaction(async (tx) => {
     for (const receipt of receipts) {
       await tx.medicine.update({
         where: { id: receipt.medicineId },
@@ -168,6 +169,8 @@ export async function receiveStock(
       where: { id: purchaseOrderId },
       data: { status: allReceived ? "RECEIVED" : anyReceived ? "PARTIALLY_RECEIVED" : order.status },
     });
+
+    return allReceived;
   });
 
   await logActivity({
@@ -177,6 +180,27 @@ export async function receiveStock(
     action: `Received stock (${receipts.reduce((sum, r) => sum + r.quantity, 0)} units) against purchase order`,
     target: `Purchase order ${purchaseOrderId}`,
   });
+
+  if (allReceived) {
+    const inventoryRecipients = await prisma.user.findMany({
+      where: {
+        role: { in: ["ADMIN", "STAFF"] },
+        active: true,
+        notifyLowStock: true,
+        id: { not: session.user.id },
+      },
+      select: { id: true },
+    });
+    await notifyStaffUsers({
+      userIds: inventoryRecipients.map((u) => u.id),
+      category: "INVENTORY",
+      tone: "SUCCESS",
+      title: "Purchase Order Received",
+      body: `The order from ${order.supplier.name} has been fully received.`,
+      href: `/staff/inventory/purchase-orders/${purchaseOrderId}`,
+      relatedId: `po-received-${purchaseOrderId}`,
+    });
+  }
 
   revalidatePath("/staff/inventory");
   revalidatePath("/staff/inventory/purchase-orders");

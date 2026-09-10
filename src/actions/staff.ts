@@ -499,7 +499,8 @@ export async function updateOwnStaffPersonalInfo(
 export type StaffPreferenceField =
   | "notifyNewAppointments"
   | "notifyLowStock"
-  | "notifyAnnouncements";
+  | "notifyAnnouncements"
+  | "notifyBilling";
 
 export async function updateStaffNotificationSetting(field: StaffPreferenceField, value: boolean) {
   const session = await requireRole(STAFF_ROLES);

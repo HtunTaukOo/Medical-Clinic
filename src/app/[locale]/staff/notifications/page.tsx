@@ -1,4 +1,4 @@
-import { Bell, CalendarClock, Package, Megaphone, CheckCircle2 } from "lucide-react";
+import { Bell, CalendarClock, Package, Megaphone, CheckCircle2, Receipt } from "lucide-react";
 import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { Link } from "@/i18n/navigation";
@@ -22,6 +22,7 @@ const CATEGORY_META: Record<
   LAB_RESULT: { label: "Lab Results", icon: Bell, badgeClass: "bg-emerald-100 text-emerald-700" },
   INVENTORY: { label: "Inventory", icon: Package, badgeClass: "bg-amber-100 text-amber-700" },
   ANNOUNCEMENT: { label: "Announcements", icon: Megaphone, badgeClass: "bg-purple-100 text-purple-700" },
+  BILLING: { label: "Billing", icon: Receipt, badgeClass: "bg-rose-100 text-rose-700" },
 };
 
 const TONE_ICON_CLASS: Record<NotificationTone, string> = {

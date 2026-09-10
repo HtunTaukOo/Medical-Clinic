@@ -51,6 +51,7 @@ model User {
   notifyNewAppointments Boolean @default(true)
   notifyLowStock        Boolean @default(true)
   notifyAnnouncements   Boolean @default(true)
+  notifyBilling         Boolean @default(true)
 
   patient            Patient?
   doctorProfile      DoctorProfile?
@@ -531,6 +532,7 @@ enum StaffNotificationCategory {
   LAB_RESULT
   INVENTORY
   ANNOUNCEMENT
+  BILLING
 }
 
 model StaffNotification {

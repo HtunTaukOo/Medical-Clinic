@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { PackageForm } from "@/components/billing/package-form";
+import { UserActionDialog } from "@/components/staff/user-action-dialog";
 
 export default async function PackagesPage() {
   await requirePageRole(["ADMIN", "STAFF"]);
@@ -49,11 +50,30 @@ export default async function PackagesPage() {
                 {pkg.description && (
                   <p className="text-sm text-muted-foreground">{pkg.description}</p>
                 )}
-                <form action={togglePackageActive.bind(null, pkg.id)}>
-                  <Button size="sm" variant="outline" type="submit">
-                    {pkg.active ? t("deactivate") : t("activate")}
-                  </Button>
-                </form>
+                <div className="flex flex-wrap items-center gap-3">
+                  <UserActionDialog
+                    title="Edit Package"
+                    trigger={
+                      <Button size="sm" variant="outline" type="button">
+                        Edit
+                      </Button>
+                    }
+                  >
+                    <PackageForm
+                      pkg={{
+                        id: pkg.id,
+                        name: pkg.name,
+                        description: pkg.description,
+                        price: Number(pkg.price),
+                      }}
+                    />
+                  </UserActionDialog>
+                  <form action={togglePackageActive.bind(null, pkg.id)}>
+                    <Button size="sm" variant="outline" type="submit">
+                      {pkg.active ? t("deactivate") : t("activate")}
+                    </Button>
+                  </form>
+                </div>
               </CardContent>
             </Card>
           ))}

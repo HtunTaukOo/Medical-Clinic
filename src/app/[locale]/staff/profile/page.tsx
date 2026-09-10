@@ -135,6 +135,12 @@ export default async function StaffProfilePage() {
                     description="Receive clinic-wide notices and updates"
                     defaultChecked={user.notifyAnnouncements}
                   />
+                  <StaffNotificationToggle
+                    field="notifyBilling"
+                    label="Billing Alerts"
+                    description="Alert on insurance claim decisions, refunds, and received purchase orders"
+                    defaultChecked={user.notifyBilling}
+                  />
                 </div>
               </div>
             </TabsContent>

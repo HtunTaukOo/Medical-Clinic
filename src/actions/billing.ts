@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
+import { notifyStaffUsers } from "@/lib/notifications";
 
 const itemsSchema = z
   .array(
@@ -211,7 +212,7 @@ export async function refundPayment(
 
   const payment = await prisma.payment.findUniqueOrThrow({
     where: { id: paymentId },
-    include: { refunds: true },
+    include: { refunds: true, invoice: { include: { patient: true } } },
   });
 
   const parsed = refundSchema.safeParse({
@@ -228,7 +229,7 @@ export async function refundPayment(
     return { error: `Cannot refund more than ${refundable.toFixed(2)}` };
   }
 
-  await prisma.refund.create({
+  const refund = await prisma.refund.create({
     data: { paymentId, amount: parsed.data.amount, reason: parsed.data.reason },
   });
   await recomputeInvoiceStatus(invoiceId);
@@ -239,6 +240,25 @@ export async function refundPayment(
     actorRole: session.user.role,
     action: `Refunded ${parsed.data.amount.toFixed(2)} on payment ${paymentId}${parsed.data.reason ? ` (${parsed.data.reason})` : ""}`,
     target: `Invoice ${invoiceId}`,
+  });
+
+  const billingRecipients = await prisma.user.findMany({
+    where: {
+      role: { in: ["ADMIN", "STAFF"] },
+      active: true,
+      notifyBilling: true,
+      id: { not: session.user.id },
+    },
+    select: { id: true },
+  });
+  await notifyStaffUsers({
+    userIds: billingRecipients.map((u) => u.id),
+    category: "BILLING",
+    tone: "WARNING",
+    title: "Refund Issued",
+    body: `${session.user.name ?? "An admin"} refunded ${parsed.data.amount.toFixed(2)} to ${payment.invoice.patient.name}${parsed.data.reason ? ` (${parsed.data.reason})` : ""}.`,
+    href: `/staff/billing/${invoiceId}`,
+    relatedId: `refund-${refund.id}`,
   });
 
   revalidatePath("/staff/billing");

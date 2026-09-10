@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Trash2 } from "lucide-react";
+import { Trash2, AlertTriangle } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
@@ -51,6 +51,7 @@ export default async function InvoiceDetailPage({
   if (!invoice) notFound();
 
   const boundRecordPayment = recordPayment.bind(null, invoice.id);
+  const hasRejectedClaim = claims.some((c) => c.status === "REJECTED");
 
   return (
     <div className="grid gap-6">
@@ -60,6 +61,16 @@ export default async function InvoiceDetailPage({
           {invoice.status}
         </Badge>
       </div>
+
+      {hasRejectedClaim && invoice.status !== "PAID" && (
+        <div className="flex items-center gap-3 rounded-xl border border-rose-200 bg-rose-50 p-4 text-rose-800">
+          <AlertTriangle className="size-5 shrink-0" />
+          <p className="text-sm">
+            An insurance claim on this invoice was rejected. Please bill {invoice.patient.name}{" "}
+            directly for the outstanding balance.
+          </p>
+        </div>
+      )}
 
       <Card>
         <CardHeader>

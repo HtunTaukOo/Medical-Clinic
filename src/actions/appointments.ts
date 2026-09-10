@@ -528,6 +528,16 @@ export async function rescheduleAppointment(
         relatedId: `appt-reschedule-${appointment.id}-${appointment.updatedAt.getTime()}`,
       });
     }
+  } else if (appointment.doctor.notifyNewAppointments) {
+    await notifyStaffUsers({
+      userIds: [appointment.doctor.userId],
+      category: "APPOINTMENT",
+      tone: "INFO",
+      title: "Appointment Rescheduled",
+      body: `${appointment.patient.name}'s appointment was moved to ${newTimeLabel} by ${session.user.name ?? "staff"}.${reason ? ` Reason: ${reason}` : ""}`,
+      href: `/doctor/appointments/${appointment.id}`,
+      relatedId: `appt-reschedule-${appointment.id}-${appointment.updatedAt.getTime()}`,
+    });
   }
 
   await logActivity({
@@ -714,6 +724,17 @@ export async function cancelAppointment(appointmentId: string) {
         title: "Appointment Cancelled by Doctor",
         body: cancelSummary,
         href: `/staff/appointments/${appointment.id}`,
+        relatedId: `appt-cancel-${appointment.id}`,
+      });
+    } else if (appointment.doctor.notifyAppointmentCancelled) {
+      const cancelSummary = `${appointment.patient.name}'s appointment on ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} was cancelled by ${session.user.name ?? "staff"}.`;
+      await notifyStaffUsers({
+        userIds: [appointment.doctor.userId],
+        category: "APPOINTMENT",
+        tone: "WARNING",
+        title: "Appointment Cancelled",
+        body: cancelSummary,
+        href: `/doctor/appointments/${appointment.id}`,
         relatedId: `appt-cancel-${appointment.id}`,
       });
     }

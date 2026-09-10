@@ -30,6 +30,7 @@ export function InvoiceForm({
   redirectOnSuccess = "/staff/billing",
   defaultConsultationFee,
   nextInvoiceNumber,
+  packages,
 }: {
   patients?: { id: string; name: string }[];
   lockedPatient?: { id: string; name: string };
@@ -37,6 +38,7 @@ export function InvoiceForm({
   redirectOnSuccess?: string;
   defaultConsultationFee?: number;
   nextInvoiceNumber?: number;
+  packages?: { id: string; name: string; price: number }[];
 }) {
   const router = useRouter();
   const [state, formAction, pending] = useActionState<InvoiceFormState, FormData>(
@@ -53,6 +55,8 @@ export function InvoiceForm({
   );
   const [medicineCharges, setMedicineCharges] = useState("0");
   const [labCharges, setLabCharges] = useState("0");
+  const [packageCharges, setPackageCharges] = useState("0");
+  const [packageName, setPackageName] = useState<string | null>(null);
   const [discount, setDiscount] = useState("0");
   const [amountPaid, setAmountPaid] = useState("0");
   const [paymentMethod, setPaymentMethod] = useState<(typeof PAYMENT_METHODS)[number]>("CASH");
@@ -75,10 +79,11 @@ export function InvoiceForm({
   const fee = Number(consultationFee) || 0;
   const medicine = Number(medicineCharges) || 0;
   const lab = Number(labCharges) || 0;
+  const pkg = Number(packageCharges) || 0;
   const discountValue = Number(discount) || 0;
   const paid = Number(amountPaid) || 0;
 
-  const subtotal = fee + medicine + lab;
+  const subtotal = fee + medicine + lab + pkg;
   const total = Math.max(0, subtotal - discountValue);
   const balanceDue = Math.max(0, total - paid);
   const invoiceStatus = total === 0 ? "UNPAID" : balanceDue === 0 ? "PAID" : paid > 0 ? "PARTIAL" : "UNPAID";
@@ -93,6 +98,7 @@ export function InvoiceForm({
       fee > 0 ? { description: "Consultation Fee", quantity: 1, unitPrice: fee } : null,
       medicine > 0 ? { description: "Medicine Charges", quantity: 1, unitPrice: medicine } : null,
       lab > 0 ? { description: "Lab / Service Charges", quantity: 1, unitPrice: lab } : null,
+      pkg > 0 ? { description: packageName ?? "Package Charges", quantity: 1, unitPrice: pkg } : null,
       discountValue > 0
         ? { description: "Discount", quantity: 1, unitPrice: -discountValue }
         : null,
@@ -204,6 +210,45 @@ export function InvoiceForm({
               </div>
             </div>
 
+            {packages && packages.length > 0 && (
+              <div className="grid gap-2">
+                <Label htmlFor="packageSelect">Package</Label>
+                <Select
+                  value=""
+                  onValueChange={(id) => {
+                    const selected = packages.find((p) => p.id === id);
+                    if (!selected) return;
+                    setPackageCharges(String(selected.price));
+                    setPackageName(selected.name);
+                  }}
+                >
+                  <SelectTrigger id="packageSelect" className="w-full">
+                    <SelectValue placeholder="Add a package..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {packages.map((p) => (
+                      <SelectItem key={p.id} value={p.id}>
+                        {p.name} — {formatKyat(p.price)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {pkg > 0 && (
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm text-muted-foreground">K</span>
+                    <Input
+                      id="packageCharges"
+                      type="number"
+                      min={0}
+                      step="0.01"
+                      value={packageCharges}
+                      onChange={(e) => setPackageCharges(e.target.value)}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+
             <div className="grid gap-2">
               <Label htmlFor="discount">Discount</Label>
               <div className="flex items-center gap-2">
@@ -311,6 +356,12 @@ export function InvoiceForm({
               <span className="text-muted-foreground">Lab</span>
               <span>{formatKyat(lab)}</span>
             </div>
+            {pkg > 0 && (
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">{packageName ?? "Package"}</span>
+                <span>{formatKyat(pkg)}</span>
+              </div>
+            )}
             {discountValue > 0 && (
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Discount</span>
