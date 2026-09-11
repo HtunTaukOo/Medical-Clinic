@@ -38,6 +38,7 @@ export async function AppShell({
           roleLabel={roleLabel}
           signOutSlot={<SignOutButton locale={locale} />}
           hideSectionLabels={hideSectionLabels}
+          sidebarDark={sidebarDark}
         />
       </div>
       <SidebarInset className="bg-transparent">

@@ -105,12 +105,14 @@ export function AppSidebar({
   roleLabel,
   signOutSlot,
   hideSectionLabels,
+  sidebarDark,
 }: {
   navItems: SidebarNavItem[];
   hideSectionLabels?: boolean;
   userName: string;
   roleLabel: string;
   signOutSlot: React.ReactNode;
+  sidebarDark?: boolean;
 }) {
   const t = useTranslations("nav");
   const tApp = useTranslations("app");
@@ -128,7 +130,7 @@ export function AppSidebar({
   }
 
   return (
-    <Sidebar collapsible="icon">
+    <Sidebar collapsible="icon" className={sidebarDark ? "sidebar-dark" : undefined}>
       <SidebarHeader className="gap-3 px-3 py-4 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-2 px-1 group-data-[collapsible=icon]:px-0">
           <ClinicLogo className="size-10 shrink-0 rounded-lg shadow-[0_0_0_1px_rgba(21,101,192,0.12),0_6px_18px_-4px_rgba(21,101,192,0.45)] group-data-[collapsible=icon]:size-8" />
