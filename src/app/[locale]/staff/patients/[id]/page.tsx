@@ -46,11 +46,18 @@ const TABS = [
 
 export default async function PatientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ from?: string }>;
 }) {
   const session = await requirePageRole(["ADMIN", "STAFF"]);
   const { id } = await params;
+  const { from } = await searchParams;
+  const backLink =
+    from === "users"
+      ? { href: "/staff/users?tab=patients", label: "User Management" }
+      : { href: "/staff/patients", label: "All Patients" };
   const tAppt = await getTranslations("appointments");
   const role = session.user.role;
 
@@ -125,11 +132,11 @@ export default async function PatientDetailPage({
   return (
     <div className="grid gap-6">
       <Link
-        href="/staff/patients"
+        href={backLink.href}
         className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
       >
         <ChevronLeft className="size-4" />
-        All Patients
+        {backLink.label}
       </Link>
 
       <Card>

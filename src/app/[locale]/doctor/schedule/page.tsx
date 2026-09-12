@@ -79,11 +79,15 @@ export default async function SchedulePage({
         include: { patient: { select: { name: true } } },
       }),
       prisma.doctorLeave.findMany({
-        where: { doctorId, date: { gte: new Date() } },
+        where: { doctorId, date: { gte: new Date() }, status: { not: "REJECTED" } },
         orderBy: { date: "asc" },
       }),
       prisma.doctorLeave.findMany({
-        where: { doctorId, date: { gte: weekStart, lt: new Date(weekEnd.getTime() + ONE_DAY_MS) } },
+        where: {
+          doctorId,
+          date: { gte: weekStart, lt: new Date(weekEnd.getTime() + ONE_DAY_MS) },
+          status: { not: "REJECTED" },
+        },
       }),
     ]);
   if (!doctor) notFound();
@@ -93,7 +97,12 @@ export default async function SchedulePage({
   const rowMinutes: number[] = [];
   for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) rowMinutes.push(m);
 
-  const leaveDayKeys = new Set(weekLeaveDays.map((l) => weekKeyFor(l.date)));
+  const approvedLeaveDayKeys = new Set(
+    weekLeaveDays.filter((l) => l.status === "APPROVED").map((l) => weekKeyFor(l.date))
+  );
+  const pendingLeaveDayKeys = new Set(
+    weekLeaveDays.filter((l) => l.status === "PENDING").map((l) => weekKeyFor(l.date))
+  );
 
   type Occupant = { appt: (typeof weekAppointments)[number]; isStart: boolean };
   const apptByCell = new Map<string, Occupant>();
@@ -138,7 +147,7 @@ export default async function SchedulePage({
       const dayKey = weekKeyFor(new Date(dayMidnight));
       const weekdayIndex = 1 + dayOffset; // Mon=1 .. Sat=6
       const isWorking = doctor.workingDays.includes(weekdayIndex);
-      const isLeave = leaveDayKeys.has(dayKey);
+      const isLeave = approvedLeaveDayKeys.has(dayKey);
       const isPast = dayMidnight + minutes * 60000 <= now;
       if (!isWorking || isLeave || isPast) {
         blockedCount++;
@@ -248,6 +257,9 @@ export default async function SchedulePage({
                           day: "numeric",
                         })}
                       </p>
+                      {pendingLeaveDayKeys.has(dayKey) && (
+                        <p className="text-[10px] font-medium text-amber-600">Leave pending</p>
+                      )}
                     </div>
                   );
                 })}

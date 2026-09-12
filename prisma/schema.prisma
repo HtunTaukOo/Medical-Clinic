@@ -225,16 +225,28 @@ model Waitlist {
   @@index([doctorId, status, requestedAt])
 }
 
+enum DoctorLeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model DoctorLeave {
-  id        String        @id @default(cuid())
-  doctorId  String
-  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  date      DateTime
-  reason    String?
-  createdAt DateTime      @default(now())
+  id            String            @id @default(cuid())
+  doctorId      String
+  doctor        DoctorProfile     @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  date          DateTime
+  reason        String?
+  status        DoctorLeaveStatus @default(APPROVED)
+  decidedById   String?
+  decidedByName String?
+  decidedAt     DateTime?
+  rejectionNote String?
+  createdAt     DateTime          @default(now())
 
   @@unique([doctorId, date])
   @@index([doctorId, date])
+  @@index([doctorId, status])
 }
 
 enum AppointmentStatus {
@@ -534,6 +546,7 @@ enum StaffNotificationCategory {
   INVENTORY
   ANNOUNCEMENT
   BILLING
+  LEAVE
 }
 
 model StaffNotification {

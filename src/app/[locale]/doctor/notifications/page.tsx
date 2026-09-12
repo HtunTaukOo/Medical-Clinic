@@ -1,4 +1,4 @@
-import { Bell, CalendarClock, FlaskConical, Megaphone } from "lucide-react";
+import { Bell, CalendarClock, FlaskConical, Megaphone, CalendarOff } from "lucide-react";
 import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { markAllStaffNotificationsRead, markStaffNotificationRead } from "@/actions/notifications";
@@ -18,6 +18,7 @@ const CATEGORY_META: Partial<
   APPOINTMENT: { label: "Appointments", icon: CalendarClock, badgeClass: "bg-blue-100 text-blue-700" },
   LAB_RESULT: { label: "Lab Results", icon: FlaskConical, badgeClass: "bg-emerald-100 text-emerald-700" },
   ANNOUNCEMENT: { label: "Announcements", icon: Megaphone, badgeClass: "bg-purple-100 text-purple-700" },
+  LEAVE: { label: "Leave Requests", icon: CalendarOff, badgeClass: "bg-orange-100 text-orange-700" },
 };
 
 function cardMeta(category: StaffNotificationCategory) {

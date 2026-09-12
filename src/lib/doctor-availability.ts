@@ -40,5 +40,5 @@ export async function isDoctorOnLeave(doctorId: string, date: Date) {
   const leave = await prisma.doctorLeave.findUnique({
     where: { doctorId_date: { doctorId, date: toDateOnly(date) } },
   });
-  return !!leave;
+  return !!leave && leave.status === "APPROVED";
 }

@@ -44,7 +44,10 @@ export default async function DoctorsSchedulesPage() {
     prisma.doctorProfile.findMany({
       include: {
         user: true,
-        leaveDays: { where: { date: { gte: todayStart } }, orderBy: { date: "asc" } },
+        leaveDays: {
+        where: { date: { gte: todayStart }, status: { not: "REJECTED" } },
+        orderBy: { date: "asc" },
+      },
       },
       orderBy: { user: { name: "asc" } },
     }),
@@ -61,7 +64,9 @@ export default async function DoctorsSchedulesPage() {
 
   const onLeaveToday = new Set(
     doctors
-      .filter((d) => d.leaveDays.some((l) => l.date.getTime() === todayStart.getTime()))
+      .filter((d) =>
+        d.leaveDays.some((l) => l.status === "APPROVED" && l.date.getTime() === todayStart.getTime())
+      )
       .map((d) => d.id)
   );
 
@@ -165,7 +170,7 @@ export default async function DoctorsSchedulesPage() {
                         </Button>
                       }
                     >
-                      <DoctorLeaveManager doctorId={doctor.id} leaveDays={doctor.leaveDays} />
+                      <DoctorLeaveManager doctorId={doctor.id} leaveDays={doctor.leaveDays} canDecide />
                     </UserActionDialog>
                   </div>
                 </CardContent>

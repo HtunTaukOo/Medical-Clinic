@@ -9,11 +9,14 @@ import { logActivity } from "@/lib/audit";
 import { parseDateOnlyInput } from "@/lib/doctor-availability";
 import { STAFF_TITLES } from "@/lib/staff-titles";
 import { getActiveSpecialties } from "@/lib/specialties-data";
+import { notifyDoctor, notifyStaff } from "@/lib/telegram";
+import { notifyStaffUsers } from "@/lib/notifications";
+import type { DoctorLeaveStatus } from "@prisma/client";
 
 async function assertCanManageDoctorLeave(doctorId: string) {
   const session = await requireSession();
-  if (session.user.role === "ADMIN") return;
-  if (session.user.role === "DOCTOR" && session.user.doctorId === doctorId) return;
+  if (session.user.role === "ADMIN") return session;
+  if (session.user.role === "DOCTOR" && session.user.doctorId === doctorId) return session;
   throw new UnauthorizedError("Not allowed to manage this doctor's leave days");
 }
 
@@ -194,7 +197,7 @@ export async function addDoctorLeave(
   _prevState: DoctorLeaveFormState,
   formData: FormData
 ): Promise<DoctorLeaveFormState> {
-  await assertCanManageDoctorLeave(doctorId);
+  const session = await assertCanManageDoctorLeave(doctorId);
 
   const parsed = leaveSchema.safeParse({
     date: formData.get("date"),
@@ -205,14 +208,48 @@ export async function addDoctorLeave(
   }
 
   const date = parseDateOnlyInput(parsed.data.date);
-  await prisma.doctorLeave.upsert({
+  const isAdmin = session.user.role === "ADMIN";
+
+  const existing = await prisma.doctorLeave.findUnique({ where: { doctorId_date: { doctorId, date } } });
+  if (!isAdmin && existing && existing.status !== "REJECTED") {
+    return {
+      error:
+        existing.status === "APPROVED"
+          ? "This date is already blocked as leave."
+          : "You already have a pending request for this date.",
+    };
+  }
+
+  const status: DoctorLeaveStatus = isAdmin ? "APPROVED" : "PENDING";
+  const decidedFields = isAdmin
+    ? { decidedById: session.user.id, decidedByName: session.user.name ?? "Admin", decidedAt: new Date() }
+    : { decidedById: null, decidedByName: null, decidedAt: null };
+
+  const leave = await prisma.doctorLeave.upsert({
     where: { doctorId_date: { doctorId, date } },
-    update: { reason: parsed.data.reason },
-    create: { doctorId, date, reason: parsed.data.reason },
+    update: { reason: parsed.data.reason, status, rejectionNote: null, ...decidedFields },
+    create: { doctorId, date, reason: parsed.data.reason, status, ...decidedFields },
+    include: { doctor: { include: { user: true } } },
   });
+
+  if (!isAdmin) {
+    const dateLabel = date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+    const admins = await prisma.user.findMany({ where: { role: "ADMIN", active: true }, select: { id: true } });
+    await notifyStaffUsers({
+      userIds: admins.map((a) => a.id),
+      category: "LEAVE",
+      tone: "INFO",
+      title: "New Leave Request",
+      body: `${leave.doctor.user.name} requested leave on ${dateLabel}.`,
+      href: `/staff/users/${doctorId}/availability`,
+      relatedId: `leave-request-${leave.id}-${Date.now()}`,
+    });
+    await notifyStaff(`🌴 New leave request: ${leave.doctor.user.name} requested ${dateLabel} off.`);
+  }
 
   revalidatePath(`/staff/users/${doctorId}/availability`);
   revalidatePath("/doctor/schedule");
+  revalidatePath("/staff/doctors");
   return { success: true };
 }
 
@@ -223,6 +260,107 @@ export async function removeDoctorLeave(leaveId: string) {
   await prisma.doctorLeave.delete({ where: { id: leaveId } });
   revalidatePath(`/staff/users/${leave.doctorId}/availability`);
   revalidatePath("/doctor/schedule");
+  revalidatePath("/staff/doctors");
+}
+
+async function loadPendingLeaveForDecision(leaveId: string) {
+  const session = await requireRole(["ADMIN"]);
+  const leave = await prisma.doctorLeave.findUniqueOrThrow({
+    where: { id: leaveId },
+    include: { doctor: { include: { user: true } } },
+  });
+  return { session, leave };
+}
+
+export async function approveDoctorLeave(leaveId: string) {
+  const { session, leave } = await loadPendingLeaveForDecision(leaveId);
+  if (leave.status !== "PENDING") return;
+
+  await prisma.doctorLeave.update({
+    where: { id: leaveId },
+    data: {
+      status: "APPROVED",
+      decidedById: session.user.id,
+      decidedByName: session.user.name ?? "Admin",
+      decidedAt: new Date(),
+      rejectionNote: null,
+    },
+  });
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: "Approved leave request",
+    target: `${leave.doctor.user.name} — ${leave.date.toLocaleDateString()}`,
+  });
+
+  const dateLabel = leave.date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  if (leave.doctor.notifyLeaveRequestStatus) {
+    await notifyStaffUsers({
+      userIds: [leave.doctor.userId],
+      category: "LEAVE",
+      tone: "SUCCESS",
+      title: "Leave Request Approved",
+      body: `Your leave request for ${dateLabel} was approved.`,
+      href: "/doctor/schedule",
+      relatedId: `leave-decision-${leave.id}-${Date.now()}`,
+    });
+    await notifyDoctor(leave.doctorId, `✅ Your leave request for ${dateLabel} was approved.`);
+  }
+
+  revalidatePath(`/staff/users/${leave.doctorId}/availability`);
+  revalidatePath("/doctor/schedule");
+  revalidatePath("/staff/doctors");
+}
+
+export async function rejectDoctorLeave(leaveId: string, formData: FormData) {
+  const { session, leave } = await loadPendingLeaveForDecision(leaveId);
+  if (leave.status !== "PENDING") return;
+
+  const note = ((formData.get("note") as string) || "").trim() || null;
+
+  await prisma.doctorLeave.update({
+    where: { id: leaveId },
+    data: {
+      status: "REJECTED",
+      decidedById: session.user.id,
+      decidedByName: session.user.name ?? "Admin",
+      decidedAt: new Date(),
+      rejectionNote: note,
+    },
+  });
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: "Rejected leave request",
+    target: `${leave.doctor.user.name} — ${leave.date.toLocaleDateString()}${note ? ` (${note})` : ""}`,
+  });
+
+  const dateLabel = leave.date.toLocaleDateString(undefined, { month: "long", day: "numeric", year: "numeric" });
+  if (leave.doctor.notifyLeaveRequestStatus) {
+    await notifyStaffUsers({
+      userIds: [leave.doctor.userId],
+      category: "LEAVE",
+      tone: "WARNING",
+      title: "Leave Request Rejected",
+      body: note
+        ? `Your leave request for ${dateLabel} was rejected: ${note}`
+        : `Your leave request for ${dateLabel} was rejected.`,
+      href: "/doctor/schedule",
+      relatedId: `leave-decision-${leave.id}-${Date.now()}`,
+    });
+    await notifyDoctor(
+      leave.doctorId,
+      `❌ Your leave request for ${dateLabel} was rejected.${note ? ` Reason: ${note}` : ""}`
+    );
+  }
+
+  revalidatePath(`/staff/users/${leave.doctorId}/availability`);
+  revalidatePath("/doctor/schedule");
+  revalidatePath("/staff/doctors");
 }
 
 const setPasswordSchema = z.object({

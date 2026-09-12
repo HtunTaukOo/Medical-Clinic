@@ -19,7 +19,10 @@ export default async function DoctorAvailabilityPage({
     where: { id },
     include: {
       user: true,
-      leaveDays: { orderBy: { date: "asc" }, where: { date: { gte: new Date() } } },
+      leaveDays: {
+        orderBy: { date: "asc" },
+        where: { date: { gte: new Date() }, status: { not: "REJECTED" } },
+      },
     },
   });
 
@@ -59,7 +62,7 @@ export default async function DoctorAvailabilityPage({
           <CardTitle>Leave days</CardTitle>
         </CardHeader>
         <CardContent>
-          <DoctorLeaveManager doctorId={doctor.id} leaveDays={doctor.leaveDays} />
+          <DoctorLeaveManager doctorId={doctor.id} leaveDays={doctor.leaveDays} canDecide />
         </CardContent>
       </Card>
     </div>
