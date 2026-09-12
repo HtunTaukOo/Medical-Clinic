@@ -9,6 +9,7 @@ import { ClinicProfileForm } from "@/components/clinic/clinic-profile-form";
 import { WeeklyHoursForm } from "@/components/clinic/weekly-hours-form";
 import { ClinicNotificationsForm } from "@/components/clinic/clinic-notifications-form";
 import { SpecialtyDialog } from "@/components/staff/specialty-dialog";
+import { DeleteSpecialtyButton } from "@/components/staff/delete-specialty-button";
 import { ActiveToggle } from "@/components/staff/active-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -196,21 +197,24 @@ export default async function ClinicSettingsPage() {
                           />
                         </TableCell>
                         <TableCell className="text-right">
-                          <SpecialtyDialog
-                            specialty={{
-                              id: s.id,
-                              name: s.name,
-                              icon: s.icon,
-                              description: s.description,
-                              bookByService: s.bookByService,
-                              capacityPerSlot: s.capacityPerSlot,
-                            }}
-                            trigger={
-                              <button className="font-medium text-primary underline underline-offset-2">
-                                Edit
-                              </button>
-                            }
-                          />
+                          <div className="flex items-center justify-end gap-3">
+                            <SpecialtyDialog
+                              specialty={{
+                                id: s.id,
+                                name: s.name,
+                                icon: s.icon,
+                                description: s.description,
+                                bookByService: s.bookByService,
+                                capacityPerSlot: s.capacityPerSlot,
+                              }}
+                              trigger={
+                                <button className="font-medium text-primary underline underline-offset-2">
+                                  Edit
+                                </button>
+                              }
+                            />
+                            <DeleteSpecialtyButton specialtyId={s.id} name={s.name} />
+                          </div>
                         </TableCell>
                       </TableRow>
                     );

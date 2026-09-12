@@ -201,10 +201,16 @@ export async function submitAppointmentRequest(
   // but validate anyway rather than let a stale/tampered id hit the FK constraint.
   let clinicService: { id: string; name: string } | null = null;
   if (clinicServiceId) {
-    clinicService = await prisma.clinicService.findUnique({
+    const found = await prisma.clinicService.findUnique({
       where: { id: clinicServiceId },
-      select: { id: true, name: true },
+      select: { id: true, name: true, durationMinutes: true },
     });
+    if (found && durationMinutes < found.durationMinutes) {
+      return {
+        error: `${found.name} needs at least ${found.durationMinutes} minutes — please reserve more time.`,
+      };
+    }
+    clinicService = found;
   }
 
   if (resourceCapacity) {

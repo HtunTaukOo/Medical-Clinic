@@ -25,6 +25,7 @@ import { UserActionDialog } from "@/components/staff/user-action-dialog";
 import { DoctorAccountForm } from "@/components/staff/doctor-account-form";
 import { StaffAccountForm } from "@/components/staff/staff-account-form";
 import { SetPasswordForm } from "@/components/staff/set-password-form";
+import { DeleteUserButton } from "@/components/staff/delete-user-button";
 
 type RowType = "PATIENT" | "DOCTOR" | "STAFF" | "ADMIN";
 
@@ -74,7 +75,7 @@ export default async function UserManagementPage({
 }: {
   searchParams: Promise<{ tab?: string; q?: string }>;
 }) {
-  await requirePageRole(["ADMIN"]);
+  const session = await requirePageRole(["ADMIN"]);
   const { tab: tabParam, q } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "all";
 
@@ -312,6 +313,10 @@ export default async function UserManagementPage({
                             <SetPasswordForm userId={row.userId} />
                           </UserActionDialog>
                         )}
+                        {(row.type === "STAFF" || row.type === "ADMIN") &&
+                          row.userId !== session.user.id && (
+                            <DeleteUserButton userId={row.userId!} name={row.name} />
+                          )}
                       </div>
                     </TableCell>
                   </TableRow>

@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 import { ClinicServiceEditDialog } from "@/components/staff/clinic-service-edit-dialog";
+import { DeleteClinicServiceButton } from "@/components/staff/delete-clinic-service-button";
 
 function formatKyat(value: number) {
   return `K ${Math.round(value).toLocaleString()}`;
@@ -110,18 +111,21 @@ export default async function ClinicServicesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <ClinicServiceEditDialog
-                        service={{
-                          id: service.id,
-                          name: service.name,
-                          specialty: service.specialty,
-                          durationMinutes: service.durationMinutes,
-                          price: Number(service.price),
-                          room: service.room,
-                          active: service.active,
-                        }}
-                        specialties={specialtyOptions}
-                      />
+                      <div className="flex items-center justify-end gap-3">
+                        <ClinicServiceEditDialog
+                          service={{
+                            id: service.id,
+                            name: service.name,
+                            specialty: service.specialty,
+                            durationMinutes: service.durationMinutes,
+                            price: Number(service.price),
+                            room: service.room,
+                            active: service.active,
+                          }}
+                          specialties={specialtyOptions}
+                        />
+                        <DeleteClinicServiceButton serviceId={service.id} name={service.name} />
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))}

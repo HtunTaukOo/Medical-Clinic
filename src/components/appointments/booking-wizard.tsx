@@ -219,13 +219,15 @@ export function BookingWizard({
     });
   }
 
+  // The fewest 30-min slots that actually cover the selected service's
+  // duration — the floor a patient can't book under, so a longer test can't
+  // be shortened into a slot where the next patient's visit would overlap it.
+  const minSlots = selectedService ? Math.min(Math.ceil(selectedService.durationMinutes / 30), MAX_SLOTS) : 1;
+
   function pickTime(t: string) {
     setTime(t);
     const maxAvailable = maxConsecutiveAvailable(daySlots, t, MAX_SLOTS);
-    const recommended = selectedService
-      ? Math.ceil(selectedService.durationMinutes / 30)
-      : 1;
-    setSlotCount(Math.min(Math.max(recommended, 1), Math.max(maxAvailable, 1)));
+    setSlotCount(Math.min(Math.max(minSlots, 1), Math.max(maxAvailable, 1)));
   }
 
   function handleConfirm() {
@@ -622,10 +624,16 @@ export function BookingWizard({
                   <p className="text-sm font-medium">
                     Expect this visit to run long? Reserve more time.
                   </p>
+                  {minSlots > 1 && (
+                    <p className="text-xs text-muted-foreground">
+                      {selectedService?.name} takes about {selectedService?.durationMinutes} min, so at least{" "}
+                      {minSlots * 30} min is reserved.
+                    </p>
+                  )}
                   <div className="flex gap-2">
                     {Array.from({ length: MAX_SLOTS }, (_, i) => i + 1).map((n) => {
                       const maxAvailable = maxConsecutiveAvailable(daySlots, time, MAX_SLOTS);
-                      const disabled = n > maxAvailable;
+                      const disabled = n > maxAvailable || n < minSlots;
                       return (
                         <button
                           key={n}

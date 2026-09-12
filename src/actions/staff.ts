@@ -284,6 +284,66 @@ export async function toggleStaffActive(userId: string) {
   revalidatePath("/staff/users");
 }
 
+export type DeleteStaffUserState = { error?: string; success?: boolean };
+
+// Scoped to Admin/Staff accounts only: a Doctor's User row cascades to delete
+// their DoctorProfile (and from there every appointment, prescription, lab
+// order, and diagnosis they ever had), and a Patient's account is the
+// clinical record itself — neither is safe as a one-click delete. Deactivate
+// covers both of those cases already. For Admin/Staff, still block deletion
+// if they've authored anything (medical records, announcements, purchase
+// orders, sales, expenses), since those rows would otherwise be silently
+// orphaned or blocked by a raw FK error.
+/* eslint-disable @typescript-eslint/no-unused-vars -- signature must match useActionState's (state, formData) */
+export async function deleteStaffUser(
+  userId: string,
+  _prevState: DeleteStaffUserState,
+  _formData: FormData
+): Promise<DeleteStaffUserState> {
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+  const session = await requireRole(["ADMIN"]);
+
+  if (session.user.id === userId) {
+    return { error: "You can't delete your own account." };
+  }
+
+  const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
+  if (user.role !== "ADMIN" && user.role !== "STAFF") {
+    return {
+      error: "Doctor and Patient accounts can't be deleted here — deactivate them instead to keep their appointment and medical history intact.",
+    };
+  }
+
+  const [medicalRecordCount, announcementCount, purchaseOrderCount, saleCount, expenseCount] =
+    await Promise.all([
+      prisma.medicalRecord.count({ where: { authorId: userId } }),
+      prisma.announcement.count({ where: { authorId: userId } }),
+      prisma.purchaseOrder.count({ where: { createdById: userId } }),
+      prisma.pharmacySale.count({ where: { soldById: userId } }),
+      prisma.expense.count({ where: { recordedById: userId } }),
+    ]);
+  const historyCount =
+    medicalRecordCount + announcementCount + purchaseOrderCount + saleCount + expenseCount;
+  if (historyCount > 0) {
+    return {
+      error: `Can't delete — ${user.name} has ${historyCount} recorded action${historyCount === 1 ? "" : "s"} in the system (records, announcements, orders, sales, or expenses). Deactivate the account instead.`,
+    };
+  }
+
+  await prisma.user.delete({ where: { id: userId } });
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: "Deleted staff account",
+    target: `${user.name} (${user.email})`,
+  });
+
+  revalidatePath("/staff/users");
+  return { success: true };
+}
+
 const adminStaffAccountSchema = z.object({
   name: z.string().min(1),
   email: z.email(),

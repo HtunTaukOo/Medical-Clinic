@@ -78,3 +78,32 @@ export async function updateClinicService(
   revalidatePath("/staff/clinic-services");
   return { success: true };
 }
+
+// Appointment.clinicServiceId and InvoiceItem.clinicServiceId both cascade to
+// null on delete at the DB level, so a hard delete wouldn't error — it would
+// just silently strip the service name off past appointments and invoices.
+// Block it when there's history and point the admin at "Available" instead.
+/* eslint-disable @typescript-eslint/no-unused-vars -- signature must match useActionState's (state, formData) */
+export async function deleteClinicService(
+  serviceId: string,
+  _prevState: ClinicServiceFormState,
+  _formData: FormData
+): Promise<ClinicServiceFormState> {
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+  await requireRole(["ADMIN"]);
+
+  const [appointmentCount, invoiceItemCount] = await Promise.all([
+    prisma.appointment.count({ where: { clinicServiceId: serviceId } }),
+    prisma.invoiceItem.count({ where: { clinicServiceId: serviceId } }),
+  ]);
+  if (appointmentCount > 0 || invoiceItemCount > 0) {
+    return {
+      error: `Can't delete — this service is used by ${appointmentCount} appointment${appointmentCount === 1 ? "" : "s"} and ${invoiceItemCount} invoice line item${invoiceItemCount === 1 ? "" : "s"}. Mark it unavailable instead.`,
+    };
+  }
+
+  await prisma.clinicService.delete({ where: { id: serviceId } });
+
+  revalidatePath("/staff/clinic-services");
+  return { success: true };
+}

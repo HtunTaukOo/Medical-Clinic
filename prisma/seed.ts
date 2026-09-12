@@ -158,7 +158,7 @@ async function main() {
     create: {
       email: "labdoctor@nca.clinic",
       passwordHash: password,
-      name: "Dr. Lab Services",
+      name: "Lab Technician",
       role: "DOCTOR",
       doctorProfile: {
         create: {

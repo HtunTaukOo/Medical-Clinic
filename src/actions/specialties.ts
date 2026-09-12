@@ -134,3 +134,34 @@ export async function toggleSpecialtyActive(specialtyId: string) {
 
   revalidateSpecialtyConsumers();
 }
+
+// Doctors and clinic services reference a specialty by name (plain text, not
+// a foreign key), so deleting one out from under them wouldn't error at the
+// DB level — it would just silently orphan their specialty label. Block it
+// instead and point the admin at deactivating, which keeps the name intact.
+/* eslint-disable @typescript-eslint/no-unused-vars -- signature must match useActionState's (state, formData) */
+export async function deleteSpecialty(
+  specialtyId: string,
+  _prevState: SpecialtyFormState,
+  _formData: FormData
+): Promise<SpecialtyFormState> {
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+  await requireRole(["ADMIN"]);
+
+  const specialty = await prisma.specialty.findUniqueOrThrow({ where: { id: specialtyId } });
+
+  const [doctorCount, serviceCount] = await Promise.all([
+    prisma.doctorProfile.count({ where: { specialty: specialty.name } }),
+    prisma.clinicService.count({ where: { specialty: specialty.name } }),
+  ]);
+  if (doctorCount > 0 || serviceCount > 0) {
+    return {
+      error: `Can't delete — ${specialty.name} is still assigned to ${doctorCount} doctor${doctorCount === 1 ? "" : "s"} and ${serviceCount} clinic service${serviceCount === 1 ? "" : "s"}. Reassign those first, or deactivate it instead.`,
+    };
+  }
+
+  await prisma.specialty.delete({ where: { id: specialtyId } });
+
+  revalidateSpecialtyConsumers();
+  return { success: true };
+}
