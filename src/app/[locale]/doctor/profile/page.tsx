@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { User, GraduationCap, Lock, Bell } from "lucide-react";
+import { User, GraduationCap, Lock, Bell, Send } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { initials } from "@/lib/format";
@@ -10,6 +10,7 @@ import { DoctorPersonalInfoForm } from "@/components/staff/doctor-personal-info-
 import { DoctorSpecialtyForm } from "@/components/staff/doctor-specialty-form";
 import { DoctorNotificationToggle } from "@/components/staff/doctor-notification-toggle";
 import { ChangePasswordForm } from "@/components/security/change-password-form";
+import { TelegramConnectCard } from "@/components/telegram/telegram-connect-card";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
@@ -93,6 +94,10 @@ export default async function DoctorProfilePage() {
           <TabsTrigger value="notifications" className={SIDEBAR_TAB_TRIGGER}>
             <Bell className="size-4 text-yellow-500" />
             Notifications
+          </TabsTrigger>
+          <TabsTrigger value="telegram" className={SIDEBAR_TAB_TRIGGER}>
+            <Send className="size-4 text-sky-500" />
+            Telegram
           </TabsTrigger>
         </TabsList>
 
@@ -189,6 +194,10 @@ export default async function DoctorProfilePage() {
                   />
                 </div>
               </div>
+            </TabsContent>
+
+            <TabsContent value="telegram">
+              <TelegramConnectCard />
             </TabsContent>
           </CardContent>
         </Card>

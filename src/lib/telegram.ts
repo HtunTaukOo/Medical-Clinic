@@ -43,6 +43,16 @@ export async function notifyPatient(patientId: string, text: string) {
   }
 }
 
+export async function notifyDoctor(doctorId: string, text: string) {
+  const doctor = await prisma.doctorProfile.findUnique({
+    where: { id: doctorId },
+    select: { telegramChatId: true },
+  });
+  if (doctor?.telegramChatId) {
+    await sendTelegramMessage(doctor.telegramChatId, text);
+  }
+}
+
 export async function getStaffTelegramChatId() {
   const settings = await prisma.clinicSettings.findUnique({
     where: { id: CLINIC_SETTINGS_ID },

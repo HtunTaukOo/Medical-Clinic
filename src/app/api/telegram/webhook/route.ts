@@ -34,9 +34,32 @@ export async function POST(req: Request) {
   const normalized = text?.trim().toUpperCase().replace(/[\s-]/g, "");
 
   if (message && text?.startsWith("/start")) {
-    const patientId = text.split(" ")[1];
+    const payload = text.split(" ")[1];
+    // "d_<id>" connects a doctor; a bare id (legacy links) or "p_<id>" connects a patient.
+    const doctorId = payload?.startsWith("d_") ? payload.slice(2) : null;
+    const patientId = payload && !doctorId ? payload.replace(/^p_/, "") : null;
 
-    if (patientId) {
+    if (doctorId) {
+      const doctor = await prisma.doctorProfile
+        .update({
+          where: { id: doctorId },
+          data: { telegramChatId: chatId },
+          include: { user: true },
+        })
+        .catch(() => null);
+
+      if (doctor) {
+        await sendTelegramMessage(
+          chatId!,
+          `✅ Telegram connected! You'll receive appointment updates from NCA Clinic here, Dr. ${doctor.user.name}.`
+        );
+      } else {
+        await sendTelegramMessage(
+          chatId!,
+          "This connection link is invalid or expired. Please try again from the Doctor Console."
+        );
+      }
+    } else if (patientId) {
       const patient = await prisma.patient
         .update({
           where: { id: patientId },
@@ -58,7 +81,7 @@ export async function POST(req: Request) {
     } else {
       await sendTelegramMessage(
         chatId!,
-        "Welcome to NCA Clinic. To connect your account, use the link from your patient portal."
+        "Welcome to NCA Clinic. To connect your account, use the link from your patient portal or Doctor Console."
       );
     }
   } else if (message?.reply_to_message && (await isReplyInStaffChat(chatId))) {
@@ -83,6 +106,15 @@ async function isReplyInStaffChat(chatId: string | undefined) {
   return !!staffChatId && staffChatId === chatId;
 }
 
+// These self-service commands (CANCEL, CHECK IN, CHAT) are patient-only.
+// A connected doctor's chat won't match any patient, so without this check
+// they'd get the generic "connect your account" message even though they
+// are connected — this gives them an accurate reason instead.
+async function isConnectedDoctorChat(chatId: string) {
+  const doctor = await prisma.doctorProfile.findFirst({ where: { telegramChatId: chatId } });
+  return !!doctor;
+}
+
 async function handleStaffReply(repliedToMessageId: number, replyText: string) {
   if (!replyText.trim()) return;
 
@@ -103,7 +135,9 @@ async function handleChatCommand(chatId: string, chatMessage: string) {
   if (!patient) {
     await sendTelegramMessage(
       chatId,
-      "Please connect your account first from the patient portal before using this."
+      (await isConnectedDoctorChat(chatId))
+        ? "This command is only available for patient accounts."
+        : "Please connect your account first from the patient portal before using this."
     );
     return;
   }
@@ -143,7 +177,9 @@ async function handleCheckInCommand(chatId: string) {
   if (!patient) {
     await sendTelegramMessage(
       chatId,
-      "Please connect your account first from the patient portal before using this."
+      (await isConnectedDoctorChat(chatId))
+        ? "This command is only available for patient accounts."
+        : "Please connect your account first from the patient portal before using this."
     );
     return;
   }
@@ -202,7 +238,9 @@ async function handleCancelCommand(chatId: string) {
   if (!patient) {
     await sendTelegramMessage(
       chatId,
-      "Please connect your account first from the patient portal before using this."
+      (await isConnectedDoctorChat(chatId))
+        ? "This command is only available for patient accounts."
+        : "Please connect your account first from the patient portal before using this."
     );
     return;
   }

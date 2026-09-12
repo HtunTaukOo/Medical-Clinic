@@ -4,7 +4,7 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, UnauthorizedError, STAFF_ROLES } from "@/lib/authz";
-import { notifyStaff, notifyPatient } from "@/lib/telegram";
+import { notifyStaff, notifyPatient, notifyDoctor } from "@/lib/telegram";
 import { createNotification, notifyStaffUsers } from "@/lib/notifications";
 
 const labTestSchema = z.object({
@@ -225,6 +225,7 @@ export async function enterResults(
       href: `/doctor/patients/${order.patientId}`,
       relatedId: `lab-${order.id}`,
     });
+    await notifyDoctor(order.doctorId, `🧪 ${testNames} results for ${order.patient.name} are ready to review.`);
   }
 
   revalidatePath("/staff/lab");

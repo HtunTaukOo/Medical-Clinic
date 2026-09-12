@@ -26,7 +26,7 @@ import {
   isWithinDoctorHours,
   WEEKDAY_LABELS,
 } from "@/lib/doctor-availability";
-import { notifyPatient, notifyStaff } from "@/lib/telegram";
+import { notifyPatient, notifyStaff, notifyDoctor } from "@/lib/telegram";
 import { createNotification, notifyStaffUsers } from "@/lib/notifications";
 import { notifyWaitlistOfOpening } from "@/actions/waitlist";
 import { logActivity } from "@/lib/audit";
@@ -296,6 +296,7 @@ export async function submitAppointmentRequest(
       href: `/doctor/appointments/${appointment.id}`,
       relatedId: `appt-request-${appointment.id}`,
     });
+    await notifyDoctor(doctor.id, `📅 New appointment request: ${requestSummary}`);
   }
 
   revalidatePath("/portal/appointments");
@@ -527,17 +528,20 @@ export async function rescheduleAppointment(
         href: `/doctor/appointments/${appointment.id}`,
         relatedId: `appt-reschedule-${appointment.id}-${appointment.updatedAt.getTime()}`,
       });
+      await notifyDoctor(appointment.doctorId, `🔄 ${rescheduleSummary}`);
     }
   } else if (appointment.doctor.notifyNewAppointments) {
+    const staffRescheduleSummary = `${appointment.patient.name}'s appointment was moved to ${newTimeLabel} by ${session.user.name ?? "staff"}.${reason ? ` Reason: ${reason}` : ""}`;
     await notifyStaffUsers({
       userIds: [appointment.doctor.userId],
       category: "APPOINTMENT",
       tone: "INFO",
       title: "Appointment Rescheduled",
-      body: `${appointment.patient.name}'s appointment was moved to ${newTimeLabel} by ${session.user.name ?? "staff"}.${reason ? ` Reason: ${reason}` : ""}`,
+      body: staffRescheduleSummary,
       href: `/doctor/appointments/${appointment.id}`,
       relatedId: `appt-reschedule-${appointment.id}-${appointment.updatedAt.getTime()}`,
     });
+    await notifyDoctor(appointment.doctorId, `🔄 ${staffRescheduleSummary}`);
   }
 
   await logActivity({
@@ -600,6 +604,10 @@ export async function checkInAppointment(appointmentId: string) {
       href: `/doctor/appointments/${checkedIn.id}`,
       relatedId: `appt-waiting-${checkedIn.id}-${checkedIn.checkedInAt?.getTime()}`,
     });
+    await notifyDoctor(
+      checkedIn.doctorId,
+      `🙋 ${checkedIn.patient.name} has checked in and is waiting for their appointment.`
+    );
   }
 
   revalidatePath("/staff/appointments");
@@ -704,6 +712,7 @@ export async function cancelAppointment(appointmentId: string) {
         href: `/doctor/appointments/${appointment.id}`,
         relatedId: `appt-cancel-${appointment.id}`,
       });
+      await notifyDoctor(appointment.doctorId, `❌ ${cancelSummary}`);
     }
   } else {
     await notifyPatient(
@@ -737,6 +746,7 @@ export async function cancelAppointment(appointmentId: string) {
         href: `/doctor/appointments/${appointment.id}`,
         relatedId: `appt-cancel-${appointment.id}`,
       });
+      await notifyDoctor(appointment.doctorId, `❌ ${cancelSummary}`);
     }
   }
 

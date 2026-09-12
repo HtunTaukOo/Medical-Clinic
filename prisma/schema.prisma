@@ -185,6 +185,7 @@ model DoctorProfile {
   languages        String[] @default([])
   professionalBio  String?
   clinicRoom       String?
+  telegramChatId   String?
 
   notifyNewAppointments      Boolean @default(true)
   notifyAppointmentCancelled Boolean @default(true)

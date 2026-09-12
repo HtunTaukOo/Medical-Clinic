@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { ANNOUNCEMENT_CATEGORIES } from "@/lib/announcements";
 import { notifyAllPatients, notifyStaffUsers } from "@/lib/notifications";
+import { notifyDoctor } from "@/lib/telegram";
 
 const announcementSchema = z.object({
   title: z.string().min(1),
@@ -55,7 +56,7 @@ export async function createAnnouncement(
     }),
     prisma.doctorProfile.findMany({
       where: { notifyAnnouncements: true },
-      select: { userId: true },
+      select: { id: true, userId: true },
     }),
   ]);
   await notifyStaffUsers({
@@ -75,6 +76,9 @@ export async function createAnnouncement(
     body: parsed.data.body,
     relatedId: `announcement-${announcement.id}`,
   });
+  await Promise.all(
+    doctorRecipients.map((d) => notifyDoctor(d.id, `📣 <b>${parsed.data.title}</b>\n\n${parsed.data.body}`))
+  );
 
   revalidatePath("/staff/announcements");
   revalidatePath("/portal");

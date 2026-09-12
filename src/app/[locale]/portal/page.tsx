@@ -260,10 +260,13 @@ export default async function PortalDashboardPage() {
         <div>
           <p className="text-sm text-muted-foreground">{dateLabel}</p>
           <h2 className="text-2xl font-bold">
-            {greeting}, {firstName} 👋
+            {greeting}, {firstName}
           </h2>
           <p className="text-sm text-muted-foreground">
-            You have <span className="font-medium text-foreground">{weekAppointmentCount}</span>{" "}
+            You have{" "}
+            <span className="bg-gradient-to-r from-primary-mid to-primary bg-clip-text font-semibold text-transparent">
+              {weekAppointmentCount}
+            </span>{" "}
             upcoming appointment{weekAppointmentCount === 1 ? "" : "s"} this week.
           </p>
         </div>
