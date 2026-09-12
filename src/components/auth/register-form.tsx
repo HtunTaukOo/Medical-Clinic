@@ -17,7 +17,12 @@ export function RegisterForm() {
 
   if (state.success) {
     return (
-      <p className="text-sm text-muted-foreground">{t("registerSuccess")}</p>
+      <div className="grid gap-4">
+        <p className="text-sm text-muted-foreground">{t("registerSuccess")}</p>
+        <Button asChild className="w-full">
+          <Link href="/login">{t("login")}</Link>
+        </Button>
+      </div>
     );
   }
 
