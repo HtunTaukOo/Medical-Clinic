@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CalendarDays, FlaskConical, AlertTriangle, Activity } from "lucide-react";
+import { CalendarDays, FlaskConical, AlertTriangle, Activity, Info, Plus } from "lucide-react";
 import { BackLink } from "@/components/back-link";
 import { GENDER_LABELS } from "@/lib/patients";
 import { getTranslations } from "next-intl/server";
@@ -98,10 +98,19 @@ export default async function DoctorPatientDetailPage({
     patient.appointments.find(
       (a) => a.status === "CHECKED_IN" && a.doctorId === session.user.doctorId
     ) ?? null;
-  const startConsultationHref = checkedInAppointment
-    ? `/doctor/appointments/${checkedInAppointment.id}`
-    : `/doctor/appointments/new?patientId=${patient.id}`;
+  // Not checked in yet — find the most relevant pending appointment (with
+  // this doctor) to explain why, instead of silently falling through to
+  // "create a new appointment" as if none existed at all. Prefers the
+  // soonest upcoming one; falls back to the most recent past-due one.
+  const pendingAppointments = patient.appointments.filter(
+    (a) => a.doctorId === session.user.doctorId && (a.status === "CONFIRMED" || a.status === "REQUESTED")
+  );
   const now = new Date();
+  const upcomingPending = pendingAppointments.filter((a) => a.scheduledAt.getTime() >= now.getTime());
+  const nextPendingAppointment =
+    upcomingPending.length > 0
+      ? upcomingPending.reduce((soonest, a) => (a.scheduledAt < soonest.scheduledAt ? a : soonest))
+      : (pendingAppointments[0] ?? null);
   const activePrescriptions = patient.prescriptions.filter((rx) => {
     const maxDuration = Math.max(0, ...rx.items.map((i) => i.durationDays ?? 0));
     if (maxDuration === 0) return false;
@@ -153,12 +162,46 @@ export default async function DoctorPatientDetailPage({
                 {patient.heightCm && ` · ${patient.heightCm} cm`}
               </div>
             )}
-            <Button asChild>
-              <Link href={startConsultationHref}>
-                <Activity className="size-4" />
-                Start Consultation
-              </Link>
-            </Button>
+            {checkedInAppointment ? (
+              <Button asChild>
+                <Link href={`/doctor/appointments/${checkedInAppointment.id}`}>
+                  <Activity className="size-4" />
+                  Start Consultation
+                </Link>
+              </Button>
+            ) : nextPendingAppointment ? (
+              <div className="grid gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                <div className="flex items-center gap-1.5 font-medium">
+                  <Info className="size-4" />
+                  Not checked in yet
+                </div>
+                <p>
+                  Their appointment is on{" "}
+                  {nextPendingAppointment.scheduledAt.toLocaleDateString(undefined, {
+                    month: "long",
+                    day: "numeric",
+                    year: "numeric",
+                  })}
+                  . Ask the front desk to check them in first.
+                </p>
+                <Link
+                  href={`/doctor/appointments/${nextPendingAppointment.id}`}
+                  className="w-fit text-sm underline underline-offset-2"
+                >
+                  View appointment
+                </Link>
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm text-muted-foreground">
+                <span>No appointment booked</span>
+                <Button asChild size="sm" variant="outline">
+                  <Link href={`/doctor/appointments/new?patientId=${patient.id}`}>
+                    <Plus className="size-4" />
+                    Book an appointment
+                  </Link>
+                </Button>
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>
