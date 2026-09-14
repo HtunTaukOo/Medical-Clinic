@@ -49,7 +49,10 @@ export async function cancelWalkIn(walkInId: string) {
 const convertSchema = z.object({
   patientId: z.string().optional(),
   newPatientName: z.string().optional(),
-  doctorId: z.string().min(1),
+  // Either doctorId (a real doctor) or specialtyName (a SERVICE_CAPACITY
+  // specialty like Lab Visit — the doctor is auto-assigned server-side).
+  doctorId: z.string().optional(),
+  specialtyName: z.string().optional(),
   clinicServiceId: z.string().optional(),
 });
 
@@ -70,7 +73,8 @@ export async function convertWalkInToAppointment(
   const parsed = convertSchema.safeParse({
     patientId: formData.get("patientId") || undefined,
     newPatientName: formData.get("newPatientName") || undefined,
-    doctorId: formData.get("doctorId"),
+    doctorId: formData.get("doctorId") || undefined,
+    specialtyName: formData.get("specialtyName") || undefined,
     clinicServiceId: formData.get("clinicServiceId") || undefined,
   });
   if (!parsed.success) {
@@ -80,13 +84,34 @@ export async function convertWalkInToAppointment(
     return { error: "Select an existing patient or enter a name for a new one" };
   }
 
-  const doctor = await prisma.doctorProfile.findUniqueOrThrow({ where: { id: parsed.data.doctorId } });
-  const specialty = doctor.specialty
-    ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
-    : null;
-  if (specialty?.bookingMode === "SERVICE_CAPACITY" && !parsed.data.clinicServiceId) {
-    return { error: "Select which service or lab test this visit is for" };
+  let doctorId: string;
+  let specialty: Awaited<ReturnType<typeof prisma.specialty.findUnique>> = null;
+
+  if (parsed.data.specialtyName) {
+    specialty = await prisma.specialty.findUnique({ where: { name: parsed.data.specialtyName } });
+    if (!specialty || specialty.bookingMode !== "SERVICE_CAPACITY") {
+      return { error: "This specialty isn't set up for service-based visits." };
+    }
+    if (!parsed.data.clinicServiceId) {
+      return { error: "Select which service or lab test this visit is for" };
+    }
+    const assignedDoctor = await prisma.doctorProfile.findFirst({
+      where: { specialty: specialty.name },
+      orderBy: { id: "asc" },
+    });
+    if (!assignedDoctor) {
+      return { error: "No staff are set up for this specialty yet. Please contact the clinic." };
+    }
+    doctorId = assignedDoctor.id;
+  } else {
+    if (!parsed.data.doctorId) return { error: "Please choose a doctor." };
+    doctorId = parsed.data.doctorId;
+    const doctor = await prisma.doctorProfile.findUniqueOrThrow({ where: { id: doctorId } });
+    specialty = doctor.specialty
+      ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
+      : null;
   }
+
   const clinicService = parsed.data.clinicServiceId
     ? await prisma.clinicService.findUnique({ where: { id: parsed.data.clinicServiceId } })
     : null;
@@ -130,7 +155,7 @@ export async function convertWalkInToAppointment(
     const appointment = await tx.appointment.create({
       data: {
         patientId,
-        doctorId: parsed.data.doctorId,
+        doctorId,
         clinicServiceId: clinicService?.id,
         scheduledAt,
         durationMinutes,

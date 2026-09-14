@@ -45,6 +45,9 @@ export default async function PatientCheckInPage({
     prisma.clinicService.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
   ]);
 
+  const serviceSpecialtyNames = new Set(bookByServiceSpecialties.map((s) => s.name));
+  const realDoctors = doctors.filter((d) => !d.specialty || !serviceSpecialtyNames.has(d.specialty));
+
   return (
     <div className="grid gap-6">
       <div>
@@ -126,7 +129,7 @@ export default async function PatientCheckInPage({
           </CardHeader>
           <CardContent>
             <RegisterWalkInForm
-              doctors={doctors.map((d) => ({ id: d.id, name: d.user.name, specialty: d.specialty }))}
+              doctors={realDoctors.map((d) => ({ id: d.id, name: d.user.name, specialty: d.specialty }))}
               bookByServiceSpecialties={bookByServiceSpecialties.map((s) => s.name)}
               blockCapacitySpecialties={blockCapacitySpecialties.map((s) => s.name)}
               clinicServices={labServices.map((s) => ({

@@ -27,6 +27,12 @@ export default async function ConvertWalkInPage({
 
   if (!walkIn || walkIn.status !== "CALLED") notFound();
 
+  const serviceSpecialtyNames = new Set(bookByServiceSpecialties.map((s) => s.name));
+  const walkInDoctor = walkIn.doctorId ? doctors.find((d) => d.id === walkIn.doctorId) : null;
+  const defaultIsServiceDoctor =
+    !!walkInDoctor?.specialty && serviceSpecialtyNames.has(walkInDoctor.specialty);
+  const realDoctors = doctors.filter((d) => !d.specialty || !serviceSpecialtyNames.has(d.specialty));
+
   return (
     <div className="grid gap-6">
       <div className="flex items-center gap-3">
@@ -52,8 +58,9 @@ export default async function ConvertWalkInPage({
       <ConvertWalkInForm
         walkInId={walkIn.id}
         patients={patients.map((p) => ({ id: p.id, name: p.name }))}
-        doctors={doctors.map((d) => ({ id: d.id, name: d.user.name, specialty: d.specialty }))}
-        defaultDoctorId={walkIn.doctorId ?? undefined}
+        doctors={realDoctors.map((d) => ({ id: d.id, name: d.user.name, specialty: d.specialty }))}
+        defaultDoctorId={defaultIsServiceDoctor ? undefined : (walkIn.doctorId ?? undefined)}
+        defaultSpecialtyName={defaultIsServiceDoctor ? (walkInDoctor!.specialty ?? undefined) : undefined}
         bookByServiceSpecialties={bookByServiceSpecialties.map((s) => s.name)}
         blockCapacitySpecialties={blockCapacitySpecialties.map((s) => s.name)}
         clinicServices={labServices.map((s) => ({ id: s.id, name: s.name, specialty: s.specialty }))}

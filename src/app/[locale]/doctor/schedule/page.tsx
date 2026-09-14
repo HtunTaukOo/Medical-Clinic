@@ -12,6 +12,7 @@ import {
 } from "@/lib/clinic-hours";
 import { APPOINTMENT_SLOT_MINUTES } from "@/lib/scheduling";
 import { TIME_BLOCKS, blockContainingMinuteOfDay, formatTimeLabel } from "@/lib/time-blocks";
+import { getDoctorShiftsByWeekday, isWithinShiftRanges } from "@/lib/doctor-availability";
 import { DoctorLeaveManager } from "@/components/staff/doctor-leave-manager";
 import { RequestLeaveDialog } from "@/components/staff/request-leave-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,7 +68,7 @@ export default async function SchedulePage({
   const nextWeek = new Date(weekStart.getTime() + 7 * ONE_DAY_MS);
   const todayKey = clinicDateKey(new Date());
 
-  const [doctor, clinicHours, weekAppointments, upcomingLeaveDays, weekLeaveDays] =
+  const [doctor, clinicHours, weekAppointments, upcomingLeaveDays, weekLeaveDays, shiftsByWeekday] =
     await Promise.all([
       prisma.doctorProfile.findUnique({ where: { id: doctorId } }),
       getClinicHoursRange(),
@@ -90,6 +91,7 @@ export default async function SchedulePage({
           status: { not: "REJECTED" },
         },
       }),
+      getDoctorShiftsByWeekday(doctorId),
     ]);
   if (!doctor) notFound();
 
@@ -329,8 +331,20 @@ export default async function SchedulePage({
     );
   }
 
-  const startMinutes = toMinutes(doctor.workStartTime ?? clinicHours.openTime);
-  const endMinutes = toMinutes(doctor.workEndTime ?? clinicHours.closeTime);
+  // Row range spans the union of every working day's shifts (falling back to
+  // the clinic's own hours for days with no specific shifts recorded) — a
+  // shared set of grid rows across all 6 day-columns, with per-day/per-row
+  // gating below marking cells outside that day's own shifts as blocked
+  // (e.g. a lunch-break gap on a split-shift day).
+  const allShiftsThisWeek = doctor.workingDays.flatMap((wd) => shiftsByWeekday.get(wd) ?? []);
+  const startMinutes = Math.min(
+    toMinutes(clinicHours.openTime),
+    ...allShiftsThisWeek.map((s) => toMinutes(s.startTime))
+  );
+  const endMinutes = Math.max(
+    toMinutes(clinicHours.closeTime),
+    ...allShiftsThisWeek.map((s) => toMinutes(s.endTime))
+  );
   const rowMinutes: number[] = [];
   for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) rowMinutes.push(m);
 
@@ -378,7 +392,9 @@ export default async function SchedulePage({
       const isWorking = doctor.workingDays.includes(weekdayIndex);
       const isLeave = approvedLeaveDayKeys.has(dayKey);
       const isPast = dayMidnight + minutes * 60000 <= now;
-      if (!isWorking || isLeave || isPast) {
+      const dayShifts = shiftsByWeekday.get(weekdayIndex) ?? [];
+      const withinShifts = isWithinShiftRanges(new Date(dayMidnight + minutes * 60000), dayShifts);
+      if (!isWorking || isLeave || isPast || !withinShifts) {
         blockedCount++;
         return { type: "blocked" };
       }

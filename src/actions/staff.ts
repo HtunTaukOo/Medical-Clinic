@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, requireSession, STAFF_ROLES, UnauthorizedError } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
-import { parseDateOnlyInput } from "@/lib/doctor-availability";
+import { parseDateOnlyInput, WEEKDAY_LABELS } from "@/lib/doctor-availability";
 import { STAFF_TITLES } from "@/lib/staff-titles";
 import { getActiveSpecialties } from "@/lib/specialties-data";
 import { notifyDoctor, notifyStaff } from "@/lib/telegram";
@@ -155,6 +155,9 @@ export async function adminUpdateDoctorAccount(
 
 export type DoctorAvailabilityFormState = { error?: string; success?: boolean };
 
+// Shift rows arrive as three parallel arrays (one <input> triple per row,
+// all sharing the same `name`s) rather than nested field names, since plain
+// FormData has no native support for an array-of-objects shape.
 export async function updateDoctorAvailability(
   doctorId: string,
   _prevState: DoctorAvailabilityFormState,
@@ -163,25 +166,46 @@ export async function updateDoctorAvailability(
   await requireRole(["ADMIN"]);
 
   const workingDays = formData.getAll("workingDays").map(Number);
-  const workStartTime = (formData.get("workStartTime") as string) || null;
-  const workEndTime = (formData.get("workEndTime") as string) || null;
-
   if (workingDays.length === 0) {
     return { error: "Select at least one working day" };
   }
-  if ((workStartTime && !workEndTime) || (!workStartTime && workEndTime)) {
-    return { error: "Set both a start and end time, or leave both blank to use the clinic's default hours" };
-  }
-  if (workStartTime && workEndTime && workStartTime >= workEndTime) {
-    return { error: "Start time must be before end time" };
+
+  const shiftWeekdays = formData.getAll("shiftWeekday").map(Number);
+  const shiftStarts = formData.getAll("shiftStart") as string[];
+  const shiftEnds = formData.getAll("shiftEnd") as string[];
+  if (shiftWeekdays.length !== shiftStarts.length || shiftStarts.length !== shiftEnds.length) {
+    return { error: "Invalid schedule data" };
   }
 
-  await prisma.doctorProfile.update({
-    where: { id: doctorId },
-    data: { workingDays, workStartTime, workEndTime },
-  });
+  const shifts: { weekday: number; startTime: string; endTime: string }[] = [];
+  for (let i = 0; i < shiftWeekdays.length; i++) {
+    const weekday = shiftWeekdays[i];
+    const startTime = shiftStarts[i];
+    const endTime = shiftEnds[i];
+    if (!Number.isInteger(weekday) || weekday < 0 || weekday > 6 || !startTime || !endTime) {
+      return { error: "Invalid schedule data" };
+    }
+    if (startTime >= endTime) {
+      return { error: `${WEEKDAY_LABELS[weekday]}: start time must be before end time` };
+    }
+    if (!workingDays.includes(weekday)) {
+      return {
+        error: `${WEEKDAY_LABELS[weekday]} has a time range but isn't checked as a working day — check it or remove the range.`,
+      };
+    }
+    shifts.push({ weekday, startTime, endTime });
+  }
+
+  await prisma.$transaction([
+    prisma.doctorProfile.update({ where: { id: doctorId }, data: { workingDays } }),
+    prisma.doctorShift.deleteMany({ where: { doctorId } }),
+    ...(shifts.length > 0
+      ? [prisma.doctorShift.createMany({ data: shifts.map((s) => ({ doctorId, ...s })) })]
+      : []),
+  ]);
 
   revalidatePath(`/staff/users/${doctorId}/availability`);
+  revalidatePath("/staff/doctors");
   return { success: true };
 }
 
@@ -424,14 +448,14 @@ export async function toggleStaffActive(userId: string) {
 
 export type DeleteStaffUserState = { error?: string; success?: boolean };
 
-// Scoped to Admin/Staff accounts only: a Doctor's User row cascades to delete
-// their DoctorProfile (and from there every appointment, prescription, lab
-// order, and diagnosis they ever had), and a Patient's account is the
-// clinical record itself — neither is safe as a one-click delete. Deactivate
-// covers both of those cases already. For Admin/Staff, still block deletion
-// if they've authored anything (medical records, announcements, purchase
-// orders, sales, expenses), since those rows would otherwise be silently
-// orphaned or blocked by a raw FK error.
+// Patient accounts aren't handled here at all (see deletePatient in
+// actions/patients.ts) — a Patient row is the clinical record itself, keyed
+// independently of any login. For Admin/Staff/Doctor accounts, deleting the
+// User row is safe once we've confirmed there's no history that would either
+// cascade away silently or hit a raw FK error: for Admin/Staff that's
+// authored records/announcements/orders/sales/expenses; for Doctor it's the
+// DoctorProfile's own appointments/diagnoses/prescriptions/lab orders/walk-ins
+// (DoctorProfile itself cascades from User, so deleting the User is enough).
 /* eslint-disable @typescript-eslint/no-unused-vars -- signature must match useActionState's (state, formData) */
 export async function deleteStaffUser(
   userId: string,
@@ -446,26 +470,47 @@ export async function deleteStaffUser(
   }
 
   const user = await prisma.user.findUniqueOrThrow({ where: { id: userId } });
-  if (user.role !== "ADMIN" && user.role !== "STAFF") {
+  if (user.role === "PATIENT") {
     return {
-      error: "Doctor and Patient accounts can't be deleted here — deactivate them instead to keep their appointment and medical history intact.",
+      error: "Patient accounts can't be deleted here — use the delete option on their patient record instead.",
     };
   }
 
-  const [medicalRecordCount, announcementCount, purchaseOrderCount, saleCount, expenseCount] =
-    await Promise.all([
-      prisma.medicalRecord.count({ where: { authorId: userId } }),
-      prisma.announcement.count({ where: { authorId: userId } }),
-      prisma.purchaseOrder.count({ where: { createdById: userId } }),
-      prisma.pharmacySale.count({ where: { soldById: userId } }),
-      prisma.expense.count({ where: { recordedById: userId } }),
-    ]);
-  const historyCount =
-    medicalRecordCount + announcementCount + purchaseOrderCount + saleCount + expenseCount;
-  if (historyCount > 0) {
-    return {
-      error: `Can't delete — ${user.name} has ${historyCount} recorded action${historyCount === 1 ? "" : "s"} in the system (records, announcements, orders, sales, or expenses). Deactivate the account instead.`,
-    };
+  if (user.role === "DOCTOR") {
+    const doctorProfile = await prisma.doctorProfile.findUnique({ where: { userId } });
+    if (doctorProfile) {
+      const [appointmentCount, diagnosisCount, prescriptionCount, labOrderCount, walkInCount] =
+        await Promise.all([
+          prisma.appointment.count({ where: { doctorId: doctorProfile.id } }),
+          prisma.diagnosis.count({ where: { doctorId: doctorProfile.id } }),
+          prisma.prescription.count({ where: { doctorId: doctorProfile.id } }),
+          prisma.labOrder.count({ where: { doctorId: doctorProfile.id } }),
+          prisma.walkIn.count({ where: { doctorId: doctorProfile.id } }),
+        ]);
+      const historyCount =
+        appointmentCount + diagnosisCount + prescriptionCount + labOrderCount + walkInCount;
+      if (historyCount > 0) {
+        return {
+          error: `Can't delete — Dr. ${user.name} has ${historyCount} recorded appointment${historyCount === 1 ? "" : "s"}, diagnosis${historyCount === 1 ? "" : "es"}, prescription${historyCount === 1 ? "" : "s"}, lab order${historyCount === 1 ? "" : "s"}, or walk-in${historyCount === 1 ? "" : "s"} in the system. Deactivate the account instead.`,
+        };
+      }
+    }
+  } else {
+    const [medicalRecordCount, announcementCount, purchaseOrderCount, saleCount, expenseCount] =
+      await Promise.all([
+        prisma.medicalRecord.count({ where: { authorId: userId } }),
+        prisma.announcement.count({ where: { authorId: userId } }),
+        prisma.purchaseOrder.count({ where: { createdById: userId } }),
+        prisma.pharmacySale.count({ where: { soldById: userId } }),
+        prisma.expense.count({ where: { recordedById: userId } }),
+      ]);
+    const historyCount =
+      medicalRecordCount + announcementCount + purchaseOrderCount + saleCount + expenseCount;
+    if (historyCount > 0) {
+      return {
+        error: `Can't delete — ${user.name} has ${historyCount} recorded action${historyCount === 1 ? "" : "s"} in the system (records, announcements, orders, sales, or expenses). Deactivate the account instead.`,
+      };
+    }
   }
 
   await prisma.user.delete({ where: { id: userId } });
@@ -474,11 +519,12 @@ export async function deleteStaffUser(
     actorId: session.user.id,
     actorName: session.user.name ?? session.user.email ?? "Unknown",
     actorRole: session.user.role,
-    action: "Deleted staff account",
+    action: user.role === "DOCTOR" ? "Deleted doctor account" : "Deleted staff account",
     target: `${user.name} (${user.email})`,
   });
 
   revalidatePath("/staff/users");
+  revalidatePath("/staff/doctors");
   return { success: true };
 }
 

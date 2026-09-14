@@ -6,6 +6,7 @@ import type { AppointmentFormState } from "@/actions/appointments";
 import { useRouter, Link } from "@/i18n/navigation";
 import { JoinWaitlistForm } from "@/components/appointments/join-waitlist-form";
 import { BlockPicker } from "@/components/appointments/block-picker";
+import { ResourceSlotPicker } from "@/components/appointments/resource-slot-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,8 @@ export function AppointmentForm({
   patients,
   doctors,
   blockSpecialties,
+  serviceSpecialties,
+  clinicServices,
   redirectOnSuccess,
   defaultDoctorId,
   defaultPatientId,
@@ -34,6 +37,11 @@ export function AppointmentForm({
   patients?: { id: string; name: string }[];
   doctors?: { id: string; name: string; specialty: string | null }[];
   blockSpecialties?: { name: string; capacityPerSlot: number }[];
+  // SERVICE_CAPACITY specialties (e.g. Lab Visit) — no real doctor to pick,
+  // so these render a service + shared-capacity time picker instead of the
+  // doctor dropdown, and the doctor is auto-assigned server-side.
+  serviceSpecialties?: { name: string; capacityPerSlot: number }[];
+  clinicServices?: { id: string; name: string; specialty: string | null }[];
   redirectOnSuccess: string;
   defaultDoctorId?: string;
   defaultPatientId?: string;
@@ -46,10 +54,21 @@ export function AppointmentForm({
   >(action, {});
   const [repeatWeekly, setRepeatWeekly] = useState(false);
   const [doctorId, setDoctorId] = useState(defaultDoctorId ?? "");
+  const [bookingKind, setBookingKind] = useState<"doctor" | "service">("doctor");
+  const [clinicServiceId, setClinicServiceId] = useState("");
 
   const isStaffBooking = !!patients;
   const selectedDoctor = doctors?.find((d) => d.id === doctorId);
   const blockSpecialty = blockSpecialties?.find((s) => s.name === selectedDoctor?.specialty) ?? null;
+
+  const hasServiceOption = !!serviceSpecialties && serviceSpecialties.length > 0;
+  const eligibleServices = (clinicServices ?? []).filter((s) =>
+    serviceSpecialties?.some((sp) => sp.name === s.specialty)
+  );
+  const selectedService = eligibleServices.find((s) => s.id === clinicServiceId) ?? null;
+  const selectedServiceSpecialty =
+    serviceSpecialties?.find((sp) => sp.name === selectedService?.specialty) ?? null;
+  const isServiceBooking = hasServiceOption && bookingKind === "service";
 
   useEffect(() => {
     if (state.success && state.skippedDates === undefined) {
@@ -95,34 +114,96 @@ export function AppointmentForm({
           </Select>
         </div>
       )}
-      <div className="grid gap-2">
-        <Label htmlFor="doctorId">{t("doctor")}</Label>
-        <Select name="doctorId" required value={doctorId} onValueChange={setDoctorId}>
-          <SelectTrigger id="doctorId" className="w-full">
-            <SelectValue placeholder={t("doctor")} />
-          </SelectTrigger>
-          <SelectContent>
-            {doctors?.map((d) => (
-              <SelectItem key={d.id} value={d.id}>
-                {d.name}
-                {d.specialty ? ` (${d.specialty})` : ""}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div>
-      {blockSpecialty ? (
-        <BlockPicker specialtyName={blockSpecialty.name} capacityPerSlot={blockSpecialty.capacityPerSlot} />
-      ) : (
+      {hasServiceOption && (
         <div className="grid gap-2">
-          <Label htmlFor="scheduledAt">{t("scheduledAt")}</Label>
-          <Input
-            id="scheduledAt"
-            name="scheduledAt"
-            type="datetime-local"
-            required
-          />
+          <Label>Booking Type</Label>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={bookingKind === "doctor" ? "default" : "outline"}
+              onClick={() => setBookingKind("doctor")}
+            >
+              Doctor Consultation
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={bookingKind === "service" ? "default" : "outline"}
+              onClick={() => setBookingKind("service")}
+            >
+              Lab Visit / Service
+            </Button>
+          </div>
         </div>
+      )}
+
+      {isServiceBooking ? (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="clinicServiceId">Service</Label>
+            <Select
+              name="clinicServiceId"
+              required
+              value={clinicServiceId}
+              onValueChange={setClinicServiceId}
+            >
+              <SelectTrigger id="clinicServiceId" className="w-full">
+                <SelectValue placeholder="Select service" />
+              </SelectTrigger>
+              <SelectContent>
+                {eligibleServices.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <input type="hidden" name="specialtyName" value={selectedService?.specialty ?? ""} />
+          {selectedServiceSpecialty && (
+            <ResourceSlotPicker
+              specialtyName={selectedServiceSpecialty.name}
+              capacityPerSlot={selectedServiceSpecialty.capacityPerSlot}
+            />
+          )}
+        </>
+      ) : (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="doctorId">{t("doctor")}</Label>
+            <Select name="doctorId" required value={doctorId} onValueChange={setDoctorId}>
+              <SelectTrigger id="doctorId" className="w-full">
+                <SelectValue placeholder={t("doctor")} />
+              </SelectTrigger>
+              <SelectContent>
+                {doctors?.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                    {d.specialty ? ` (${d.specialty})` : ""}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {blockSpecialty ? (
+            <BlockPicker
+              specialtyName={blockSpecialty.name}
+              capacityPerSlot={blockSpecialty.capacityPerSlot}
+              doctorId={doctorId}
+            />
+          ) : (
+            <div className="grid gap-2">
+              <Label htmlFor="scheduledAt">{t("scheduledAt")}</Label>
+              <Input
+                id="scheduledAt"
+                name="scheduledAt"
+                type="datetime-local"
+                required
+              />
+            </div>
+          )}
+        </>
       )}
       <div className="grid gap-2">
         <Label htmlFor="reason">{t("reason")}</Label>

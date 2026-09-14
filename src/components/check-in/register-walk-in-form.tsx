@@ -30,10 +30,19 @@ export function RegisterWalkInForm({
     {}
   );
   const [doctorId, setDoctorId] = useState("");
+  const [bookingKind, setBookingKind] = useState<"doctor" | "service">("doctor");
+  const [clinicServiceId, setClinicServiceId] = useState("");
+
+  const hasServiceOption = bookByServiceSpecialties.length > 0;
+  const isServiceBooking = hasServiceOption && bookingKind === "service";
+
   const selectedDoctor = doctors.find((d) => d.id === doctorId);
-  const needsService = !!selectedDoctor?.specialty && bookByServiceSpecialties.includes(selectedDoctor.specialty);
   const isBlockDoctor = !!selectedDoctor?.specialty && blockCapacitySpecialties.includes(selectedDoctor.specialty);
-  const availableServices = clinicServices.filter((s) => s.specialty === selectedDoctor?.specialty);
+
+  const eligibleServices = clinicServices.filter(
+    (s) => !!s.specialty && bookByServiceSpecialties.includes(s.specialty)
+  );
+  const selectedService = eligibleServices.find((s) => s.id === clinicServiceId) ?? null;
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -67,45 +76,79 @@ export function RegisterWalkInForm({
             </SelectContent>
           </Select>
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="doctorId">Preferred Doctor</Label>
-          <Select name="doctorId" required value={doctorId} onValueChange={setDoctorId}>
-            <SelectTrigger id="doctorId" className="w-full">
-              <SelectValue placeholder="Select doctor" />
-            </SelectTrigger>
-            <SelectContent>
-              {doctors.map((d) => (
-                <SelectItem key={d.id} value={d.id}>
-                  {d.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+        {!isServiceBooking && (
+          <div className="grid gap-2">
+            <Label htmlFor="doctorId">Preferred Doctor</Label>
+            <Select name="doctorId" required value={doctorId} onValueChange={setDoctorId}>
+              <SelectTrigger id="doctorId" className="w-full">
+                <SelectValue placeholder="Select doctor" />
+              </SelectTrigger>
+              <SelectContent>
+                {doctors.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
       </div>
 
-      {isBlockDoctor && (
+      {hasServiceOption && (
+        <div className="grid gap-2">
+          <Label>Visit Type</Label>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              size="sm"
+              variant={bookingKind === "doctor" ? "default" : "outline"}
+              onClick={() => setBookingKind("doctor")}
+            >
+              Doctor Visit
+            </Button>
+            <Button
+              type="button"
+              size="sm"
+              variant={bookingKind === "service" ? "default" : "outline"}
+              onClick={() => setBookingKind("service")}
+            >
+              Lab Visit / Service
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {isBlockDoctor && !isServiceBooking && (
         <p className="rounded-lg border border-dashed bg-muted/40 p-3 text-sm text-muted-foreground">
           This will register the patient into the current time block for {selectedDoctor?.specialty}.
         </p>
       )}
 
-      {needsService && (
-        <div className="grid gap-2">
-          <Label htmlFor="clinicServiceId">Lab Test / Service</Label>
-          <Select name="clinicServiceId" required>
-            <SelectTrigger id="clinicServiceId" className="w-full">
-              <SelectValue placeholder="Select the test or service" />
-            </SelectTrigger>
-            <SelectContent>
-              {availableServices.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
+      {isServiceBooking && (
+        <>
+          <div className="grid gap-2">
+            <Label htmlFor="clinicServiceId">Lab Test / Service</Label>
+            <Select
+              name="clinicServiceId"
+              required
+              value={clinicServiceId}
+              onValueChange={setClinicServiceId}
+            >
+              <SelectTrigger id="clinicServiceId" className="w-full">
+                <SelectValue placeholder="Select the test or service" />
+              </SelectTrigger>
+              <SelectContent>
+                {eligibleServices.map((s) => (
+                  <SelectItem key={s.id} value={s.id}>
+                    {s.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <input type="hidden" name="specialtyName" value={selectedService?.specialty ?? ""} />
+        </>
       )}
 
       <div className="grid gap-2">

@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { initials } from "@/lib/format";
 import { getClinicHoursRange, formatTime } from "@/lib/clinic-hours";
-import { WEEKDAY_LABELS } from "@/lib/doctor-availability";
+import { WEEKDAY_LABELS, getDoctorShiftsByWeekday } from "@/lib/doctor-availability";
 import { getActiveSpecialties } from "@/lib/specialties-data";
 import { DoctorPersonalInfoForm } from "@/components/staff/doctor-personal-info-form";
 import { DoctorSpecialtyForm } from "@/components/staff/doctor-specialty-form";
@@ -31,23 +31,55 @@ function formatWorkingDaysRange(workingDays: number[]) {
   return sorted.map((d) => WEEKDAY_LABELS[d]).join(", ");
 }
 
+// Shows the doctor's actual hours rather than a vague "Custom hours by day"
+// label: working days that share an identical set of ranges are grouped
+// together (e.g. "Mon-Sat: 9:00 AM – 5:00 PM"), and a day with a genuinely
+// different schedule — split shifts, a shorter day — gets its own group
+// (e.g. "Mon: 9:00 AM – 12:00 PM, 1:00 PM – 3:00 PM · Tue-Sat: 10:00 AM –
+// 6:00 PM"). A working day with no shift rows falls back to the clinic's
+// default hours.
+function summarizeConsultationHours(
+  workingDays: number[],
+  shiftsByWeekday: Map<number, { startTime: string; endTime: string }[]>,
+  clinicHours: { openTime: string; closeTime: string }
+) {
+  if (workingDays.length === 0) return "No working days set";
+
+  const sorted = [...workingDays].sort((a, b) => a - b);
+  const groups: { days: number[]; label: string }[] = [];
+  for (const day of sorted) {
+    const ranges = [...(shiftsByWeekday.get(day) ?? [])].sort((a, b) =>
+      a.startTime.localeCompare(b.startTime)
+    );
+    const label =
+      ranges.length === 0
+        ? `${formatTime(clinicHours.openTime)} – ${formatTime(clinicHours.closeTime)}`
+        : ranges.map((r) => `${formatTime(r.startTime)} – ${formatTime(r.endTime)}`).join(", ");
+    const last = groups[groups.length - 1];
+    if (last && last.label === label && last.days[last.days.length - 1] === day - 1) {
+      last.days.push(day);
+    } else {
+      groups.push({ days: [day], label });
+    }
+  }
+
+  return groups.map((g) => `${formatWorkingDaysRange(g.days)}: ${g.label}`).join(" · ");
+}
+
 export default async function DoctorProfilePage() {
   const session = await requirePageRole(["DOCTOR"]);
   const doctorId = session.user.doctorId;
   if (!doctorId) notFound();
 
-  const [doctor, clinicHours, specialties] = await Promise.all([
+  const [doctor, clinicHours, specialties, shiftsByWeekday] = await Promise.all([
     prisma.doctorProfile.findUnique({ where: { id: doctorId }, include: { user: true } }),
     getClinicHoursRange(),
     getActiveSpecialties(),
+    getDoctorShiftsByWeekday(doctorId),
   ]);
   if (!doctor) notFound();
 
-  const consultationHours = `${formatTime(
-    doctor.workStartTime ?? clinicHours.openTime
-  )} – ${formatTime(doctor.workEndTime ?? clinicHours.closeTime)} (${formatWorkingDaysRange(
-    doctor.workingDays
-  )})`;
+  const consultationHours = summarizeConsultationHours(doctor.workingDays, shiftsByWeekday, clinicHours);
 
   return (
     <div className="grid gap-6">

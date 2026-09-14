@@ -165,9 +165,10 @@ model DoctorProfile {
   user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   specialty       String?
   consultationFee Decimal  @default(0) @db.Decimal(10, 2)
+  // Which weekdays this doctor works at all (0=Sun..6=Sat). Per-day time
+  // ranges live in `shifts` below — a working day with no shift rows falls
+  // back to the clinic's own default hours for that day.
   workingDays     Int[]    @default([1, 2, 3, 4, 5])
-  workStartTime   String?
-  workEndTime     String?
   experienceYears Int?
   qualifications  String?
   createdAt       DateTime @default(now())
@@ -201,6 +202,24 @@ model DoctorProfile {
   leaveDays     DoctorLeave[]
   diagnoses     Diagnosis[]
   walkIns       WalkIn[]
+  shifts        DoctorShift[]
+}
+
+// A single time range a doctor works on one weekday — multiple rows per
+// weekday support split shifts (e.g. 9-12 and 2-5 with a lunch break), and
+// different weekdays can have entirely different ranges. A working day
+// (per DoctorProfile.workingDays) with no rows here falls back to the
+// clinic's own default hours for that day.
+model DoctorShift {
+  id        String        @id @default(cuid())
+  doctorId  String
+  doctor    DoctorProfile @relation(fields: [doctorId], references: [id], onDelete: Cascade)
+  weekday   Int
+  startTime String
+  endTime   String
+  createdAt DateTime      @default(now())
+
+  @@index([doctorId, weekday])
 }
 
 enum WaitlistStatus {

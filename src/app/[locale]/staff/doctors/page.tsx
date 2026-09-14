@@ -35,12 +35,55 @@ function formatWorkingDaysRange(workingDays: number[]) {
   return sorted.map((d) => WEEKDAY_LABELS[d]).join(", ");
 }
 
+function formatRangeList(ranges: { startTime: string; endTime: string }[]) {
+  return ranges.map((r) => `${formatTime(r.startTime)}–${formatTime(r.endTime)}`).join(", ");
+}
+
+// Shows the doctor's actual hours rather than a vague "Custom hours" label,
+// as a list of lines (one per day-group) rather than one run-on joined
+// string — a doctor with a split shift on one day and uniform hours the
+// rest of the week reads as two short lines instead of a single long
+// sentence. Working days that share an identical set of ranges are grouped
+// together (e.g. "Mon-Sat: 9:00 AM–5:00 PM" as one line); a day with a
+// genuinely different schedule gets its own line (e.g. "Mon: 9:00 AM–12:00
+// PM, 1:00 PM–3:00 PM" / "Tue-Sat: 10:00 AM–6:00 PM"). A working day with no
+// shift rows falls back to the clinic's default hours, shown as such.
+function shiftGroupLines(
+  workingDays: number[],
+  shifts: { weekday: number; startTime: string; endTime: string }[]
+): string[] {
+  if (workingDays.length === 0) return ["No working days set"];
+
+  const rangesByWeekday = new Map<number, { startTime: string; endTime: string }[]>();
+  for (const day of workingDays) rangesByWeekday.set(day, []);
+  for (const s of shifts) {
+    rangesByWeekday.get(s.weekday)?.push(s);
+  }
+
+  const sorted = [...workingDays].sort((a, b) => a - b);
+  const groups: { days: number[]; label: string }[] = [];
+  for (const day of sorted) {
+    const ranges = [...(rangesByWeekday.get(day) ?? [])].sort((a, b) =>
+      a.startTime.localeCompare(b.startTime)
+    );
+    const label = ranges.length === 0 ? "Clinic default hours" : formatRangeList(ranges);
+    const last = groups[groups.length - 1];
+    if (last && last.label === label && last.days[last.days.length - 1] === day - 1) {
+      last.days.push(day);
+    } else {
+      groups.push({ days: [day], label });
+    }
+  }
+
+  return groups.map((g) => `${formatWorkingDaysRange(g.days)}: ${g.label}`);
+}
+
 export default async function DoctorsSchedulesPage() {
   await requirePageRole(["ADMIN"]);
 
   const { start: todayStart, end: todayEnd } = todayRange();
 
-  const [doctors, todaysAppointmentCounts] = await Promise.all([
+  const [allDoctors, todaysAppointmentCounts, allShifts, serviceSpecialties] = await Promise.all([
     prisma.doctorProfile.findMany({
       include: {
         user: true,
@@ -56,11 +99,29 @@ export default async function DoctorsSchedulesPage() {
       where: { scheduledAt: { gte: todayStart, lt: todayEnd } },
       _count: { _all: true },
     }),
+    prisma.doctorShift.findMany({
+      orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
+      select: { doctorId: true, weekday: true, startTime: true, endTime: true },
+    }),
+    prisma.specialty.findMany({ where: { bookingMode: "SERVICE_CAPACITY" }, select: { name: true } }),
   ]);
+
+  // SERVICE_CAPACITY specialties (e.g. Lab Visit) are backed by a placeholder
+  // DoctorProfile that exists only as a foreign-key target for appointments —
+  // it has no real schedule/hours/leave to manage, so it's excluded here.
+  const serviceSpecialtyNames = new Set(serviceSpecialties.map((s) => s.name));
+  const doctors = allDoctors.filter((d) => !d.specialty || !serviceSpecialtyNames.has(d.specialty));
 
   const todayCountByDoctorId = new Map(
     todaysAppointmentCounts.map((c) => [c.doctorId, c._count._all])
   );
+
+  const shiftsByDoctorId = new Map<string, { weekday: number; startTime: string; endTime: string }[]>();
+  for (const shift of allShifts) {
+    const list = shiftsByDoctorId.get(shift.doctorId) ?? [];
+    list.push(shift);
+    shiftsByDoctorId.set(shift.doctorId, list);
+  }
 
   const onLeaveToday = new Set(
     doctors
@@ -69,6 +130,17 @@ export default async function DoctorsSchedulesPage() {
       )
       .map((d) => d.id)
   );
+
+  // Every doctor's upcoming leave (pending + approved) in one place, so an
+  // admin doesn't have to open each doctor's own dialog to find requests
+  // that need a decision — pending ones surface first, then by date.
+  const allLeaveRequests = doctors
+    .flatMap((d) => d.leaveDays.map((leave) => ({ ...leave, doctorName: d.user.name })))
+    .sort((a, b) => {
+      if (a.status !== b.status) return a.status === "PENDING" ? -1 : 1;
+      return a.date.getTime() - b.date.getTime();
+    });
+  const pendingLeaveCount = allLeaveRequests.filter((l) => l.status === "PENDING").length;
 
   return (
     <div className="grid gap-6">
@@ -94,6 +166,7 @@ export default async function DoctorsSchedulesPage() {
           {doctors.map((doctor) => {
             const isOnLeave = onLeaveToday.has(doctor.id);
             const todayCount = todayCountByDoctorId.get(doctor.id) ?? 0;
+            const doctorShifts = shiftsByDoctorId.get(doctor.id) ?? [];
             return (
               <Card key={doctor.id}>
                 <CardContent className="grid gap-3">
@@ -121,14 +194,15 @@ export default async function DoctorsSchedulesPage() {
                     </Badge>
                   </div>
 
-                  <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
-                    <span className="flex items-center gap-1.5">
-                      <Clock className="size-4" />
-                      {formatWorkingDaysRange(doctor.workingDays)}{" "}
-                      {doctor.workStartTime && doctor.workEndTime
-                        ? `${formatTime(doctor.workStartTime)}–${formatTime(doctor.workEndTime)}`
-                        : ""}
-                    </span>
+                  <div className="grid gap-1.5 text-sm text-muted-foreground">
+                    <div className="flex items-start gap-1.5">
+                      <Clock className="mt-0.5 size-4 shrink-0" />
+                      <div className="grid gap-0.5">
+                        {shiftGroupLines(doctor.workingDays, doctorShifts).map((line) => (
+                          <span key={line}>{line}</span>
+                        ))}
+                      </div>
+                    </div>
                     <span className="flex items-center gap-1.5">
                       <Calendar className="size-4" />
                       {todayCount} today
@@ -152,8 +226,7 @@ export default async function DoctorsSchedulesPage() {
                       <DoctorAvailabilityForm
                         doctorId={doctor.id}
                         workingDays={doctor.workingDays}
-                        workStartTime={doctor.workStartTime}
-                        workEndTime={doctor.workEndTime}
+                        shifts={doctorShifts}
                       />
                     </UserActionDialog>
 
@@ -179,6 +252,27 @@ export default async function DoctorsSchedulesPage() {
           })}
         </div>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            Leave Requests
+            {pendingLeaveCount > 0 && (
+              <Badge variant="outline" className="bg-amber-100 text-amber-700">
+                {pendingLeaveCount} pending
+              </Badge>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <DoctorLeaveManager
+            leaveDays={allLeaveRequests}
+            showForm={false}
+            canDecide
+            emptyMessage="No upcoming leave requests."
+          />
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
@@ -214,10 +308,14 @@ export default async function DoctorsSchedulesPage() {
                       )}
                     </TableCell>
                   ))}
-                  <TableCell className="text-muted-foreground">
-                    {doctor.workStartTime && doctor.workEndTime
-                      ? `${formatTime(doctor.workStartTime)}–${formatTime(doctor.workEndTime)}`
-                      : "Clinic default"}
+                  <TableCell className="whitespace-normal text-muted-foreground">
+                    <div className="grid gap-0.5">
+                      {shiftGroupLines(doctor.workingDays, shiftsByDoctorId.get(doctor.id) ?? []).map(
+                        (line) => (
+                          <div key={line}>{line}</div>
+                        )
+                      )}
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}

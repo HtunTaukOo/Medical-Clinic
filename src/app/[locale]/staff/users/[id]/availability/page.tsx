@@ -14,16 +14,23 @@ export default async function DoctorAvailabilityPage({
   await requirePageRole(["ADMIN"]);
   const { id } = await params;
 
-  const doctor = await prisma.doctorProfile.findUnique({
-    where: { id },
-    include: {
-      user: true,
-      leaveDays: {
-        orderBy: { date: "asc" },
-        where: { date: { gte: new Date() }, status: { not: "REJECTED" } },
+  const [doctor, shifts] = await Promise.all([
+    prisma.doctorProfile.findUnique({
+      where: { id },
+      include: {
+        user: true,
+        leaveDays: {
+          orderBy: { date: "asc" },
+          where: { date: { gte: new Date() }, status: { not: "REJECTED" } },
+        },
       },
-    },
-  });
+    }),
+    prisma.doctorShift.findMany({
+      where: { doctorId: id },
+      orderBy: [{ weekday: "asc" }, { startTime: "asc" }],
+      select: { weekday: true, startTime: true, endTime: true },
+    }),
+  ]);
 
   if (!doctor) notFound();
 
@@ -41,12 +48,7 @@ export default async function DoctorAvailabilityPage({
           <CardTitle>Weekly schedule</CardTitle>
         </CardHeader>
         <CardContent>
-          <DoctorAvailabilityForm
-            doctorId={doctor.id}
-            workingDays={doctor.workingDays}
-            workStartTime={doctor.workStartTime}
-            workEndTime={doctor.workEndTime}
-          />
+          <DoctorAvailabilityForm doctorId={doctor.id} workingDays={doctor.workingDays} shifts={shifts} />
         </CardContent>
       </Card>
 

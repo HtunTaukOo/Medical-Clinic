@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
-import { fetchBlockAvailability } from "@/actions/booking";
+import { fetchBlockAvailability, fetchDoctorBlockEligibility } from "@/actions/booking";
 import type { BlockAvailability } from "@/lib/booking-slots";
 import { formatTimeLabel } from "@/lib/time-blocks";
 import { Input } from "@/components/ui/input";
@@ -14,6 +14,7 @@ import { Label } from "@/components/ui/label";
 export function BlockPicker({
   specialtyName,
   capacityPerSlot,
+  doctorId,
   dateInputName = "blockDate",
   blockInputName = "blockId",
   defaultDate,
@@ -21,6 +22,10 @@ export function BlockPicker({
 }: {
   specialtyName: string;
   capacityPerSlot: number;
+  // When set (staff/doctor manual booking, where the doctor is chosen
+  // before the block, unlike the patient wizard), blocks that doctor
+  // doesn't actually work are flagged unavailable too — not just full ones.
+  doctorId?: string;
   dateInputName?: string;
   blockInputName?: string;
   defaultDate?: string;
@@ -29,6 +34,7 @@ export function BlockPicker({
   const [date, setDate] = useState(defaultDate ?? "");
   const [blockId, setBlockId] = useState<string | null>(defaultBlockId ?? null);
   const [blocks, setBlocks] = useState<BlockAvailability[]>([]);
+  const [doctorEligibility, setDoctorEligibility] = useState<Record<string, boolean>>({});
   const [pending, startTransition] = useTransition();
 
   useEffect(() => {
@@ -36,10 +42,14 @@ export function BlockPicker({
     const [year, month, day] = date.split("-").map(Number);
     if (!year || !month || !day) return;
     startTransition(async () => {
-      const result = await fetchBlockAvailability(specialtyName, capacityPerSlot, year, month, day);
+      const [result, eligibility] = await Promise.all([
+        fetchBlockAvailability(specialtyName, capacityPerSlot, year, month, day),
+        doctorId ? fetchDoctorBlockEligibility(doctorId, year, month, day) : Promise.resolve({}),
+      ]);
       setBlocks(result);
+      setDoctorEligibility(eligibility);
     });
-  }, [date, specialtyName, capacityPerSlot]);
+  }, [date, specialtyName, capacityPerSlot, doctorId]);
 
   const visibleBlocks = date ? blocks : [];
 
@@ -70,16 +80,18 @@ export function BlockPicker({
             <div className="grid gap-2">
               {visibleBlocks.map((b) => {
                 const selected = blockId === b.blockId;
+                const doctorOk = doctorId ? (doctorEligibility[b.blockId] ?? true) : true;
+                const available = b.available && doctorOk;
                 return (
                   <button
                     key={b.blockId}
                     type="button"
-                    disabled={!b.available}
+                    disabled={!available}
                     onClick={() => setBlockId(b.blockId)}
                     className={`flex items-center justify-between rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
                       selected
                         ? "border-primary bg-primary text-primary-foreground"
-                        : b.available
+                        : available
                           ? "hover:bg-muted/50"
                           : "text-muted-foreground/40 line-through"
                     }`}
@@ -88,7 +100,7 @@ export function BlockPicker({
                       {formatTimeLabel(b.startTime)} – {formatTimeLabel(b.endTime)}
                     </span>
                     <span className={selected ? "" : "text-muted-foreground"}>
-                      {b.available ? `${b.occupied}/${b.capacity} booked` : "Full"}
+                      {!doctorOk ? "Doctor unavailable" : b.available ? `${b.occupied}/${b.capacity} booked` : "Full"}
                     </span>
                   </button>
                 );

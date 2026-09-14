@@ -25,8 +25,10 @@ import { isWithinSelfCheckInWindow } from "@/lib/queue";
 import {
   isDoctorOnLeave,
   isWorkingDay,
-  isWithinDoctorHours,
   isDoctorAvailableForRange,
+  getDoctorShiftsForDate,
+  isRangeWithinShiftRanges,
+  formatShiftRanges,
   WEEKDAY_LABELS,
 } from "@/lib/doctor-availability";
 import { notifyPatient, notifyStaff, notifyDoctor } from "@/lib/telegram";
@@ -40,7 +42,14 @@ const CAPACITY_CONFLICT_MESSAGE = "That slot just filled up. Please pick a diffe
 
 const bookingSchema = z.object({
   patientId: z.string().min(1),
-  doctorId: z.string().min(1),
+  // Either doctorId (a real doctor, DOCTOR_CALENDAR/BLOCK_CAPACITY) or
+  // specialtyName+clinicServiceId (SERVICE_CAPACITY, e.g. Lab Visit — the
+  // doctor is auto-assigned server-side, there's no real doctor to pick).
+  doctorId: z.string().optional(),
+  specialtyName: z.string().optional(),
+  clinicServiceId: z.string().optional(),
+  resourceDate: z.string().optional(),
+  resourceTime: z.string().optional(),
   scheduledAt: z.string().optional(),
   blockDate: z.string().optional(),
   blockId: z.string().optional(),
@@ -65,7 +74,11 @@ export async function createAppointment(
 
   const parsed = bookingSchema.safeParse({
     patientId: formData.get("patientId"),
-    doctorId: formData.get("doctorId"),
+    doctorId: formData.get("doctorId") || undefined,
+    specialtyName: formData.get("specialtyName") || undefined,
+    clinicServiceId: formData.get("clinicServiceId") || undefined,
+    resourceDate: formData.get("resourceDate") || undefined,
+    resourceTime: formData.get("resourceTime") || undefined,
     scheduledAt: formData.get("scheduledAt") || undefined,
     blockDate: formData.get("blockDate") || undefined,
     blockId: formData.get("blockId") || undefined,
@@ -77,26 +90,67 @@ export async function createAppointment(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const doctor = await prisma.doctorProfile.findUniqueOrThrow({ where: { id: parsed.data.doctorId } });
-  const specialty = doctor.specialty
-    ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
-    : null;
-  const isBlockMode = specialty?.bookingMode === "BLOCK_CAPACITY";
+  const isServiceBooking = !!parsed.data.specialtyName;
 
+  let doctorId: string;
+  let doctor: Awaited<ReturnType<typeof prisma.doctorProfile.findUniqueOrThrow>> | null = null;
+  let specialty: Awaited<ReturnType<typeof prisma.specialty.findUnique>> = null;
+  let isBlockMode = false;
   let baseDate: Date;
   let durationMinutes: number | undefined;
-  if (isBlockMode) {
-    if (!parsed.data.blockDate || !parsed.data.blockId) {
-      return { error: "Please choose a date and time block." };
+  let clinicServiceId: string | undefined;
+
+  if (isServiceBooking) {
+    specialty = await prisma.specialty.findUnique({ where: { name: parsed.data.specialtyName! } });
+    if (!specialty || specialty.bookingMode !== "SERVICE_CAPACITY") {
+      return { error: "This specialty isn't set up for service-based booking." };
     }
-    const block = getTimeBlockById(parsed.data.blockId);
-    if (!block) return { error: "Invalid time block." };
-    const [y, m, d] = parsed.data.blockDate.split("-").map(Number);
-    baseDate = new Date(clinicMidnightForYMD(y, m, d).getTime() + toMinutes(block.startTime) * 60 * 1000);
-    durationMinutes = blockDurationMinutes(block);
+    if (!parsed.data.clinicServiceId) return { error: "Please choose a service." };
+    const service = await prisma.clinicService.findUnique({ where: { id: parsed.data.clinicServiceId } });
+    if (!service || service.specialty !== specialty.name) {
+      return { error: "Please choose a valid service." };
+    }
+    // No real doctor to pick for a shared-capacity specialty — assigned
+    // deterministically (by id), same as the patient booking flow.
+    const assignedDoctor = await prisma.doctorProfile.findFirst({
+      where: { specialty: specialty.name },
+      orderBy: { id: "asc" },
+    });
+    if (!assignedDoctor) {
+      return { error: "No staff are set up for this specialty yet. Please contact the clinic." };
+    }
+    if (!parsed.data.resourceDate || !parsed.data.resourceTime) {
+      return { error: "Please choose a date and time." };
+    }
+    const [y, m, d] = parsed.data.resourceDate.split("-").map(Number);
+    baseDate = new Date(
+      clinicMidnightForYMD(y, m, d).getTime() + toMinutes(parsed.data.resourceTime) * 60 * 1000
+    );
+    durationMinutes = service.durationMinutes;
+    clinicServiceId = service.id;
+    doctorId = assignedDoctor.id;
   } else {
-    if (!parsed.data.scheduledAt) return { error: "Please choose a date and time." };
-    baseDate = new Date(parsed.data.scheduledAt);
+    if (!parsed.data.doctorId) return { error: "Please choose a doctor." };
+    doctorId = parsed.data.doctorId;
+    doctor = await prisma.doctorProfile.findUniqueOrThrow({ where: { id: doctorId } });
+    specialty = doctor.specialty
+      ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
+      : null;
+    isBlockMode = specialty?.bookingMode === "BLOCK_CAPACITY";
+
+    if (isBlockMode) {
+      if (!parsed.data.blockDate || !parsed.data.blockId) {
+        return { error: "Please choose a date and time block." };
+      }
+      const block = getTimeBlockById(parsed.data.blockId);
+      if (!block) return { error: "Invalid time block." };
+      const [y, m, d] = parsed.data.blockDate.split("-").map(Number);
+      baseDate = new Date(clinicMidnightForYMD(y, m, d).getTime() + toMinutes(block.startTime) * 60 * 1000);
+      durationMinutes = blockDurationMinutes(block);
+    } else {
+      if (!parsed.data.scheduledAt) return { error: "Please choose a date and time." };
+      baseDate = new Date(parsed.data.scheduledAt);
+    }
   }
 
   const isRecurring = !!parsed.data.repeatWeekly;
@@ -108,23 +162,43 @@ export async function createAppointment(
   for (let i = 0; i < occurrenceCount; i++) {
     const occurrenceDate = new Date(baseDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
 
-    const onLeave = await isDoctorOnLeave(parsed.data.doctorId, occurrenceDate);
+    let onLeave = false;
     let conflict: unknown = null;
     let unavailableReason: string | null = null;
-    if (!onLeave) {
-      if (isBlockMode && specialty) {
-        if (!isDoctorAvailableForRange(doctor, occurrenceDate, durationMinutes!)) {
-          conflict = true;
-          unavailableReason = "This doctor doesn't work the full selected time block.";
-        } else {
-          const { available } = await isBlockSlotAvailable(specialty.name, specialty.capacityPerSlot, occurrenceDate);
-          if (!available) {
+
+    if (isServiceBooking && specialty) {
+      // Shared-capacity specialties skip the per-doctor leave/hours checks
+      // entirely, same as the patient-facing resourceCapacity path.
+      const available = await isResourceSlotAvailable(
+        { specialtyName: specialty.name, capacityPerSlot: specialty.capacityPerSlot },
+        occurrenceDate,
+        durationMinutes
+      );
+      if (!available) {
+        conflict = true;
+        unavailableReason = CAPACITY_CONFLICT_MESSAGE;
+      }
+    } else {
+      onLeave = await isDoctorOnLeave(doctorId, occurrenceDate);
+      if (!onLeave) {
+        if (isBlockMode && specialty && doctor) {
+          if (!(await isDoctorAvailableForRange(doctor, occurrenceDate, durationMinutes!))) {
             conflict = true;
-            unavailableReason = CAPACITY_CONFLICT_MESSAGE;
+            unavailableReason = "This doctor doesn't work the full selected time block.";
+          } else {
+            const { available } = await isBlockSlotAvailable(
+              specialty.name,
+              specialty.capacityPerSlot,
+              occurrenceDate
+            );
+            if (!available) {
+              conflict = true;
+              unavailableReason = CAPACITY_CONFLICT_MESSAGE;
+            }
           }
+        } else {
+          conflict = await findConflictingAppointment(doctorId, occurrenceDate);
         }
-      } else {
-        conflict = await findConflictingAppointment(parsed.data.doctorId, occurrenceDate);
       }
     }
 
@@ -139,11 +213,12 @@ export async function createAppointment(
     await prisma.appointment.create({
       data: {
         patientId: parsed.data.patientId,
-        doctorId: parsed.data.doctorId,
+        doctorId,
         scheduledAt: occurrenceDate,
         durationMinutes,
         reason: parsed.data.reason,
         status: "CONFIRMED",
+        clinicServiceId,
       },
     });
     createdCount++;
@@ -291,15 +366,13 @@ export async function submitAppointmentRequest(
         error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[clinicWeekday(scheduledAt)]}s. Please choose another day.`,
       };
     }
-    const doctorCloseInstant = doctor.workEndTime
-      ? new Date(dayStart.getTime() + toMinutes(doctor.workEndTime) * 60 * 1000)
-      : null;
-    if (
-      !isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime) ||
-      (doctorCloseInstant != null && scheduledEnd.getTime() > doctorCloseInstant.getTime())
-    ) {
+    const shifts = await getDoctorShiftsForDate(doctor.id, scheduledAt);
+    if (!isRangeWithinShiftRanges(scheduledAt, durationMinutes, shifts)) {
       return {
-        error: `Please choose a time between ${formatTime(doctor.workStartTime!)} and ${formatTime(doctor.workEndTime!)} for this doctor that leaves room for the full ${durationMinutes}-minute visit.`,
+        error:
+          shifts.length > 0
+            ? `Please choose a time within this doctor's working hours (${formatShiftRanges(shifts, formatTime)}) that leaves room for the full ${durationMinutes}-minute visit.`
+            : `Please choose a time that leaves room for the full ${durationMinutes}-minute visit.`,
       };
     }
 
@@ -508,15 +581,13 @@ export async function rescheduleAppointment(
         error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[clinicWeekday(scheduledAt)]}s. Please choose another day.`,
       };
     }
-    const doctorCloseInstant = doctor.workEndTime
-      ? new Date(dayStart.getTime() + toMinutes(doctor.workEndTime) * 60 * 1000)
-      : null;
-    if (
-      !isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime) ||
-      (doctorCloseInstant != null && scheduledEnd.getTime() > doctorCloseInstant.getTime())
-    ) {
+    const shifts = await getDoctorShiftsForDate(doctor.id, scheduledAt);
+    if (!isRangeWithinShiftRanges(scheduledAt, existing.durationMinutes, shifts)) {
       return {
-        error: `Please choose a time between ${formatTime(doctor.workStartTime!)} and ${formatTime(doctor.workEndTime!)} for this doctor that leaves room for the full ${existing.durationMinutes}-minute visit.`,
+        error:
+          shifts.length > 0
+            ? `Please choose a time within this doctor's working hours (${formatShiftRanges(shifts, formatTime)}) that leaves room for the full ${existing.durationMinutes}-minute visit.`
+            : `Please choose a time that leaves room for the full ${existing.durationMinutes}-minute visit.`,
       };
     }
     const conflict = await findConflictingAppointment(

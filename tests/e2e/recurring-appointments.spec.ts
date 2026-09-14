@@ -39,6 +39,7 @@ test.describe("Recurring appointments (staff only)", () => {
   test("staff can book a weekly recurring series", async ({ page }) => {
     const doctor = await prisma.doctorProfile.findFirstOrThrow({
       where: { user: { email: "doctor@nca.clinic" } },
+      include: { user: true },
     });
     const patient = await prisma.patient.findFirstOrThrow({
       where: { email: "patient@example.com" },
@@ -55,7 +56,7 @@ test.describe("Recurring appointments (staff only)", () => {
       await page.locator("#patientId").click();
       await page.getByRole("option", { name: patient.name }).click();
       await page.locator("#doctorId").click();
-      await page.getByRole("option").first().click();
+      await page.getByRole("option", { name: new RegExp(doctor.user.name) }).click();
       await page.fill("#block-picker-date", isoDate);
       await page.locator("button:not([disabled])").filter({ hasText: /–/ }).first().click();
       await page.check('input[name="repeatWeekly"]');
@@ -92,6 +93,7 @@ test.describe("Recurring appointments (staff only)", () => {
   test("a conflicting occurrence in the series is skipped, not fatal", async ({ page }) => {
     const doctor = await prisma.doctorProfile.findFirstOrThrow({
       where: { user: { email: "doctor@nca.clinic" } },
+      include: { user: true },
     });
     const specialty = await prisma.specialty.findUniqueOrThrow({ where: { name: doctor.specialty! } });
     const patient = await prisma.patient.findFirstOrThrow({
@@ -111,7 +113,7 @@ test.describe("Recurring appointments (staff only)", () => {
       await page.locator("#patientId").click();
       await page.getByRole("option", { name: patient.name }).click();
       await page.locator("#doctorId").click();
-      await page.getByRole("option").first().click();
+      await page.getByRole("option", { name: new RegExp(doctor.user.name) }).click();
       await page.fill("#block-picker-date", isoDate);
 
       const firstBlock = page.locator("button:not([disabled])").filter({ hasText: /–/ }).first();

@@ -14,13 +14,13 @@ import {
 } from "@/lib/booking-slots";
 import { clinicMidnightForYMD, toMinutes } from "@/lib/clinic-hours";
 import { submitAppointmentRequest, type AppointmentFormState } from "@/actions/appointments";
-import { getTimeBlockById, blockDurationMinutes } from "@/lib/time-blocks";
+import { getTimeBlockById, blockDurationMinutes, TIME_BLOCKS } from "@/lib/time-blocks";
 import { isDoctorOnLeave, isDoctorAvailableForRange } from "@/lib/doctor-availability";
 
 async function loadDoctorForSlots(doctorId: string) {
   return prisma.doctorProfile.findUnique({
     where: { id: doctorId },
-    select: { id: true, workingDays: true, workStartTime: true, workEndTime: true },
+    select: { id: true, workingDays: true },
   });
 }
 
@@ -227,17 +227,47 @@ export async function fetchEligibleDoctorIds(
 
   const doctors = await prisma.doctorProfile.findMany({
     where: { specialty: specialtyName },
-    select: { id: true, workingDays: true, workStartTime: true, workEndTime: true },
+    select: { id: true, workingDays: true },
   });
 
   const eligible = await Promise.all(
     doctors.map(async (doctor) => {
-      if (!isDoctorAvailableForRange(doctor, scheduledAt, durationMinutes)) return null;
+      if (!(await isDoctorAvailableForRange(doctor, scheduledAt, durationMinutes))) return null;
       if (await isDoctorOnLeave(doctor.id, scheduledAt)) return null;
       return doctor.id;
     })
   );
   return eligible.filter((id): id is string => id != null);
+}
+
+// For a specific, already-chosen doctor (staff/doctor manual booking, where
+// the doctor is picked before the block, unlike the patient wizard): which
+// of the 5 fixed blocks can this doctor actually cover that day? Lets the
+// block picker gray out/flag blocks this doctor doesn't work, instead of
+// letting staff pick one that would silently fail at submit time.
+export async function fetchDoctorBlockEligibility(
+  doctorId: string,
+  year: number,
+  month: number,
+  day: number
+): Promise<Record<string, boolean>> {
+  await requireSession();
+  const doctor = await prisma.doctorProfile.findUnique({
+    where: { id: doctorId },
+    select: { id: true, workingDays: true },
+  });
+  if (!doctor) return {};
+
+  const dayStart = clinicMidnightForYMD(year, month, day);
+  const onLeave = await isDoctorOnLeave(doctor.id, dayStart);
+
+  const result: Record<string, boolean> = {};
+  for (const block of TIME_BLOCKS) {
+    const scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
+    result[block.id] =
+      !onLeave && (await isDoctorAvailableForRange(doctor, scheduledAt, blockDurationMinutes(block)));
+  }
+  return result;
 }
 
 // Unlike confirmResourceBooking (which auto-assigns the sole doctor for a
@@ -280,7 +310,7 @@ export async function confirmBlockBooking(
   if (await isDoctorOnLeave(doctor.id, scheduledAt)) {
     return { error: "This doctor is unavailable on the selected date. Please choose another doctor or day." };
   }
-  if (!isDoctorAvailableForRange(doctor, scheduledAt, blockDurationMinutes(block))) {
+  if (!(await isDoctorAvailableForRange(doctor, scheduledAt, blockDurationMinutes(block)))) {
     return {
       error: "This doctor doesn't work the full selected time block. Please choose another doctor or block.",
     };

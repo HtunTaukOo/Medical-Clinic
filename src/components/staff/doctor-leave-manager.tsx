@@ -12,17 +12,25 @@ export function DoctorLeaveManager({
   leaveDays,
   showForm = true,
   canDecide = false,
+  emptyMessage = "No upcoming leave days scheduled.",
 }: {
-  doctorId: string;
-  leaveDays: { id: string; date: Date; reason: string | null; status: DoctorLeaveStatus }[];
+  doctorId?: string;
+  leaveDays: {
+    id: string;
+    date: Date;
+    reason: string | null;
+    status: DoctorLeaveStatus;
+    doctorName?: string;
+  }[];
   showForm?: boolean;
   canDecide?: boolean;
+  emptyMessage?: string;
 }) {
   return (
     <div className="grid gap-4">
-      {showForm && <DoctorLeaveForm doctorId={doctorId} />}
+      {showForm && doctorId && <DoctorLeaveForm doctorId={doctorId} />}
       {leaveDays.length === 0 ? (
-        <EmptyState icon={CalendarOff} message="No upcoming leave days scheduled." />
+        <EmptyState icon={CalendarOff} message={emptyMessage} />
       ) : (
         <div className="grid gap-2">
           {leaveDays.map((leave) => (
@@ -31,7 +39,10 @@ export function DoctorLeaveManager({
               className="flex flex-wrap items-center justify-between gap-2 rounded-lg border p-3"
             >
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
+                  {leave.doctorName && (
+                    <span className="font-semibold text-primary">{leave.doctorName}</span>
+                  )}
                   <p className="font-medium">
                     {leave.date.toLocaleDateString(undefined, {
                       weekday: "long",

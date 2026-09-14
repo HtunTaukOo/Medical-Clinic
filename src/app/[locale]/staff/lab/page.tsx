@@ -41,7 +41,7 @@ export default async function LabPage({
   const { tab: tabParam } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "new";
 
-  const [activeOrders, historyOrders, tests, patients, doctors] = await Promise.all([
+  const [activeOrders, historyOrders, tests, patients, doctors, serviceSpecialties] = await Promise.all([
     tab === "orders"
       ? prisma.labOrder.findMany({
           where: { status: { in: ["ORDERED", "SAMPLE_COLLECTED"] } },
@@ -72,7 +72,15 @@ export default async function LabPage({
     tab === "new"
       ? prisma.doctorProfile.findMany({ include: { user: true }, orderBy: { user: { name: "asc" } } })
       : Promise.resolve([]),
+    tab === "new"
+      ? prisma.specialty.findMany({ where: { bookingMode: "SERVICE_CAPACITY" }, select: { name: true } })
+      : Promise.resolve([]),
   ]);
+
+  // SERVICE_CAPACITY specialties (e.g. Lab Visit) are backed by a placeholder
+  // DoctorProfile — not a real ordering physician, so it's excluded here.
+  const serviceSpecialtyNames = new Set(serviceSpecialties.map((s) => s.name));
+  const orderingDoctors = doctors.filter((d) => !d.specialty || !serviceSpecialtyNames.has(d.specialty));
 
   return (
     <div className="grid gap-6">
@@ -92,7 +100,7 @@ export default async function LabPage({
       {tab === "new" && (
         <NewLabOrderForm
           patients={patients.map((p) => ({ id: p.id, name: p.name }))}
-          doctors={doctors.map((d) => ({ id: d.id, name: d.user.name }))}
+          doctors={orderingDoctors.map((d) => ({ id: d.id, name: d.user.name }))}
           tests={tests.map((t) => ({
             id: t.id,
             name: t.name,

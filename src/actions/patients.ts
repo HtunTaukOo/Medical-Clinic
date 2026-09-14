@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole, requireSession, UnauthorizedError, STAFF_ROLES } from "@/lib/authz";
 import { generatePatientCode } from "@/lib/patients";
+import { logActivity } from "@/lib/audit";
 
 const PATIENT_STAFF_ROLES = [...STAFF_ROLES, "DOCTOR"] as const;
 
@@ -298,4 +299,81 @@ export async function togglePatientActive(patientId: string) {
 
   revalidatePath("/staff/users");
   revalidatePath(`/staff/patients/${patientId}`);
+}
+
+export type DeletePatientState = { error?: string; success?: boolean };
+
+// A Patient row IS the clinical record, so this only ever succeeds for a
+// patient with zero real history (e.g. one added by mistake) — anyone with
+// an actual appointment, invoice, prescription, or other clinical/financial
+// trail should be deactivated instead, not deleted, to keep that history
+// intact. Also removes the linked login account, if any, so a deleted
+// patient can't be left with a User row that logs in to nothing.
+/* eslint-disable @typescript-eslint/no-unused-vars -- signature must match useActionState's (state, formData) */
+export async function deletePatient(
+  patientId: string,
+  _prevState: DeletePatientState,
+  _formData: FormData
+): Promise<DeletePatientState> {
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+  const session = await requireRole(["ADMIN"]);
+
+  const patient = await prisma.patient.findUniqueOrThrow({ where: { id: patientId } });
+
+  const [
+    appointmentCount,
+    invoiceCount,
+    prescriptionCount,
+    diagnosisCount,
+    labOrderCount,
+    medicalRecordCount,
+    allergyCount,
+    walkInCount,
+    pharmacySaleCount,
+    insuranceClaimCount,
+  ] = await Promise.all([
+    prisma.appointment.count({ where: { patientId } }),
+    prisma.invoice.count({ where: { patientId } }),
+    prisma.prescription.count({ where: { patientId } }),
+    prisma.diagnosis.count({ where: { patientId } }),
+    prisma.labOrder.count({ where: { patientId } }),
+    prisma.medicalRecord.count({ where: { patientId } }),
+    prisma.allergy.count({ where: { patientId } }),
+    prisma.walkIn.count({ where: { patientId } }),
+    prisma.pharmacySale.count({ where: { patientId } }),
+    prisma.insuranceClaim.count({ where: { patientId } }),
+  ]);
+  const historyCount =
+    appointmentCount +
+    invoiceCount +
+    prescriptionCount +
+    diagnosisCount +
+    labOrderCount +
+    medicalRecordCount +
+    allergyCount +
+    walkInCount +
+    pharmacySaleCount +
+    insuranceClaimCount;
+  if (historyCount > 0) {
+    return {
+      error: `Can't delete — ${patient.name} has ${historyCount} recorded appointment${historyCount === 1 ? "" : "s"}, invoice${historyCount === 1 ? "" : "s"}, prescription${historyCount === 1 ? "" : "s"}, or other clinical record${historyCount === 1 ? "" : "s"} in the system. Deactivate the account instead.`,
+    };
+  }
+
+  await prisma.$transaction([
+    prisma.patient.delete({ where: { id: patientId } }),
+    ...(patient.userId ? [prisma.user.delete({ where: { id: patient.userId } })] : []),
+  ]);
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: "Deleted patient account",
+    target: `${patient.name} (${patient.patientCode ?? patientId})`,
+  });
+
+  revalidatePath("/staff/users");
+  revalidatePath("/staff/patients");
+  return { success: true };
 }

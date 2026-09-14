@@ -49,14 +49,18 @@ test.describe("Doctor availability", () => {
       await loginAs(page, "admin@nca.clinic");
       await page.goto(`/en/staff/users/${doctor.id}/availability`);
 
-      await page.fill('input[name="workStartTime"]', "09:00");
-      await page.fill('input[name="workEndTime"]', "12:00");
+      // Weekday defaults to "Mon" in the range-adder, so no need to change it.
+      await page.fill('input[type="time"] >> nth=0', "09:00");
+      await page.fill('input[type="time"] >> nth=1', "12:00");
+      await page.click('button:has-text("+ Add range")');
       await page.click('button:has-text("Save schedule")');
       await page.waitForLoadState("networkidle");
 
       await expect.poll(async () => {
-        const updated = await prisma.doctorProfile.findUniqueOrThrow({ where: { id: doctor.id } });
-        return updated.workStartTime;
+        const shift = await prisma.doctorShift.findFirst({
+          where: { doctorId: doctor.id, weekday: 1 },
+        });
+        return shift?.startTime ?? null;
       }).toBe("09:00");
 
       const leaveDate = futureWeekday(45);
@@ -77,16 +81,22 @@ test.describe("Doctor availability", () => {
         where: { doctorId_date: { doctorId: doctor.id, date: leaveDate } },
       });
 
-      await page.getByRole("button", { name: "Remove" }).first().click();
+      // Scope to the leave-day row specifically — the schedule form above it
+      // also has "Remove" buttons, for shift time ranges.
+      const leaveRow = page
+        .locator("p", { hasText: "Conference" })
+        .locator("xpath=ancestor::div[contains(@class, 'rounded-lg') and contains(@class, 'border')][1]");
+      await leaveRow.getByRole("button", { name: "Remove" }).click();
       await expect(page.getByText("Conference")).not.toBeVisible();
 
       await expect.poll(async () => {
         return prisma.doctorLeave.findUnique({ where: { id: leave.id } });
       }).toBeNull();
     } finally {
+      await prisma.doctorShift.deleteMany({ where: { doctorId: doctor.id } });
       await prisma.doctorProfile.update({
         where: { id: doctor.id },
-        data: { workStartTime: null, workEndTime: null, workingDays: [1, 2, 3, 4, 5] },
+        data: { workingDays: [1, 2, 3, 4, 5] },
       });
       await prisma.doctorLeave.deleteMany({ where: { doctorId: doctor.id } });
     }
@@ -141,9 +151,14 @@ test.describe("Doctor availability", () => {
     const isoDate = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, "0")}-${String(bookingDate.getDate()).padStart(2, "0")}`;
 
     // A 2-hour window can't fully cover any of the app's 2-3 hour blocks.
-    await prisma.doctorProfile.update({
-      where: { id: doctor.id },
-      data: { workStartTime: "09:00", workEndTime: "11:00" },
+    await prisma.doctorShift.deleteMany({ where: { doctorId: doctor.id } });
+    await prisma.doctorShift.createMany({
+      data: doctor.workingDays.map((weekday) => ({
+        doctorId: doctor.id,
+        weekday,
+        startTime: "09:00",
+        endTime: "11:00",
+      })),
     });
 
     try {
@@ -163,10 +178,7 @@ test.describe("Doctor availability", () => {
       });
       expect(created).toBeNull();
     } finally {
-      await prisma.doctorProfile.update({
-        where: { id: doctor.id },
-        data: { workStartTime: null, workEndTime: null },
-      });
+      await prisma.doctorShift.deleteMany({ where: { doctorId: doctor.id } });
     }
   });
 

@@ -26,6 +26,7 @@ import { DoctorAccountForm } from "@/components/staff/doctor-account-form";
 import { StaffAccountForm } from "@/components/staff/staff-account-form";
 import { SetPasswordForm } from "@/components/staff/set-password-form";
 import { DeleteUserButton } from "@/components/staff/delete-user-button";
+import { DeletePatientButton } from "@/components/staff/delete-patient-button";
 
 type RowType = "PATIENT" | "DOCTOR" | "STAFF" | "ADMIN";
 
@@ -79,7 +80,7 @@ export default async function UserManagementPage({
   const { tab: tabParam, q } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "all";
 
-  const [patients, doctors, staffAndAdmins, specialties] = await Promise.all([
+  const [patients, allDoctors, staffAndAdmins, specialties, serviceSpecialties] = await Promise.all([
     prisma.patient.findMany({ orderBy: { createdAt: "desc" } }),
     prisma.doctorProfile.findMany({ include: { user: true }, orderBy: { createdAt: "desc" } }),
     prisma.user.findMany({
@@ -87,8 +88,15 @@ export default async function UserManagementPage({
       orderBy: { createdAt: "desc" },
     }),
     getActiveSpecialties(),
+    prisma.specialty.findMany({ where: { bookingMode: "SERVICE_CAPACITY" }, select: { name: true } }),
   ]);
   const specialtyOptions = specialties.map((s) => ({ name: s.name }));
+
+  // SERVICE_CAPACITY specialties (e.g. Lab Visit) are backed by a placeholder
+  // DoctorProfile that exists only as a foreign-key target for appointments —
+  // not a real staff member, so it's excluded from user management.
+  const serviceSpecialtyNames = new Set(serviceSpecialties.map((s) => s.name));
+  const doctors = allDoctors.filter((d) => !d.specialty || !serviceSpecialtyNames.has(d.specialty));
 
   const rows: UserRow[] = [
     ...patients.map((p): UserRow => ({
@@ -313,10 +321,13 @@ export default async function UserManagementPage({
                             <SetPasswordForm userId={row.userId} />
                           </UserActionDialog>
                         )}
-                        {(row.type === "STAFF" || row.type === "ADMIN") &&
+                        {(row.type === "STAFF" || row.type === "ADMIN" || row.type === "DOCTOR") &&
                           row.userId !== session.user.id && (
                             <DeleteUserButton userId={row.userId!} name={row.name} />
                           )}
+                        {row.type === "PATIENT" && (
+                          <DeletePatientButton patientId={row.patientId!} name={row.name} />
+                        )}
                       </div>
                     </TableCell>
                   </TableRow>

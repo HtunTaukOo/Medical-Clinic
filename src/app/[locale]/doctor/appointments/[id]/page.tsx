@@ -99,11 +99,13 @@ export default async function DoctorAppointmentDetailPage({
     : null;
   const isBookByServiceVisit = specialtyRecord?.bookingMode === "SERVICE_CAPACITY";
 
+  // Charting (vitals/diagnosis/prescribe) only opens up once the patient has
+  // actually checked in — a merely CONFIRMED appointment shouldn't be
+  // writable yet, since the patient hasn't arrived. COMPLETED stays writable
+  // so a doctor can still review/amend notes after the visit.
   const canWriteNote =
     !isBookByServiceVisit &&
-    (appointment.status === "CONFIRMED" ||
-      appointment.status === "CHECKED_IN" ||
-      appointment.status === "COMPLETED");
+    (appointment.status === "CHECKED_IN" || appointment.status === "COMPLETED");
   const backHref = canWriteNote ? "/doctor/consultations" : "/doctor/appointments";
   const isSameDayAsVisit = dateKey(appointment.scheduledAt) === dateKey(new Date());
   const canPrescribe = canWriteNote && isSameDayAsVisit;

@@ -1,14 +1,12 @@
 import { prisma } from "@/lib/prisma";
 import { getClinicHoursForDate, toMinutes, clinicMidnightForYMD, clinicDateParts } from "@/lib/clinic-hours";
-import { isDoctorOnLeave, isWorkingDay } from "@/lib/doctor-availability";
+import { isDoctorOnLeave, isWorkingDay, getDoctorShiftsForDate } from "@/lib/doctor-availability";
 import { APPOINTMENT_SLOT_MINUTES, MAX_APPOINTMENT_SLOTS, MIN_BOOKING_LEAD_MINUTES, isBlockSlotAvailable } from "@/lib/scheduling";
 import { TIME_BLOCKS, type TimeBlockId } from "@/lib/time-blocks";
 
 export type DoctorForSlots = {
   id: string;
   workingDays: number[];
-  workStartTime: string | null;
-  workEndTime: string | null;
 };
 
 export type DaySlot = { time: string; available: boolean };
@@ -46,10 +44,12 @@ export async function getDaySlots(
 
   const dayStart = clinicMidnightForYMD(year, month, day);
   const clinicHours = await getClinicHoursForDate(dayStart);
-  const startTime = doctor.workStartTime ?? clinicHours.openTime;
-  const endTime = doctor.workEndTime ?? clinicHours.closeTime;
-  const startMinutes = toMinutes(startTime);
-  const endMinutes = toMinutes(endTime);
+  const shifts = await getDoctorShiftsForDate(doctor.id, dayStart);
+  // No specific shifts recorded for this day → fall back to the clinic's
+  // default hours (backward compatible with doctors who haven't been given
+  // per-day shifts yet). Otherwise, each shift range contributes its own
+  // slots, so a lunch-break gap between two shifts naturally has no slots.
+  const ranges = shifts.length > 0 ? shifts : [{ startTime: clinicHours.openTime, endTime: clinicHours.closeTime }];
 
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
   const maxExistingDurationMs = MAX_APPOINTMENT_SLOTS * APPOINTMENT_SLOT_MINUTES * 60 * 1000;
@@ -68,13 +68,17 @@ export async function getDaySlots(
 
   const earliestBookable = Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000;
   const slots: DaySlot[] = [];
-  for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) {
-    const slotStart = dayStart.getTime() + m * 60 * 1000;
-    const slotEnd = slotStart + APPOINTMENT_SLOT_MINUTES * 60 * 1000;
-    const conflicts = takenRanges.some((r) => r.start < slotEnd && r.end > slotStart);
-    const hh = String(Math.floor(m / 60)).padStart(2, "0");
-    const mm = String(m % 60).padStart(2, "0");
-    slots.push({ time: `${hh}:${mm}`, available: slotStart > earliestBookable && !conflicts });
+  for (const range of ranges) {
+    const startMinutes = toMinutes(range.startTime);
+    const endMinutes = toMinutes(range.endTime);
+    for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) {
+      const slotStart = dayStart.getTime() + m * 60 * 1000;
+      const slotEnd = slotStart + APPOINTMENT_SLOT_MINUTES * 60 * 1000;
+      const conflicts = takenRanges.some((r) => r.start < slotEnd && r.end > slotStart);
+      const hh = String(Math.floor(m / 60)).padStart(2, "0");
+      const mm = String(m % 60).padStart(2, "0");
+      slots.push({ time: `${hh}:${mm}`, available: slotStart > earliestBookable && !conflicts });
+    }
   }
   return slots;
 }
