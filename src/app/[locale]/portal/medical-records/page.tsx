@@ -11,6 +11,7 @@ import { MedicalRecordList } from "@/components/medical-records/medical-record-l
 import { DocumentUploadForm } from "@/components/medical-records/document-upload-form";
 import { PrescriptionHistoryList } from "@/components/medical-records/prescription-history-list";
 import { LabResultsTable } from "@/components/medical-records/lab-results-table";
+import { appointmentProviderName, getBookByServiceSpecialtyNames } from "@/lib/appointment-provider";
 
 const PILL_TAB_LIST =
   "!h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
@@ -24,13 +25,14 @@ export default async function PortalMedicalRecordsPage() {
   const patientId = session?.user.patientId;
   const now = new Date();
 
-  const [visits, prescriptions, labOrders, documents] = await Promise.all([
+  const [visits, prescriptions, labOrders, documents, bookByServiceNames] = await Promise.all([
     patientId
       ? prisma.appointment.findMany({
           where: { patientId, status: "COMPLETED" },
           orderBy: { scheduledAt: "desc" },
           include: {
             doctor: { include: { user: true } },
+            clinicService: { select: { name: true } },
             diagnoses: { orderBy: { createdAt: "asc" }, take: 1 },
           },
         })
@@ -59,6 +61,7 @@ export default async function PortalMedicalRecordsPage() {
           include: { author: true },
         })
       : [],
+    getBookByServiceSpecialtyNames(),
   ]);
 
   const prescriptionItems = prescriptions.flatMap((rx) =>
@@ -134,7 +137,8 @@ export default async function PortalMedicalRecordsPage() {
                           </Badge>
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {visit.doctor.user.name} · {new Date(visit.scheduledAt).toLocaleDateString()}
+                          {appointmentProviderName(visit, bookByServiceNames)} ·{" "}
+                          {new Date(visit.scheduledAt).toLocaleDateString()}
                         </p>
                         {visit.reason && (
                           <p className="text-sm text-muted-foreground">

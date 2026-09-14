@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CalendarDays, FlaskConical, AlertTriangle } from "lucide-react";
+import { CalendarDays, FlaskConical, AlertTriangle, Activity } from "lucide-react";
 import { BackLink } from "@/components/back-link";
 import { GENDER_LABELS } from "@/lib/patients";
 import { getTranslations } from "next-intl/server";
@@ -13,6 +13,7 @@ import { AllergyForm } from "@/components/allergies/allergy-form";
 import { addAllergy } from "@/actions/allergies";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -93,6 +94,13 @@ export default async function DoctorPatientDetailPage({
   const activeConditions = patient.diagnoses.filter((d) => d.status === "ACTIVE");
   const lastCompletedVisit =
     patient.appointments.find((a) => a.status === "COMPLETED") ?? null;
+  const checkedInAppointment =
+    patient.appointments.find(
+      (a) => a.status === "CHECKED_IN" && a.doctorId === session.user.doctorId
+    ) ?? null;
+  const startConsultationHref = checkedInAppointment
+    ? `/doctor/appointments/${checkedInAppointment.id}`
+    : `/doctor/appointments/new?patientId=${patient.id}`;
   const now = new Date();
   const activePrescriptions = patient.prescriptions.filter((rx) => {
     const maxDuration = Math.max(0, ...rx.items.map((i) => i.durationDays ?? 0));
@@ -137,13 +145,21 @@ export default async function DoctorPatientDetailPage({
               {contactLine && <p className="text-sm text-muted-foreground">{contactLine}</p>}
             </div>
           </div>
-          {bmi != null && (
-            <div className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
-              BMI {bmi.toFixed(1)}
-              {patient.weightKg && ` · ${patient.weightKg} kg`}
-              {patient.heightCm && ` · ${patient.heightCm} cm`}
-            </div>
-          )}
+          <div className="flex items-center gap-3">
+            {bmi != null && (
+              <div className="rounded-lg bg-muted px-3 py-2 text-sm text-muted-foreground">
+                BMI {bmi.toFixed(1)}
+                {patient.weightKg && ` · ${patient.weightKg} kg`}
+                {patient.heightCm && ` · ${patient.heightCm} cm`}
+              </div>
+            )}
+            <Button asChild>
+              <Link href={startConsultationHref}>
+                <Activity className="size-4" />
+                Start Consultation
+              </Link>
+            </Button>
+          </div>
         </CardContent>
       </Card>
 
@@ -183,7 +199,7 @@ export default async function DoctorPatientDetailPage({
           <Card>
             <CardHeader>
               <CardTitle className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Active Conditions
+                Presenting Symptoms
               </CardTitle>
             </CardHeader>
             <CardContent>

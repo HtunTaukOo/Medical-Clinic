@@ -42,11 +42,13 @@ function specialtyColorClass(specialty: string | null) {
 export default async function ClinicServicesPage() {
   await requirePageRole(["ADMIN"]);
 
-  const [services, specialties] = await Promise.all([
+  const [services, specialties, labTests] = await Promise.all([
     prisma.clinicService.findMany({ orderBy: { name: "asc" } }),
     getActiveSpecialties(),
+    prisma.labTest.findMany({ orderBy: { name: "asc" } }),
   ]);
-  const specialtyOptions = specialties.map((s) => ({ name: s.name }));
+  const specialtyOptions = specialties.map((s) => ({ name: s.name, bookByService: s.bookingMode === "SERVICE_CAPACITY" }));
+  const takenLabTestIds = new Set(services.map((s) => s.labTestId).filter((id): id is string => !!id));
 
   return (
     <div className="grid gap-4">
@@ -121,8 +123,12 @@ export default async function ClinicServicesPage() {
                             price: Number(service.price),
                             room: service.room,
                             active: service.active,
+                            labTestId: service.labTestId,
                           }}
                           specialties={specialtyOptions}
+                          labTests={labTests
+                            .filter((t) => t.id === service.labTestId || !takenLabTestIds.has(t.id))
+                            .map((t) => ({ id: t.id, name: t.name, price: Number(t.price) }))}
                         />
                         <DeleteClinicServiceButton serviceId={service.id} name={service.name} />
                       </div>

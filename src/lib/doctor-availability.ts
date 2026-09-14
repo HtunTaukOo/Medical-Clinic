@@ -36,6 +36,25 @@ export function isWithinDoctorHours(
   return minutes >= toMinutes(workStartTime) && minutes < toMinutes(workEndTime);
 }
 
+// For BLOCK_CAPACITY bookings: is this doctor actually working the full
+// [scheduledAt, scheduledAt + durationMinutes) range (a 2-3 hour block),
+// independent of leave (checked separately via isDoctorOnLeave)?
+export function isDoctorAvailableForRange(
+  doctor: { workingDays: number[]; workStartTime: string | null; workEndTime: string | null },
+  scheduledAt: Date,
+  durationMinutes: number
+) {
+  if (!isWorkingDay(doctor.workingDays, scheduledAt)) return false;
+  if (!isWithinDoctorHours(scheduledAt, doctor.workStartTime, doctor.workEndTime)) return false;
+  if (doctor.workEndTime) {
+    const dayStart = clinicMidnight(scheduledAt);
+    const doctorCloseInstant = new Date(dayStart.getTime() + toMinutes(doctor.workEndTime) * 60 * 1000);
+    const scheduledEnd = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
+    if (scheduledEnd.getTime() > doctorCloseInstant.getTime()) return false;
+  }
+  return true;
+}
+
 export async function isDoctorOnLeave(doctorId: string, date: Date) {
   const leave = await prisma.doctorLeave.findUnique({
     where: { doctorId_date: { doctorId, date: toDateOnly(date) } },

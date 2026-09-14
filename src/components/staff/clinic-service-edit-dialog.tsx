@@ -13,6 +13,7 @@ import { ClinicServiceForm } from "@/components/staff/clinic-service-form";
 export function ClinicServiceEditDialog({
   service,
   specialties,
+  labTests,
 }: {
   service: {
     id: string;
@@ -22,8 +23,10 @@ export function ClinicServiceEditDialog({
     price: number;
     room: string | null;
     active: boolean;
+    labTestId: string | null;
   };
-  specialties: { name: string }[];
+  specialties: { name: string; bookByService: boolean }[];
+  labTests: { id: string; name: string; price: number }[];
 }) {
   const [open, setOpen] = useState(false);
 
@@ -38,7 +41,12 @@ export function ClinicServiceEditDialog({
         <DialogHeader>
           <DialogTitle>Edit {service.name}</DialogTitle>
         </DialogHeader>
-        <ClinicServiceForm service={service} specialties={specialties} onSaved={() => setOpen(false)} />
+        <ClinicServiceForm
+          service={service}
+          specialties={specialties}
+          labTests={labTests}
+          onSaved={() => setOpen(false)}
+        />
       </DialogContent>
     </Dialog>
   );

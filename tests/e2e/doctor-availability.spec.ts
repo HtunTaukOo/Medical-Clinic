@@ -92,7 +92,11 @@ test.describe("Doctor availability", () => {
     }
   });
 
-  test("the booking wizard calendar disables a doctor's leave day", async ({ page }) => {
+  // General Medicine is BLOCK_CAPACITY: the calendar/block picker is specialty-
+  // wide (pooled across every doctor with the specialty), so one doctor's leave
+  // no longer disables the day outright — it excludes just that doctor from the
+  // later Doctors step for that date+block instead.
+  test("a doctor on leave is excluded from the Doctors step for that date", async ({ page }) => {
     const doctor = await prisma.doctorProfile.findFirstOrThrow({
       where: { user: { email: "doctor@nca.clinic" } },
       include: { user: true },
@@ -110,11 +114,12 @@ test.describe("Doctor availability", () => {
       await page.goto("/en/portal/book");
       await page.getByRole("button", { name: new RegExp(doctor.specialty ?? "General Medicine") }).click();
       await page.getByRole("button", { name: "Continue" }).click();
-      await page.getByRole("button", { name: new RegExp(doctor.user.name) }).click();
+      await (await navigateToDate(page, isoDate)).click();
+      await page.locator("button:not([disabled])").filter({ hasText: /–/ }).first().click();
       await page.getByRole("button", { name: "Continue" }).click();
 
-      // The leave day is disabled outright in the calendar — it should never be clickable.
-      await expect(await navigateToDate(page, isoDate)).toBeDisabled();
+      await expect(page.getByText("Select a Doctor")).toBeVisible();
+      await expect(page.getByRole("button", { name: new RegExp(doctor.user.name) })).toHaveCount(0);
 
       const created = await prisma.appointment.findFirst({
         where: { doctorId: doctor.id, scheduledAt: toDateStrict(leaveDate, 10, 0) },
@@ -125,7 +130,7 @@ test.describe("Doctor availability", () => {
     }
   });
 
-  test("the booking wizard only offers times inside a doctor's overridden working hours", async ({
+  test("a doctor whose hours don't cover the chosen block is excluded from the Doctors step", async ({
     page,
   }) => {
     const doctor = await prisma.doctorProfile.findFirstOrThrow({
@@ -135,6 +140,7 @@ test.describe("Doctor availability", () => {
     const bookingDate = futureWeekday(2);
     const isoDate = `${bookingDate.getFullYear()}-${String(bookingDate.getMonth() + 1).padStart(2, "0")}-${String(bookingDate.getDate()).padStart(2, "0")}`;
 
+    // A 2-hour window can't fully cover any of the app's 2-3 hour blocks.
     await prisma.doctorProfile.update({
       where: { id: doctor.id },
       data: { workStartTime: "09:00", workEndTime: "11:00" },
@@ -145,13 +151,12 @@ test.describe("Doctor availability", () => {
       await page.goto("/en/portal/book");
       await page.getByRole("button", { name: new RegExp(doctor.specialty ?? "General Medicine") }).click();
       await page.getByRole("button", { name: "Continue" }).click();
-      await page.getByRole("button", { name: new RegExp(doctor.user.name) }).click();
-      await page.getByRole("button", { name: "Continue" }).click();
       await (await navigateToDate(page, isoDate)).click();
+      await page.locator("button:not([disabled])").filter({ hasText: /–/ }).first().click();
+      await page.getByRole("button", { name: "Continue" }).click();
 
-      // 2:00 PM is within the clinic's default 9 AM-5 PM hours but outside this doctor's 9-11 AM override.
-      await expect(page.getByRole("button", { name: "2:00 PM", exact: true })).toHaveCount(0);
-      await expect(page.getByRole("button", { name: "9:00 AM", exact: true })).toBeVisible();
+      await expect(page.getByText("Select a Doctor")).toBeVisible();
+      await expect(page.getByRole("button", { name: new RegExp(doctor.user.name) })).toHaveCount(0);
 
       const created = await prisma.appointment.findFirst({
         where: { doctorId: doctor.id, scheduledAt: toDateStrict(bookingDate, 14, 0) },

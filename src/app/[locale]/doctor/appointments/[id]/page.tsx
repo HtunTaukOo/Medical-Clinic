@@ -87,10 +87,23 @@ export default async function DoctorAppointmentDetailPage({
   if (!appointment) notFound();
   if (appointment.doctorId !== session.user.doctorId) notFound();
 
+  // Book-by-service specialties (e.g. Lab Visit) have no real consultation —
+  // the patient booked a specific service, not this doctor's judgment, and
+  // any lab order is created automatically at check-in. Skip the whole
+  // vitals/diagnosis/prescribe/order-tests consultation UI for these.
+  const specialtyRecord = appointment.doctor.specialty
+    ? await prisma.specialty.findUnique({
+        where: { name: appointment.doctor.specialty },
+        select: { bookingMode: true },
+      })
+    : null;
+  const isBookByServiceVisit = specialtyRecord?.bookingMode === "SERVICE_CAPACITY";
+
   const canWriteNote =
-    appointment.status === "CONFIRMED" ||
-    appointment.status === "CHECKED_IN" ||
-    appointment.status === "COMPLETED";
+    !isBookByServiceVisit &&
+    (appointment.status === "CONFIRMED" ||
+      appointment.status === "CHECKED_IN" ||
+      appointment.status === "COMPLETED");
   const backHref = canWriteNote ? "/doctor/consultations" : "/doctor/appointments";
   const isSameDayAsVisit = dateKey(appointment.scheduledAt) === dateKey(new Date());
   const canPrescribe = canWriteNote && isSameDayAsVisit;

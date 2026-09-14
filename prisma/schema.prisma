@@ -195,13 +195,12 @@ model DoctorProfile {
   notifyScheduleReminders    Boolean @default(true)
   notifyLeaveRequestStatus   Boolean @default(true)
 
-  appointments    Appointment[]
-  prescriptions   Prescription[]
-  labOrders       LabOrder[]
-  leaveDays       DoctorLeave[]
-  waitlistEntries Waitlist[]
-  diagnoses       Diagnosis[]
-  walkIns         WalkIn[]
+  appointments  Appointment[]
+  prescriptions Prescription[]
+  labOrders     LabOrder[]
+  leaveDays     DoctorLeave[]
+  diagnoses     Diagnosis[]
+  walkIns       WalkIn[]
 }
 
 enum WaitlistStatus {
@@ -211,18 +210,21 @@ enum WaitlistStatus {
 }
 
 model Waitlist {
-  id          String         @id @default(cuid())
-  patientId   String
-  patient     Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  doctorId    String
-  doctor      DoctorProfile  @relation(fields: [doctorId], references: [id], onDelete: Cascade)
-  requestedAt DateTime
-  reason      String?
-  status      WaitlistStatus @default(WAITING)
-  notifiedAt  DateTime?
-  createdAt   DateTime       @default(now())
+  id            String         @id @default(cuid())
+  patientId     String
+  patient       Patient        @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  // Specialty + day + block, not a doctor — capacity for a BLOCK_CAPACITY
+  // specialty is pooled across whichever doctors have that specialty, so
+  // a waitlist entry doesn't target one doctor's calendar.
+  specialtyName String
+  requestedDate DateTime
+  blockId       String
+  reason        String?
+  status        WaitlistStatus @default(WAITING)
+  notifiedAt    DateTime?
+  createdAt     DateTime       @default(now())
 
-  @@index([doctorId, status, requestedAt])
+  @@index([specialtyName, requestedDate, blockId, status])
 }
 
 enum DoctorLeaveStatus {
@@ -789,7 +791,8 @@ model LabTest {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  orderItems LabOrderItem[]
+  orderItems    LabOrderItem[]
+  clinicService ClinicService?
 }
 
 enum LabOrderStatus {
@@ -841,23 +844,35 @@ model LabOrderItem {
 }
 
 model Specialty {
-  id              String   @id @default(cuid())
-  name            String   @unique
-  icon            String   @default("Stethoscope")
+  id              String               @id @default(cuid())
+  name            String               @unique
+  icon            String               @default("Stethoscope")
   description     String?
-  active          Boolean  @default(true)
-  // When true, the booking wizard skips doctor selection for this specialty
-  // and has the patient pick a clinic service instead (e.g. Laboratory) — a
-  // doctor is still assigned behind the scenes since Appointment requires one.
-  bookByService   Boolean  @default(false)
-  // How many visits this specialty can handle in the same 30-min slot at
-  // once (e.g. a lab with 3 stations) — only meaningful when bookByService
-  // is true; availability is checked against the clinic's hours and this
-  // capacity instead of any one doctor's calendar.
-  capacityPerSlot Int      @default(1)
-  sortOrder       Int      @default(0)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  active          Boolean              @default(true)
+  // DOCTOR_CALENDAR: patient picks a doctor, then an exact slot from that
+  // doctor's own calendar (legacy default; expected unused in practice).
+  // SERVICE_CAPACITY: booking wizard skips doctor selection and has the
+  // patient pick a clinic service instead (e.g. Laboratory) — a doctor is
+  // still assigned behind the scenes since Appointment requires one.
+  // BLOCK_CAPACITY: patient picks a date + one of the fixed daily time
+  // blocks (see src/lib/time-blocks.ts), then picks a real doctor from
+  // whoever has this specialty — capacity is pooled across those doctors.
+  bookingMode     SpecialtyBookingMode @default(DOCTOR_CALENDAR)
+  // How many visits this specialty can handle in the same slot/block at
+  // once (e.g. a lab with 3 stations, or 10 patients per BLOCK_CAPACITY
+  // block) — only meaningful when bookingMode isn't DOCTOR_CALENDAR;
+  // availability is checked against the clinic's hours and this capacity
+  // instead of any one doctor's calendar.
+  capacityPerSlot Int                  @default(1)
+  sortOrder       Int                  @default(0)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+}
+
+enum SpecialtyBookingMode {
+  DOCTOR_CALENDAR
+  SERVICE_CAPACITY
+  BLOCK_CAPACITY
 }
 
 model ClinicService {
@@ -870,6 +885,12 @@ model ClinicService {
   active          Boolean  @default(true)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+
+  // When set, booking this service is booking that lab test — keeps the
+  // patient-facing booking/billing catalog and the clinical lab-order
+  // catalog from drifting apart (see LabTest).
+  labTestId String?  @unique
+  labTest   LabTest? @relation(fields: [labTestId], references: [id], onDelete: SetNull)
 
   invoiceItems InvoiceItem[]
   appointments Appointment[]

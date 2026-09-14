@@ -8,6 +8,10 @@ import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { redirect } from "@/i18n/navigation";
 import { logActivity } from "@/lib/audit";
 import { generatePatientCode } from "@/lib/patients";
+import { createLabOrderForLinkedService } from "@/actions/appointments";
+import { getClinicHoursForDate, clinicLocalMinutes, clinicMidnight, toMinutes } from "@/lib/clinic-hours";
+import { blockContainingMinuteOfDay, nearestBlock, blockDurationMinutes } from "@/lib/time-blocks";
+import { isBlockSlotAvailable } from "@/lib/scheduling";
 
 export async function callWalkIn(walkInId: string) {
   await requireRole(STAFF_ROLES);
@@ -46,6 +50,7 @@ const convertSchema = z.object({
   patientId: z.string().optional(),
   newPatientName: z.string().optional(),
   doctorId: z.string().min(1),
+  clinicServiceId: z.string().optional(),
 });
 
 export type ConvertWalkInState = { error?: string };
@@ -66,6 +71,7 @@ export async function convertWalkInToAppointment(
     patientId: formData.get("patientId") || undefined,
     newPatientName: formData.get("newPatientName") || undefined,
     doctorId: formData.get("doctorId"),
+    clinicServiceId: formData.get("clinicServiceId") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -74,7 +80,39 @@ export async function convertWalkInToAppointment(
     return { error: "Select an existing patient or enter a name for a new one" };
   }
 
+  const doctor = await prisma.doctorProfile.findUniqueOrThrow({ where: { id: parsed.data.doctorId } });
+  const specialty = doctor.specialty
+    ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
+    : null;
+  if (specialty?.bookingMode === "SERVICE_CAPACITY" && !parsed.data.clinicServiceId) {
+    return { error: "Select which service or lab test this visit is for" };
+  }
+  const clinicService = parsed.data.clinicServiceId
+    ? await prisma.clinicService.findUnique({ where: { id: parsed.data.clinicServiceId } })
+    : null;
+
   const now = new Date();
+
+  let scheduledAt = now;
+  let durationMinutes: number | undefined = clinicService?.durationMinutes;
+  if (specialty?.bookingMode === "BLOCK_CAPACITY") {
+    const clinicHours = await getClinicHoursForDate(now);
+    if (!clinicHours.isOpen) {
+      return { error: "The clinic is closed today." };
+    }
+    const minutesNow = clinicLocalMinutes(now);
+    const block = blockContainingMinuteOfDay(minutesNow) ?? nearestBlock(minutesNow);
+    const dayStart = clinicMidnight(now);
+    scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
+    durationMinutes = blockDurationMinutes(block);
+
+    const { available } = await isBlockSlotAvailable(specialty.name, specialty.capacityPerSlot, scheduledAt);
+    if (!available) {
+      return {
+        error: `This time block is at capacity (${specialty.capacityPerSlot} patients). Please try a different doctor.`,
+      };
+    }
+  }
 
   const { appointment } = await prisma.$transaction(async (tx) => {
     const patientId = parsed.data.patientId
@@ -93,11 +131,14 @@ export async function convertWalkInToAppointment(
       data: {
         patientId,
         doctorId: parsed.data.doctorId,
-        scheduledAt: now,
+        clinicServiceId: clinicService?.id,
+        scheduledAt,
+        durationMinutes,
         status: "CHECKED_IN",
         checkedInAt: now,
-        reason: walkIn.reason ?? undefined,
+        reason: walkIn.reason ?? clinicService?.name,
       },
+      include: { clinicService: true },
     });
 
     await tx.walkIn.update({
@@ -112,6 +153,8 @@ export async function convertWalkInToAppointment(
 
     return { appointment };
   });
+
+  await createLabOrderForLinkedService(appointment);
 
   await logActivity({
     actorId: session.user.id,

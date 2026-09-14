@@ -5,6 +5,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { cancelAppointment, checkInAppointment } from "@/actions/appointments";
 import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
+import { appointmentProviderName, getBookByServiceSpecialtyNames } from "@/lib/appointment-provider";
 import { BackLink } from "@/components/back-link";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
@@ -33,21 +34,28 @@ export default async function PortalAppointmentDetailPage({
     NO_SHOW: td("statusNoShow"),
   };
 
-  const appointment = await prisma.appointment.findUnique({
-    where: { id },
-    include: {
-      doctor: { include: { user: true } },
-      prescriptions: { include: { items: { include: { medicine: true } } } },
-      diagnoses: { orderBy: { createdAt: "desc" } },
-    },
-  });
+  const [appointment, bookByServiceNames] = await Promise.all([
+    prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        doctor: { include: { user: true } },
+        clinicService: { select: { name: true } },
+        prescriptions: { include: { items: { include: { medicine: true } } } },
+        diagnoses: { orderBy: { createdAt: "desc" } },
+      },
+    }),
+    getBookByServiceSpecialtyNames(),
+  ]);
 
   if (!appointment || !patientId || appointment.patientId !== patientId) {
     notFound();
   }
 
+  const providerName = appointmentProviderName(appointment, bookByServiceNames);
+
   const canSelfCheckIn =
-    appointment.status === "CONFIRMED" && isWithinSelfCheckInWindow(appointment.scheduledAt);
+    appointment.status === "CONFIRMED" &&
+    isWithinSelfCheckInWindow(appointment.scheduledAt, appointment.durationMinutes);
   const canCancel = appointment.status === "REQUESTED" || appointment.status === "CONFIRMED";
   const queuePosition =
     appointment.status === "CHECKED_IN" && appointment.checkedInAt
@@ -60,7 +68,7 @@ export default async function PortalAppointmentDetailPage({
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{appointment.doctor.user.name}</h1>
+          <h1 className="text-2xl font-semibold">{providerName}</h1>
           <p className="text-muted-foreground">
             {new Date(appointment.scheduledAt).toLocaleString()}
           </p>
@@ -70,7 +78,7 @@ export default async function PortalAppointmentDetailPage({
 
       {queuePosition != null && (
         <p className="text-sm font-medium text-primary">
-          {t("queuePosition", { position: queuePosition, doctor: appointment.doctor.user.name })}
+          {t("queuePosition", { position: queuePosition, doctor: providerName })}
         </p>
       )}
 

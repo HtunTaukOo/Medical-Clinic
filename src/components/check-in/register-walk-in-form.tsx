@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import { registerAndCheckIn, type RegisterAndCheckInState } from "@/actions/check-in";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,13 +16,24 @@ import {
 
 export function RegisterWalkInForm({
   doctors,
+  bookByServiceSpecialties,
+  blockCapacitySpecialties,
+  clinicServices,
 }: {
-  doctors: { id: string; name: string }[];
+  doctors: { id: string; name: string; specialty: string | null }[];
+  bookByServiceSpecialties: string[];
+  blockCapacitySpecialties: string[];
+  clinicServices: { id: string; name: string; specialty: string | null }[];
 }) {
   const [state, formAction, pending] = useActionState<RegisterAndCheckInState, FormData>(
     registerAndCheckIn,
     {}
   );
+  const [doctorId, setDoctorId] = useState("");
+  const selectedDoctor = doctors.find((d) => d.id === doctorId);
+  const needsService = !!selectedDoctor?.specialty && bookByServiceSpecialties.includes(selectedDoctor.specialty);
+  const isBlockDoctor = !!selectedDoctor?.specialty && blockCapacitySpecialties.includes(selectedDoctor.specialty);
+  const availableServices = clinicServices.filter((s) => s.specialty === selectedDoctor?.specialty);
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -58,7 +69,7 @@ export function RegisterWalkInForm({
         </div>
         <div className="grid gap-2">
           <Label htmlFor="doctorId">Preferred Doctor</Label>
-          <Select name="doctorId" required>
+          <Select name="doctorId" required value={doctorId} onValueChange={setDoctorId}>
             <SelectTrigger id="doctorId" className="w-full">
               <SelectValue placeholder="Select doctor" />
             </SelectTrigger>
@@ -72,6 +83,30 @@ export function RegisterWalkInForm({
           </Select>
         </div>
       </div>
+
+      {isBlockDoctor && (
+        <p className="rounded-lg border border-dashed bg-muted/40 p-3 text-sm text-muted-foreground">
+          This will register the patient into the current time block for {selectedDoctor?.specialty}.
+        </p>
+      )}
+
+      {needsService && (
+        <div className="grid gap-2">
+          <Label htmlFor="clinicServiceId">Lab Test / Service</Label>
+          <Select name="clinicServiceId" required>
+            <SelectTrigger id="clinicServiceId" className="w-full">
+              <SelectValue placeholder="Select the test or service" />
+            </SelectTrigger>
+            <SelectContent>
+              {availableServices.map((s) => (
+                <SelectItem key={s.id} value={s.id}>
+                  {s.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
 
       <div className="grid gap-2">
         <Label htmlFor="reason">Reason for Visit</Label>

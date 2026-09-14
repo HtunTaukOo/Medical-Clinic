@@ -78,3 +78,25 @@ export async function isResourceSlotAvailable(
 
   return occupied < resource.capacityPerSlot;
 }
+
+// BLOCK_CAPACITY counterpart to isResourceSlotAvailable — every patient
+// booked into a given day's block shares the exact same scheduledAt (the
+// block's start instant), so counting occupancy is a plain equality match
+// rather than the overlap-range math above.
+export async function isBlockSlotAvailable(
+  specialtyName: string,
+  capacityPerSlot: number,
+  scheduledAt: Date,
+  excludeAppointmentId?: string
+): Promise<{ available: boolean; occupied: number }> {
+  const occupied = await prisma.appointment.count({
+    where: {
+      doctor: { specialty: specialtyName },
+      status: { in: ["REQUESTED", "CONFIRMED"] },
+      scheduledAt,
+      ...(excludeAppointmentId ? { id: { not: excludeAppointmentId } } : {}),
+    },
+  });
+
+  return { available: occupied < capacityPerSlot, occupied };
+}

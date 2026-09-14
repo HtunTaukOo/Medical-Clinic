@@ -190,7 +190,9 @@ async function handleCheckInCommand(chatId: string) {
     orderBy: { scheduledAt: "asc" },
     include: { doctor: { include: { user: true } } },
   });
-  const eligible = candidates.filter((a) => isWithinSelfCheckInWindow(a.scheduledAt, now));
+  const eligible = candidates.filter((a) =>
+    isWithinSelfCheckInWindow(a.scheduledAt, a.durationMinutes, now)
+  );
 
   if (eligible.length === 0) {
     await sendTelegramMessage(

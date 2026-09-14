@@ -17,9 +17,13 @@ export default async function NewDoctorAppointmentPage({
   const doctorId = session.user.doctorId;
   if (!doctorId) notFound();
 
-  const [patients, doctor] = await Promise.all([
+  const [patients, doctor, blockSpecialties] = await Promise.all([
     prisma.patient.findMany({ orderBy: { name: "asc" } }),
     prisma.doctorProfile.findUnique({ where: { id: doctorId }, include: { user: true } }),
+    prisma.specialty.findMany({
+      where: { bookingMode: "BLOCK_CAPACITY" },
+      select: { name: true, capacityPerSlot: true },
+    }),
   ]);
   if (!doctor) notFound();
 
@@ -31,6 +35,7 @@ export default async function NewDoctorAppointmentPage({
         action={createAppointment}
         patients={patients.map((p) => ({ id: p.id, name: p.name }))}
         doctors={[{ id: doctor.id, name: doctor.user.name, specialty: doctor.specialty }]}
+        blockSpecialties={blockSpecialties}
         redirectOnSuccess="/doctor/appointments"
         defaultPatientId={patientId}
         defaultDoctorId={doctor.id}

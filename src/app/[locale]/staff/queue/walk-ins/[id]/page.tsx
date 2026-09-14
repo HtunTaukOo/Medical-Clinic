@@ -15,11 +15,15 @@ export default async function ConvertWalkInPage({
   const { id } = await params;
   const t = await getTranslations("appointments");
 
-  const [walkIn, patients, doctors] = await Promise.all([
-    prisma.walkIn.findUnique({ where: { id } }),
-    prisma.patient.findMany({ orderBy: { name: "asc" } }),
-    prisma.doctorProfile.findMany({ include: { user: true } }),
-  ]);
+  const [walkIn, patients, doctors, bookByServiceSpecialties, blockCapacitySpecialties, labServices] =
+    await Promise.all([
+      prisma.walkIn.findUnique({ where: { id } }),
+      prisma.patient.findMany({ orderBy: { name: "asc" } }),
+      prisma.doctorProfile.findMany({ include: { user: true } }),
+      prisma.specialty.findMany({ where: { bookingMode: "SERVICE_CAPACITY" }, select: { name: true } }),
+      prisma.specialty.findMany({ where: { bookingMode: "BLOCK_CAPACITY" }, select: { name: true } }),
+      prisma.clinicService.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
+    ]);
 
   if (!walkIn || walkIn.status !== "CALLED") notFound();
 
@@ -48,8 +52,11 @@ export default async function ConvertWalkInPage({
       <ConvertWalkInForm
         walkInId={walkIn.id}
         patients={patients.map((p) => ({ id: p.id, name: p.name }))}
-        doctors={doctors.map((d) => ({ id: d.id, name: d.user.name }))}
+        doctors={doctors.map((d) => ({ id: d.id, name: d.user.name, specialty: d.specialty }))}
         defaultDoctorId={walkIn.doctorId ?? undefined}
+        bookByServiceSpecialties={bookByServiceSpecialties.map((s) => s.name)}
+        blockCapacitySpecialties={blockCapacitySpecialties.map((s) => s.name)}
+        clinicServices={labServices.map((s) => ({ id: s.id, name: s.name, specialty: s.specialty }))}
       />
     </div>
   );

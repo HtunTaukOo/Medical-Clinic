@@ -1,7 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getClinicHoursForDate, toMinutes, clinicMidnightForYMD, clinicDateParts } from "@/lib/clinic-hours";
 import { isDoctorOnLeave, isWorkingDay } from "@/lib/doctor-availability";
-import { APPOINTMENT_SLOT_MINUTES, MAX_APPOINTMENT_SLOTS, MIN_BOOKING_LEAD_MINUTES } from "@/lib/scheduling";
+import { APPOINTMENT_SLOT_MINUTES, MAX_APPOINTMENT_SLOTS, MIN_BOOKING_LEAD_MINUTES, isBlockSlotAvailable } from "@/lib/scheduling";
+import { TIME_BLOCKS, type TimeBlockId } from "@/lib/time-blocks";
 
 export type DoctorForSlots = {
   id: string;
@@ -159,6 +160,59 @@ export async function getResourceAvailableSlots(
 ): Promise<string[]> {
   const slots = await getResourceDaySlots(resource, year, month, day);
   return slots.filter((s) => s.available).map((s) => s.time);
+}
+
+export type BlockAvailability = {
+  blockId: TimeBlockId;
+  startTime: string;
+  endTime: string;
+  occupied: number;
+  capacity: number;
+  available: boolean;
+};
+
+// BLOCK_CAPACITY counterpart to getResourceDaySlots — instead of a continuous
+// 30-min grid, there are only the 5 fixed daily blocks (see time-blocks.ts).
+// No single doctor's hours matter yet at this stage (the doctor is chosen
+// after the block, in a later wizard step), so the day-gate is the same
+// clinic-open check as isResourceDayBookable.
+export async function getBlockDaySlots(
+  specialtyName: string,
+  capacityPerSlot: number,
+  year: number,
+  month: number,
+  day: number
+): Promise<BlockAvailability[]> {
+  if (!(await isResourceDayBookable(year, month, day))) return [];
+
+  const dayStart = clinicMidnightForYMD(year, month, day);
+  const clinicHours = await getClinicHoursForDate(dayStart);
+  const openMinutes = toMinutes(clinicHours.openTime);
+  const closeMinutes = toMinutes(clinicHours.closeTime);
+  const earliestBookable = Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000;
+
+  const blocksWithinHours = TIME_BLOCKS.filter(
+    (b) => toMinutes(b.startTime) >= openMinutes && toMinutes(b.endTime) <= closeMinutes
+  );
+
+  return Promise.all(
+    blocksWithinHours.map(async (block) => {
+      const scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
+      const { available, occupied } = await isBlockSlotAvailable(
+        specialtyName,
+        capacityPerSlot,
+        scheduledAt
+      );
+      return {
+        blockId: block.id,
+        startTime: block.startTime,
+        endTime: block.endTime,
+        occupied,
+        capacity: capacityPerSlot,
+        available: available && scheduledAt.getTime() > earliestBookable,
+      };
+    })
+  );
 }
 
 export type NextAvailability = { label: string; year: number; month: number; day: number };

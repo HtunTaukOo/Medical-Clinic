@@ -31,6 +31,7 @@ import { ClinicLogo } from "@/components/clinic-logo";
 import { getDisplayFirstName, initials } from "@/lib/format";
 import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
 import { checkInAppointment, cancelAppointment } from "@/actions/appointments";
+import { appointmentProviderName, getBookByServiceSpecialtyNames } from "@/lib/appointment-provider";
 
 const CATEGORY_STYLES: Record<string, { bg: string; badge: string; text: string }> = {
   Cardiology: { bg: "bg-blue-500", badge: "bg-blue-600", text: "text-blue-600" },
@@ -78,6 +79,7 @@ export default async function PortalDashboardPage() {
     lastVisit,
     featuredMedicines,
     announcements,
+    bookByServiceNames,
   ] = await Promise.all([
     getClinicSettings(),
     getClinicHoursForDate(now),
@@ -92,7 +94,7 @@ export default async function PortalDashboardPage() {
           },
           orderBy: { scheduledAt: "asc" },
           take: 3,
-          include: { doctor: { include: { user: true } } },
+          include: { doctor: { include: { user: true } }, clinicService: { select: { name: true } } },
         })
       : [],
     patientId
@@ -121,7 +123,7 @@ export default async function PortalDashboardPage() {
       ? prisma.appointment.findFirst({
           where: { patientId, status: "COMPLETED" },
           orderBy: { scheduledAt: "desc" },
-          include: { doctor: { include: { user: true } } },
+          include: { doctor: { include: { user: true } }, clinicService: { select: { name: true } } },
         })
       : null,
     prisma.medicine.findMany({ where: { featured: true }, orderBy: { name: "asc" } }),
@@ -130,6 +132,7 @@ export default async function PortalDashboardPage() {
       orderBy: { createdAt: "desc" },
       take: 3,
     }),
+    getBookByServiceSpecialtyNames(),
   ]);
 
   const activePrescriptions = prescriptions.filter((rx) => {
@@ -321,7 +324,7 @@ export default async function PortalDashboardPage() {
               ? new Date(lastVisit.scheduledAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
               : "—"
           }
-          sublabel={lastVisit?.doctor.user.name}
+          sublabel={lastVisit ? appointmentProviderName(lastVisit, bookByServiceNames) : undefined}
           className="bg-purple-600"
         />
       </div>
@@ -347,8 +350,10 @@ export default async function PortalDashboardPage() {
                       ? await getQueuePosition(appt.doctorId, appt.checkedInAt)
                       : undefined;
                   const canSelfCheckIn =
-                    appt.status === "CONFIRMED" && isWithinSelfCheckInWindow(appt.scheduledAt);
+                    appt.status === "CONFIRMED" &&
+                    isWithinSelfCheckInWindow(appt.scheduledAt, appt.durationMinutes);
                   const canCancel = appt.status === "REQUESTED" || appt.status === "CONFIRMED";
+                  const providerName = appointmentProviderName(appt, bookByServiceNames);
                   return (
                     <div
                       key={appt.id}
@@ -357,11 +362,11 @@ export default async function PortalDashboardPage() {
                       <div className="flex items-center gap-3">
                         <Avatar>
                           <AvatarFallback className="bg-secondary text-secondary-foreground">
-                            {initials(appt.doctor.user.name)}
+                            {initials(providerName)}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-medium">{appt.doctor.user.name}</p>
+                          <p className="font-medium">{providerName}</p>
                           <p className="text-sm text-muted-foreground">
                             {appt.doctor.specialty ?? tp("generalPracticeFallback")}
                           </p>
@@ -372,7 +377,7 @@ export default async function PortalDashboardPage() {
                           <p className="text-sm font-medium text-primary">
                             {t("appointments.queuePosition", {
                               position,
-                              doctor: appt.doctor.user.name,
+                              doctor: providerName,
                             })}
                           </p>
                         ) : (

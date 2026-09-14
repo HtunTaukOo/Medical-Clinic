@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import type { AppointmentFormState } from "@/actions/appointments";
 import { useRouter, Link } from "@/i18n/navigation";
 import { JoinWaitlistForm } from "@/components/appointments/join-waitlist-form";
+import { BlockPicker } from "@/components/appointments/block-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -21,6 +22,7 @@ export function AppointmentForm({
   action,
   patients,
   doctors,
+  blockSpecialties,
   redirectOnSuccess,
   defaultDoctorId,
   defaultPatientId,
@@ -31,6 +33,7 @@ export function AppointmentForm({
   ) => Promise<AppointmentFormState>;
   patients?: { id: string; name: string }[];
   doctors?: { id: string; name: string; specialty: string | null }[];
+  blockSpecialties?: { name: string; capacityPerSlot: number }[];
   redirectOnSuccess: string;
   defaultDoctorId?: string;
   defaultPatientId?: string;
@@ -42,8 +45,11 @@ export function AppointmentForm({
     FormData
   >(action, {});
   const [repeatWeekly, setRepeatWeekly] = useState(false);
+  const [doctorId, setDoctorId] = useState(defaultDoctorId ?? "");
 
   const isStaffBooking = !!patients;
+  const selectedDoctor = doctors?.find((d) => d.id === doctorId);
+  const blockSpecialty = blockSpecialties?.find((s) => s.name === selectedDoctor?.specialty) ?? null;
 
   useEffect(() => {
     if (state.success && state.skippedDates === undefined) {
@@ -91,7 +97,7 @@ export function AppointmentForm({
       )}
       <div className="grid gap-2">
         <Label htmlFor="doctorId">{t("doctor")}</Label>
-        <Select name="doctorId" required defaultValue={defaultDoctorId}>
+        <Select name="doctorId" required value={doctorId} onValueChange={setDoctorId}>
           <SelectTrigger id="doctorId" className="w-full">
             <SelectValue placeholder={t("doctor")} />
           </SelectTrigger>
@@ -105,15 +111,19 @@ export function AppointmentForm({
           </SelectContent>
         </Select>
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="scheduledAt">{t("scheduledAt")}</Label>
-        <Input
-          id="scheduledAt"
-          name="scheduledAt"
-          type="datetime-local"
-          required
-        />
-      </div>
+      {blockSpecialty ? (
+        <BlockPicker specialtyName={blockSpecialty.name} capacityPerSlot={blockSpecialty.capacityPerSlot} />
+      ) : (
+        <div className="grid gap-2">
+          <Label htmlFor="scheduledAt">{t("scheduledAt")}</Label>
+          <Input
+            id="scheduledAt"
+            name="scheduledAt"
+            type="datetime-local"
+            required
+          />
+        </div>
+      )}
       <div className="grid gap-2">
         <Label htmlFor="reason">{t("reason")}</Label>
         <Textarea id="reason" name="reason" />

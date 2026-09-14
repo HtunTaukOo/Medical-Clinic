@@ -13,6 +13,7 @@ const clinicServiceSchema = z.object({
   price: z.coerce.number().nonnegative(),
   room: z.string().optional(),
   active: z.enum(["on", "off"]).transform((v) => v === "on"),
+  labTestId: z.string().optional(),
 });
 
 export type ClinicServiceFormState = { error?: string; success?: boolean };
@@ -24,6 +25,24 @@ async function validateSpecialty(specialty: string | undefined) {
     return "Invalid specialty";
   }
   return null;
+}
+
+// When a service is linked to a lab-test catalog entry, its price always
+// mirrors that test's price — one number to maintain instead of two catalogs
+// silently drifting apart. Returns the resolved price and labTestId to save,
+// or an error if the requested link is already taken by another service.
+async function resolveLabTestLink(labTestId: string | undefined, fallbackPrice: number, excludeServiceId?: string) {
+  if (!labTestId) return { labTestId: null, price: fallbackPrice };
+
+  const labTest = await prisma.labTest.findUnique({ where: { id: labTestId } });
+  if (!labTest) return { error: "Selected lab test no longer exists" };
+
+  const existingLink = await prisma.clinicService.findUnique({ where: { labTestId } });
+  if (existingLink && existingLink.id !== excludeServiceId) {
+    return { error: `"${labTest.name}" is already linked to another service (${existingLink.name})` };
+  }
+
+  return { labTestId, price: Number(labTest.price) };
 }
 
 export async function createClinicService(
@@ -39,6 +58,7 @@ export async function createClinicService(
     price: formData.get("price"),
     room: formData.get("room") || undefined,
     active: formData.get("active") ? "on" : "off",
+    labTestId: formData.get("labTestId") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -46,7 +66,13 @@ export async function createClinicService(
   const specialtyError = await validateSpecialty(parsed.data.specialty);
   if (specialtyError) return { error: specialtyError };
 
-  await prisma.clinicService.create({ data: parsed.data });
+  const { labTestId, price, ...rest } = parsed.data;
+  const linkResult = await resolveLabTestLink(labTestId, price);
+  if ("error" in linkResult) return { error: linkResult.error };
+
+  await prisma.clinicService.create({
+    data: { ...rest, price: linkResult.price, labTestId: linkResult.labTestId },
+  });
 
   revalidatePath("/staff/clinic-services");
   return { success: true };
@@ -66,6 +92,7 @@ export async function updateClinicService(
     price: formData.get("price"),
     room: formData.get("room") || undefined,
     active: formData.get("active") ? "on" : "off",
+    labTestId: formData.get("labTestId") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -73,7 +100,14 @@ export async function updateClinicService(
   const specialtyError = await validateSpecialty(parsed.data.specialty);
   if (specialtyError) return { error: specialtyError };
 
-  await prisma.clinicService.update({ where: { id: serviceId }, data: parsed.data });
+  const { labTestId, price, ...rest } = parsed.data;
+  const linkResult = await resolveLabTestLink(labTestId, price, serviceId);
+  if ("error" in linkResult) return { error: linkResult.error };
+
+  await prisma.clinicService.update({
+    where: { id: serviceId },
+    data: { ...rest, price: linkResult.price, labTestId: linkResult.labTestId },
+  });
 
   revalidatePath("/staff/clinic-services");
   return { success: true };

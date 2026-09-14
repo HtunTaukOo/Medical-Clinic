@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InvoiceAccordion, type InvoiceRecord } from "@/components/billing/invoice-accordion";
 import { PayNowDialog } from "@/components/billing/pay-now-dialog";
 import { Button } from "@/components/ui/button";
+import { appointmentProviderName, getBookByServiceSpecialtyNames } from "@/lib/appointment-provider";
 
 const PILL_TAB_LIST = "!h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
 const PILL_TAB_TRIGGER =
@@ -24,7 +25,7 @@ export default async function PortalInvoicesPage() {
   const tp = await getTranslations("portal.invoicesPage");
   const patientId = session?.user.patientId;
 
-  const [invoices, settings] = await Promise.all([
+  const [invoices, settings, bookByServiceNames] = await Promise.all([
     patientId
       ? prisma.invoice.findMany({
           where: { patientId },
@@ -32,11 +33,17 @@ export default async function PortalInvoicesPage() {
           include: {
             items: true,
             payments: { include: { refunds: true } },
-            appointment: { include: { doctor: { include: { user: true } } } },
+            appointment: {
+              include: {
+                doctor: { include: { user: true } },
+                clinicService: { select: { name: true } },
+              },
+            },
           },
         })
       : [],
     getClinicSettings(),
+    getBookByServiceSpecialtyNames(),
   ]);
 
   const records: InvoiceRecord[] = invoices.map((invoice) => {
@@ -54,7 +61,9 @@ export default async function PortalInvoicesPage() {
             specialty: invoice.appointment.doctor.specialty ?? tp("generalFallback"),
           })
         : (invoice.items[0]?.description ?? tp("invoiceFallback")),
-      doctorName: invoice.appointment?.doctor.user.name ?? null,
+      doctorName: invoice.appointment
+        ? appointmentProviderName(invoice.appointment, bookByServiceNames)
+        : null,
       date: invoice.createdAt,
       dueDate: invoice.status === "PAID" ? null : dueDate,
       total,

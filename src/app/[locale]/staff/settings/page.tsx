@@ -180,9 +180,13 @@ export default async function ClinicSettingsPage() {
                           {s.description ?? "—"}
                         </TableCell>
                         <TableCell>
-                          {s.bookByService ? (
+                          {s.bookingMode === "SERVICE_CAPACITY" ? (
                             <Badge variant="outline" className="bg-violet-100 text-violet-700">
                               By Service · capacity {s.capacityPerSlot}
+                            </Badge>
+                          ) : s.bookingMode === "BLOCK_CAPACITY" ? (
+                            <Badge variant="outline" className="bg-blue-100 text-blue-700">
+                              Time Blocks · capacity {s.capacityPerSlot}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-slate-100 text-slate-600">
@@ -204,7 +208,7 @@ export default async function ClinicSettingsPage() {
                                 name: s.name,
                                 icon: s.icon,
                                 description: s.description,
-                                bookByService: s.bookByService,
+                                bookingMode: s.bookingMode,
                                 capacityPerSlot: s.capacityPerSlot,
                               }}
                               trigger={

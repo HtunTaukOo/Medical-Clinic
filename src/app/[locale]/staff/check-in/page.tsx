@@ -19,7 +19,7 @@ export default async function PatientCheckInPage({
   const { start: todayStart, end: todayEnd } = todayRange();
 
   const trimmedQuery = q?.trim() ?? "";
-  const [matches, doctors] = await Promise.all([
+  const [matches, doctors, bookByServiceSpecialties, blockCapacitySpecialties, labServices] = await Promise.all([
     trimmedQuery.length >= 2
       ? prisma.patient.findMany({
           where: {
@@ -40,6 +40,9 @@ export default async function PatientCheckInPage({
         })
       : Promise.resolve([]),
     prisma.doctorProfile.findMany({ include: { user: true }, orderBy: { user: { name: "asc" } } }),
+    prisma.specialty.findMany({ where: { bookingMode: "SERVICE_CAPACITY" }, select: { name: true } }),
+    prisma.specialty.findMany({ where: { bookingMode: "BLOCK_CAPACITY" }, select: { name: true } }),
+    prisma.clinicService.findMany({ where: { active: true }, orderBy: { name: "asc" } }),
   ]);
 
   return (
@@ -122,7 +125,16 @@ export default async function PatientCheckInPage({
             </p>
           </CardHeader>
           <CardContent>
-            <RegisterWalkInForm doctors={doctors.map((d) => ({ id: d.id, name: d.user.name }))} />
+            <RegisterWalkInForm
+              doctors={doctors.map((d) => ({ id: d.id, name: d.user.name, specialty: d.specialty }))}
+              bookByServiceSpecialties={bookByServiceSpecialties.map((s) => s.name)}
+              blockCapacitySpecialties={blockCapacitySpecialties.map((s) => s.name)}
+              clinicServices={labServices.map((s) => ({
+                id: s.id,
+                name: s.name,
+                specialty: s.specialty,
+              }))}
+            />
           </CardContent>
         </Card>
       </div>

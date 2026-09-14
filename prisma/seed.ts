@@ -151,14 +151,17 @@ async function main() {
 
   // Backing doctor for the "Lab Visit" book-by-service specialty — a real
   // Appointment.doctorId is still required even though patients book by
-  // service/capacity rather than picking this doctor directly.
+  // service/capacity rather than picking this doctor directly. Nobody logs
+  // into this account for real work (the actual lab-order handling is done
+  // by staff via /staff/lab, e.g. lab@nca.clinic) — it's backend plumbing,
+  // named accordingly so it doesn't read as a real staff member.
   const labDoctorUser = await prisma.user.upsert({
     where: { email: "labdoctor@nca.clinic" },
     update: {},
     create: {
       email: "labdoctor@nca.clinic",
       passwordHash: password,
-      name: "Lab Technician",
+      name: "Lab Visit Scheduling",
       role: "DOCTOR",
       doctorProfile: {
         create: {
@@ -247,19 +250,19 @@ async function main() {
   });
 
   const specialties = [
-    { name: "General Medicine", icon: "Stethoscope", description: "Check-ups, fever, cough, general health" },
-    { name: "Cardiology", icon: "HeartPulse", description: "Heart health, blood pressure, chest pain" },
-    { name: "Pediatrics", icon: "Baby", description: "Children's health, vaccinations, growth" },
-    { name: "Dermatology", icon: "Sparkles", description: "Skin, hair, nail conditions & cosmetic" },
-    { name: "Orthopedics", icon: "Bone", description: "Joints, bones, muscles, sports injuries" },
-    { name: "ENT", icon: "Ear", description: "Ear, nose, throat, sinuses & voice" },
-    { name: "Obs & Gynecology", icon: "Venus", description: "Maternal health, women's wellness" },
-    { name: "Ophthalmology", icon: "Eye", description: "Vision, eye disease, glasses & surgery" },
+    { name: "General Medicine", icon: "Stethoscope", description: "Check-ups, fever, cough, general health", bookingMode: "BLOCK_CAPACITY" as const, capacityPerSlot: 10 },
+    { name: "Cardiology", icon: "HeartPulse", description: "Heart health, blood pressure, chest pain", bookingMode: "BLOCK_CAPACITY" as const, capacityPerSlot: 10 },
+    { name: "Pediatrics", icon: "Baby", description: "Children's health, vaccinations, growth", bookingMode: "BLOCK_CAPACITY" as const, capacityPerSlot: 10 },
+    { name: "Dermatology", icon: "Sparkles", description: "Skin, hair, nail conditions & cosmetic", bookingMode: "BLOCK_CAPACITY" as const, capacityPerSlot: 10 },
+    { name: "Orthopedics", icon: "Bone", description: "Joints, bones, muscles, sports injuries", bookingMode: "BLOCK_CAPACITY" as const, capacityPerSlot: 10 },
+    { name: "ENT", icon: "Ear", description: "Ear, nose, throat, sinuses & voice", bookingMode: "BLOCK_CAPACITY" as const, capacityPerSlot: 10 },
+    { name: "Obs & Gynecology", icon: "Venus", description: "Maternal health, women's wellness", bookingMode: "BLOCK_CAPACITY" as const, capacityPerSlot: 10 },
+    { name: "Ophthalmology", icon: "Eye", description: "Vision, eye disease, glasses & surgery", bookingMode: "BLOCK_CAPACITY" as const, capacityPerSlot: 10 },
     {
       name: "Lab Visit",
       icon: "TestTube",
       description: "Blood work and sample collection — no doctor visit needed",
-      bookByService: true,
+      bookingMode: "SERVICE_CAPACITY" as const,
       capacityPerSlot: 3,
     },
   ];
@@ -412,6 +415,28 @@ async function main() {
   ];
   for (const t of labTests) {
     await prisma.labTest.upsert({ where: { id: t.id }, update: {}, create: t });
+  }
+
+  // Link the two existing lab clinic services to their catalog test, and add
+  // a bookable service for each remaining lab test so all 5 are self-bookable
+  // under the "Lab Visit" specialty, not just CBC and Urinalysis.
+  const labServiceLinks = [
+    { serviceId: "seed-service-cbc-panel", labTestId: "seed-labtest-cbc" },
+    { serviceId: "seed-service-urinalysis", labTestId: "seed-labtest-urinalysis" },
+  ];
+  for (const link of labServiceLinks) {
+    await prisma.clinicService.update({
+      where: { id: link.serviceId },
+      data: { labTestId: link.labTestId },
+    });
+  }
+  const additionalLabServices = [
+    { id: "seed-service-fbs", name: "Fasting Blood Sugar Test", specialty: "Lab Visit", durationMinutes: 15, price: 6000, labTestId: "seed-labtest-fbs" },
+    { id: "seed-service-lipid-profile", name: "Lipid Profile Test", specialty: "Lab Visit", durationMinutes: 15, price: 15000, labTestId: "seed-labtest-lipid" },
+    { id: "seed-service-lft", name: "Liver Function Test", specialty: "Lab Visit", durationMinutes: 15, price: 18000, labTestId: "seed-labtest-lft" },
+  ];
+  for (const service of additionalLabServices) {
+    await prisma.clinicService.upsert({ where: { id: service.id }, update: {}, create: service });
   }
 
   // ---------------------------------------------------------------------

@@ -20,7 +20,7 @@ const createSpecialtySchema = z.object({
   name: z.string().min(1).max(60),
   icon: z.enum(SPECIALTY_ICON_NAMES),
   description: z.string().max(200).optional(),
-  bookByService: z.enum(["on", "off"]).transform((v) => v === "on"),
+  bookingMode: z.enum(["DOCTOR_CALENDAR", "SERVICE_CAPACITY", "BLOCK_CAPACITY"]),
   capacityPerSlot: z.coerce.number().int().min(1).max(50),
 });
 
@@ -36,7 +36,7 @@ export async function createSpecialty(
     name: formData.get("name"),
     icon: formData.get("icon"),
     description: formData.get("description") || undefined,
-    bookByService: formData.get("bookByService") ? "on" : "off",
+    bookingMode: formData.get("bookingMode") || "DOCTOR_CALENDAR",
     capacityPerSlot: formData.get("capacityPerSlot") || 1,
   });
   if (!parsed.success) {
@@ -59,7 +59,7 @@ const editSpecialtySchema = z.object({
   name: z.string().min(1).max(60),
   icon: z.enum(SPECIALTY_ICON_NAMES),
   description: z.string().max(200).optional(),
-  bookByService: z.enum(["on", "off"]).transform((v) => v === "on"),
+  bookingMode: z.enum(["DOCTOR_CALENDAR", "SERVICE_CAPACITY", "BLOCK_CAPACITY"]),
   capacityPerSlot: z.coerce.number().int().min(1).max(50),
 });
 
@@ -74,7 +74,7 @@ export async function updateSpecialty(
     name: formData.get("name"),
     icon: formData.get("icon"),
     description: formData.get("description") || undefined,
-    bookByService: formData.get("bookByService") ? "on" : "off",
+    bookingMode: formData.get("bookingMode") || "DOCTOR_CALENDAR",
     capacityPerSlot: formData.get("capacityPerSlot") || 1,
   });
   if (!parsed.success) {
@@ -101,7 +101,7 @@ export async function updateSpecialty(
         name: parsed.data.name,
         icon: parsed.data.icon,
         description: parsed.data.description ?? null,
-        bookByService: parsed.data.bookByService,
+        bookingMode: parsed.data.bookingMode,
         capacityPerSlot: parsed.data.capacityPerSlot,
       },
     }),

@@ -19,7 +19,7 @@ export function SpecialtyDialog({
     name: string;
     icon: string;
     description: string | null;
-    bookByService: boolean;
+    bookingMode: "DOCTOR_CALENDAR" | "SERVICE_CAPACITY" | "BLOCK_CAPACITY";
     capacityPerSlot: number;
   };
   trigger: ReactNode;

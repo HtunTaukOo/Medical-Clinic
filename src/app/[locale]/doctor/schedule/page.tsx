@@ -11,6 +11,7 @@ import {
   clinicMidnightForYMD,
 } from "@/lib/clinic-hours";
 import { APPOINTMENT_SLOT_MINUTES } from "@/lib/scheduling";
+import { TIME_BLOCKS, blockContainingMinuteOfDay, formatTimeLabel } from "@/lib/time-blocks";
 import { DoctorLeaveManager } from "@/components/staff/doctor-leave-manager";
 import { RequestLeaveDialog } from "@/components/staff/request-leave-dialog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -92,10 +93,10 @@ export default async function SchedulePage({
     ]);
   if (!doctor) notFound();
 
-  const startMinutes = toMinutes(doctor.workStartTime ?? clinicHours.openTime);
-  const endMinutes = toMinutes(doctor.workEndTime ?? clinicHours.closeTime);
-  const rowMinutes: number[] = [];
-  for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) rowMinutes.push(m);
+  const specialty = doctor.specialty
+    ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
+    : null;
+  const isBlockMode = specialty?.bookingMode === "BLOCK_CAPACITY";
 
   const approvedLeaveDayKeys = new Set(
     weekLeaveDays.filter((l) => l.status === "APPROVED").map((l) => weekKeyFor(l.date))
@@ -103,6 +104,235 @@ export default async function SchedulePage({
   const pendingLeaveDayKeys = new Set(
     weekLeaveDays.filter((l) => l.status === "PENDING").map((l) => weekKeyFor(l.date))
   );
+  const now = new Date().getTime();
+  const rangeLabel = `${weekStart.toLocaleDateString(undefined, {
+    timeZone: "Asia/Yangon",
+    month: "short",
+    day: "numeric",
+  })} – ${weekEnd.toLocaleDateString(undefined, {
+    timeZone: "Asia/Yangon",
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  })}`;
+
+  // BLOCK_CAPACITY doctors: 5 fixed daily blocks instead of a 30-min grid.
+  // Each cell holds every one of THIS doctor's own patients booked into that
+  // block (capacity is pooled across doctors, but this view is per-doctor) —
+  // an array per cell, not a single value, so multiple patients sharing one
+  // block all render instead of only the last one processed.
+  if (isBlockMode) {
+    type BlockOccupant = { id: string; patientName: string; reason: string | null };
+    const apptsByBlockCell = new Map<string, BlockOccupant[]>();
+    for (const appt of weekAppointments) {
+      const offsetDays = Math.floor((appt.scheduledAt.getTime() - weekStart.getTime()) / ONE_DAY_MS);
+      if (offsetDays < 0 || offsetDays > 5) continue;
+      const minutesOfDay = Math.round(
+        (appt.scheduledAt.getTime() - (weekStart.getTime() + offsetDays * ONE_DAY_MS)) / 60000
+      );
+      const block = blockContainingMinuteOfDay(minutesOfDay);
+      if (!block) continue;
+      const key = `${offsetDays}-${block.id}`;
+      const list = apptsByBlockCell.get(key) ?? [];
+      list.push({ id: appt.id, patientName: appt.patient.name, reason: appt.reason });
+      apptsByBlockCell.set(key, list);
+    }
+
+    const bookedCount = weekAppointments.length;
+    let availableCount = 0;
+    let blockedCount = 0;
+
+    type BlockCell =
+      | { type: "booked"; occupants: BlockOccupant[] }
+      | { type: "available" }
+      | { type: "blocked" };
+
+    const blockGrid: BlockCell[][] = TIME_BLOCKS.map((block) =>
+      DAY_LABELS.map((_, dayOffset) => {
+        const occupants = apptsByBlockCell.get(`${dayOffset}-${block.id}`) ?? [];
+        if (occupants.length > 0) return { type: "booked", occupants };
+
+        const dayMidnight = weekStart.getTime() + dayOffset * ONE_DAY_MS;
+        const dayKey = weekKeyFor(new Date(dayMidnight));
+        const weekdayIndex = 1 + dayOffset; // Mon=1 .. Sat=6
+        const isWorking = doctor.workingDays.includes(weekdayIndex);
+        const isLeave = approvedLeaveDayKeys.has(dayKey);
+        const blockEndInstant = dayMidnight + toMinutes(block.endTime) * 60000;
+        const isPast = blockEndInstant <= now;
+        if (!isWorking || isLeave || isPast) {
+          blockedCount++;
+          return { type: "blocked" };
+        }
+        availableCount++;
+        return { type: "available" };
+      })
+    );
+
+    return (
+      <div className="grid gap-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-2xl font-semibold">Schedule</h1>
+            <p className="text-muted-foreground">Your weekly calendar and availability.</p>
+          </div>
+          <RequestLeaveDialog doctorId={doctor.id} />
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-3">
+          <Card>
+            <CardContent className="flex items-center gap-3 py-5">
+              <div className="flex size-11 items-center justify-center rounded-full bg-blue-100 text-blue-600">
+                <CalendarCheck2 className="size-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold">{bookedCount}</p>
+                <p className="text-sm text-muted-foreground">Booked</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-5">
+              <div className="flex size-11 items-center justify-center rounded-full bg-sky-100 text-sky-600">
+                <CalendarClock className="size-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold">{availableCount}</p>
+                <p className="text-sm text-muted-foreground">Available Blocks</p>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="flex items-center gap-3 py-5">
+              <div className="flex size-11 items-center justify-center rounded-full bg-slate-100 text-slate-500">
+                <CalendarX2 className="size-5" />
+              </div>
+              <div>
+                <p className="text-2xl font-semibold">{blockedCount}</p>
+                <p className="text-sm text-muted-foreground">Blocked</p>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        <Card>
+          <CardContent className="py-4">
+            <div className="mb-4 flex items-center justify-center gap-4">
+              <Link
+                href={`/doctor/schedule?week=${weekKeyFor(prevWeek)}`}
+                className="flex size-8 items-center justify-center rounded-full border text-muted-foreground hover:bg-muted"
+              >
+                <ChevronLeft className="size-4" />
+              </Link>
+              <p className="font-semibold">Week of {rangeLabel}</p>
+              <Link
+                href={`/doctor/schedule?week=${weekKeyFor(nextWeek)}`}
+                className="flex size-8 items-center justify-center rounded-full border text-muted-foreground hover:bg-muted"
+              >
+                <ChevronRight className="size-4" />
+              </Link>
+            </div>
+
+            <div className="overflow-x-auto">
+              <div className="min-w-[820px]">
+                <div className="grid grid-cols-[110px_repeat(6,1fr)] gap-1">
+                  <div />
+                  {DAY_LABELS.map((label, dayOffset) => {
+                    const dayKey = weekKeyFor(new Date(weekStart.getTime() + dayOffset * ONE_DAY_MS));
+                    const isToday = dayKey === todayKey;
+                    const dayDate = new Date(weekStart.getTime() + dayOffset * ONE_DAY_MS);
+                    return (
+                      <div
+                        key={label}
+                        className={cn(
+                          "rounded-t-lg py-2 text-center text-xs font-semibold tracking-wide text-muted-foreground",
+                          isToday && "bg-primary/10 text-primary"
+                        )}
+                      >
+                        <p>{label.toUpperCase()}</p>
+                        <p className="text-sm font-semibold text-foreground">
+                          {dayDate.toLocaleDateString(undefined, {
+                            timeZone: "Asia/Yangon",
+                            month: "short",
+                            day: "numeric",
+                          })}
+                        </p>
+                        {pendingLeaveDayKeys.has(dayKey) && (
+                          <p className="text-[10px] font-medium text-amber-600">Leave pending</p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {TIME_BLOCKS.map((block, rowIndex) => (
+                  <div key={block.id} className="grid grid-cols-[110px_repeat(6,1fr)] gap-1">
+                    <div className="flex items-start justify-end pr-2 pt-2 text-xs text-muted-foreground">
+                      {formatTimeLabel(block.startTime)} – {formatTimeLabel(block.endTime)}
+                    </div>
+                    {blockGrid[rowIndex].map((cell, dayOffset) => {
+                      const dayKey = weekKeyFor(new Date(weekStart.getTime() + dayOffset * ONE_DAY_MS));
+                      const isToday = dayKey === todayKey;
+                      return (
+                        <div
+                          key={dayOffset}
+                          className={cn("min-h-16 rounded-lg p-1", isToday && "bg-primary/5")}
+                        >
+                          {cell.type === "booked" && (
+                            <div className="grid h-full gap-1">
+                              {cell.occupants.map((occupant) => (
+                                <Link
+                                  key={occupant.id}
+                                  href={`/doctor/appointments/${occupant.id}`}
+                                  className="block rounded-lg border border-blue-300 bg-blue-50 p-1.5 text-blue-900 transition-colors hover:bg-blue-100"
+                                >
+                                  <p className="text-xs leading-tight font-semibold">
+                                    {occupant.patientName}
+                                  </p>
+                                  {occupant.reason && (
+                                    <p className="text-[11px] leading-tight text-blue-700">
+                                      {occupant.reason}
+                                    </p>
+                                  )}
+                                </Link>
+                              ))}
+                            </div>
+                          )}
+                          {cell.type === "available" && (
+                            <div className="flex h-full items-center justify-center rounded-lg border border-dashed border-blue-200 bg-blue-50/40 text-[11px] font-medium text-blue-500">
+                              Available
+                            </div>
+                          )}
+                          {cell.type === "blocked" && (
+                            <div className="flex h-full items-center justify-center rounded-lg bg-muted/40 text-[11px] text-muted-foreground/60">
+                              Blocked
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Blocked time &amp; leave requests</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <DoctorLeaveManager doctorId={doctor.id} leaveDays={upcomingLeaveDays} showForm={false} />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  const startMinutes = toMinutes(doctor.workStartTime ?? clinicHours.openTime);
+  const endMinutes = toMinutes(doctor.workEndTime ?? clinicHours.closeTime);
+  const rowMinutes: number[] = [];
+  for (let m = startMinutes; m < endMinutes; m += APPOINTMENT_SLOT_MINUTES) rowMinutes.push(m);
 
   type Occupant = { appt: (typeof weekAppointments)[number]; isStart: boolean };
   const apptByCell = new Map<string, Occupant>();
@@ -119,7 +349,6 @@ export default async function SchedulePage({
     }
   }
 
-  const now = new Date().getTime();
   const bookedCount = weekAppointments.length;
   let availableCount = 0;
   let blockedCount = 0;
@@ -157,17 +386,6 @@ export default async function SchedulePage({
       return { type: "available" };
     })
   );
-
-  const rangeLabel = `${weekStart.toLocaleDateString(undefined, {
-    timeZone: "Asia/Yangon",
-    month: "short",
-    day: "numeric",
-  })} – ${weekEnd.toLocaleDateString(undefined, {
-    timeZone: "Asia/Yangon",
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  })}`;
 
   return (
     <div className="grid gap-6">

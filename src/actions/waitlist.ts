@@ -4,8 +4,27 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession, UnauthorizedError } from "@/lib/authz";
-import { APPOINTMENT_SLOT_MINUTES } from "@/lib/scheduling";
+import { clinicMidnight } from "@/lib/clinic-hours";
+import { blockContainingMinuteOfDay, formatBlockLabel } from "@/lib/time-blocks";
 import { notifyPatient } from "@/lib/telegram";
+
+// Waitlist is per specialty+day+block (capacity is pooled across every
+// doctor with that specialty, so a waitlist entry can't target one doctor's
+// calendar) — only meaningful for BLOCK_CAPACITY specialties.
+async function resolveWaitlistTarget(doctorId: string, scheduledAt: Date) {
+  const doctor = await prisma.doctorProfile.findUnique({ where: { id: doctorId } });
+  if (!doctor?.specialty) return null;
+
+  const specialty = await prisma.specialty.findUnique({ where: { name: doctor.specialty } });
+  if (specialty?.bookingMode !== "BLOCK_CAPACITY") return null;
+
+  const requestedDate = clinicMidnight(scheduledAt);
+  const minutesOfDay = Math.round((scheduledAt.getTime() - requestedDate.getTime()) / 60000);
+  const block = blockContainingMinuteOfDay(minutesOfDay);
+  if (!block) return null;
+
+  return { specialtyName: specialty.name, requestedDate, block };
+}
 
 const joinSchema = z.object({
   doctorId: z.string().min(1),
@@ -32,11 +51,17 @@ export async function joinWaitlist(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
+  const target = await resolveWaitlistTarget(parsed.data.doctorId, new Date(parsed.data.scheduledAt));
+  if (!target) {
+    return { error: "Waitlist isn't available for this booking." };
+  }
+
   await prisma.waitlist.create({
     data: {
       patientId,
-      doctorId: parsed.data.doctorId,
-      requestedAt: new Date(parsed.data.scheduledAt),
+      specialtyName: target.specialtyName,
+      requestedDate: target.requestedDate,
+      blockId: target.block.id,
       reason: parsed.data.reason,
     },
   });
@@ -60,19 +85,17 @@ export async function leaveWaitlist(waitlistId: string) {
 }
 
 export async function notifyWaitlistOfOpening(doctorId: string, freedScheduledAt: Date) {
-  const slotMs = APPOINTMENT_SLOT_MINUTES * 60 * 1000;
+  const target = await resolveWaitlistTarget(doctorId, freedScheduledAt);
+  if (!target) return;
 
   const candidate = await prisma.waitlist.findFirst({
     where: {
-      doctorId,
+      specialtyName: target.specialtyName,
+      requestedDate: target.requestedDate,
+      blockId: target.block.id,
       status: "WAITING",
-      requestedAt: {
-        gt: new Date(freedScheduledAt.getTime() - slotMs),
-        lt: new Date(freedScheduledAt.getTime() + slotMs),
-      },
     },
     orderBy: { createdAt: "asc" },
-    include: { doctor: { include: { user: true } } },
   });
   if (!candidate) return;
 
@@ -83,7 +106,7 @@ export async function notifyWaitlistOfOpening(doctorId: string, freedScheduledAt
 
   await notifyPatient(
     candidate.patientId,
-    `🎉 An opening with ${candidate.doctor.user.name} around ${freedScheduledAt.toLocaleString()} just became available — log in to the portal to book it before it's taken.`
+    `🎉 An opening for ${target.specialtyName} on ${target.requestedDate.toLocaleDateString()} in the ${formatBlockLabel(target.block)} block just became available — log in to the portal to book it before it's taken.`
   );
 
   revalidatePath("/portal/appointments");

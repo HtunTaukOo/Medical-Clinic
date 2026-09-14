@@ -7,6 +7,7 @@ import { requireRole, requireSession, UnauthorizedError } from "@/lib/authz";
 import {
   findConflictingAppointment,
   isResourceSlotAvailable,
+  isBlockSlotAvailable,
   APPOINTMENT_SLOT_MINUTES,
   MAX_APPOINTMENT_SLOTS,
   MIN_BOOKING_LEAD_MINUTES,
@@ -17,6 +18,7 @@ import {
   formatTime,
   clinicWeekday,
   clinicMidnight,
+  clinicMidnightForYMD,
   toMinutes,
 } from "@/lib/clinic-hours";
 import { isWithinSelfCheckInWindow } from "@/lib/queue";
@@ -24,19 +26,24 @@ import {
   isDoctorOnLeave,
   isWorkingDay,
   isWithinDoctorHours,
+  isDoctorAvailableForRange,
   WEEKDAY_LABELS,
 } from "@/lib/doctor-availability";
 import { notifyPatient, notifyStaff, notifyDoctor } from "@/lib/telegram";
 import { createNotification, notifyStaffUsers } from "@/lib/notifications";
 import { notifyWaitlistOfOpening } from "@/actions/waitlist";
 import { logActivity } from "@/lib/audit";
+import { TIME_BLOCKS, blockDurationMinutes, getTimeBlockById } from "@/lib/time-blocks";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
+const CAPACITY_CONFLICT_MESSAGE = "That slot just filled up. Please pick a different time, or join the waitlist.";
 
 const bookingSchema = z.object({
   patientId: z.string().min(1),
   doctorId: z.string().min(1),
-  scheduledAt: z.string().min(1),
+  scheduledAt: z.string().optional(),
+  blockDate: z.string().optional(),
+  blockId: z.string().optional(),
   reason: z.string().optional(),
   repeatWeekly: z.string().optional(),
   occurrences: z.coerce.number().int().min(2).max(12).optional(),
@@ -59,7 +66,9 @@ export async function createAppointment(
   const parsed = bookingSchema.safeParse({
     patientId: formData.get("patientId"),
     doctorId: formData.get("doctorId"),
-    scheduledAt: formData.get("scheduledAt"),
+    scheduledAt: formData.get("scheduledAt") || undefined,
+    blockDate: formData.get("blockDate") || undefined,
+    blockId: formData.get("blockId") || undefined,
     reason: formData.get("reason") || undefined,
     repeatWeekly: formData.get("repeatWeekly") || undefined,
     occurrences: formData.get("occurrences") || undefined,
@@ -68,7 +77,28 @@ export async function createAppointment(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const baseDate = new Date(parsed.data.scheduledAt);
+  const doctor = await prisma.doctorProfile.findUniqueOrThrow({ where: { id: parsed.data.doctorId } });
+  const specialty = doctor.specialty
+    ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
+    : null;
+  const isBlockMode = specialty?.bookingMode === "BLOCK_CAPACITY";
+
+  let baseDate: Date;
+  let durationMinutes: number | undefined;
+  if (isBlockMode) {
+    if (!parsed.data.blockDate || !parsed.data.blockId) {
+      return { error: "Please choose a date and time block." };
+    }
+    const block = getTimeBlockById(parsed.data.blockId);
+    if (!block) return { error: "Invalid time block." };
+    const [y, m, d] = parsed.data.blockDate.split("-").map(Number);
+    baseDate = new Date(clinicMidnightForYMD(y, m, d).getTime() + toMinutes(block.startTime) * 60 * 1000);
+    durationMinutes = blockDurationMinutes(block);
+  } else {
+    if (!parsed.data.scheduledAt) return { error: "Please choose a date and time." };
+    baseDate = new Date(parsed.data.scheduledAt);
+  }
+
   const isRecurring = !!parsed.data.repeatWeekly;
   const occurrenceCount = isRecurring ? Math.max(2, parsed.data.occurrences ?? 4) : 1;
 
@@ -79,11 +109,28 @@ export async function createAppointment(
     const occurrenceDate = new Date(baseDate.getTime() + i * 7 * 24 * 60 * 60 * 1000);
 
     const onLeave = await isDoctorOnLeave(parsed.data.doctorId, occurrenceDate);
-    const conflict = onLeave ? null : await findConflictingAppointment(parsed.data.doctorId, occurrenceDate);
+    let conflict: unknown = null;
+    let unavailableReason: string | null = null;
+    if (!onLeave) {
+      if (isBlockMode && specialty) {
+        if (!isDoctorAvailableForRange(doctor, occurrenceDate, durationMinutes!)) {
+          conflict = true;
+          unavailableReason = "This doctor doesn't work the full selected time block.";
+        } else {
+          const { available } = await isBlockSlotAvailable(specialty.name, specialty.capacityPerSlot, occurrenceDate);
+          if (!available) {
+            conflict = true;
+            unavailableReason = CAPACITY_CONFLICT_MESSAGE;
+          }
+        }
+      } else {
+        conflict = await findConflictingAppointment(parsed.data.doctorId, occurrenceDate);
+      }
+    }
 
     if (onLeave || conflict) {
       if (!isRecurring) {
-        return { error: onLeave ? "This doctor is on leave on the selected date." : CONFLICT_MESSAGE };
+        return { error: onLeave ? "This doctor is on leave on the selected date." : (unavailableReason ?? CONFLICT_MESSAGE) };
       }
       skippedDates.push(occurrenceDate.toLocaleDateString());
       continue;
@@ -94,6 +141,7 @@ export async function createAppointment(
         patientId: parsed.data.patientId,
         doctorId: parsed.data.doctorId,
         scheduledAt: occurrenceDate,
+        durationMinutes,
         reason: parsed.data.reason,
         status: "CONFIRMED",
       },
@@ -157,9 +205,17 @@ export async function submitAppointmentRequest(
   // governed by clinic hours + shared capacity rather than this particular
   // doctor's own calendar, so the doctor-specific leave/hours/conflict checks
   // below are skipped in favor of a capacity check.
-  resourceCapacity?: { specialtyName: string; capacityPerSlot: number } | null
+  resourceCapacity?: { specialtyName: string; capacityPerSlot: number } | null,
+  // Set for BLOCK_CAPACITY bookings, where durationMinutes is a fixed block
+  // length (120/180) rather than a multiple of APPOINTMENT_SLOT_MINUTES.
+  bookingContext?: { mode: "BLOCK_CAPACITY" } | null
 ): Promise<AppointmentFormState> {
-  if (
+  if (bookingContext?.mode === "BLOCK_CAPACITY") {
+    const validBlockDurations = TIME_BLOCKS.map(blockDurationMinutes);
+    if (!validBlockDurations.includes(durationMinutes)) {
+      return { error: "Invalid appointment duration." };
+    }
+  } else if (
     !Number.isInteger(durationMinutes) ||
     durationMinutes < APPOINTMENT_SLOT_MINUTES ||
     durationMinutes > MAX_APPOINTMENT_SLOTS * APPOINTMENT_SLOT_MINUTES ||
@@ -217,7 +273,7 @@ export async function submitAppointmentRequest(
     const available = await isResourceSlotAvailable(resourceCapacity, scheduledAt, durationMinutes);
     if (!available) {
       return {
-        error: CONFLICT_MESSAGE,
+        error: CAPACITY_CONFLICT_MESSAGE,
         conflict: {
           doctorId,
           scheduledAt: scheduledAt.toISOString(),
@@ -414,7 +470,7 @@ export async function rescheduleAppointment(
     ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
     : null;
   const resourceCapacity =
-    specialty?.bookByService && specialty.capacityPerSlot
+    specialty?.bookingMode === "SERVICE_CAPACITY" && specialty.capacityPerSlot
       ? { specialtyName: specialty.name, capacityPerSlot: specialty.capacityPerSlot }
       : null;
 
@@ -571,6 +627,40 @@ export async function rescheduleAppointment(
   return { success: true };
 }
 
+// Booking (or walk-in-registering into) a service linked to a lab test
+// (e.g. under "Lab Visit") implies ordering that test — create the lab
+// order automatically the moment the appointment becomes CHECKED_IN, from
+// whichever path got it there, so staff never have to re-enter what was
+// already selected.
+export async function createLabOrderForLinkedService(appointment: {
+  id: string;
+  patientId: string;
+  doctorId: string;
+  clinicService: { labTestId: string | null } | null;
+}) {
+  if (!appointment.clinicService?.labTestId) return;
+
+  const existingOrder = await prisma.labOrder.findFirst({
+    where: { appointmentId: appointment.id },
+  });
+  if (existingOrder) return;
+
+  const labTest = await prisma.labTest.findUnique({
+    where: { id: appointment.clinicService.labTestId },
+  });
+  if (!labTest) return;
+
+  await prisma.labOrder.create({
+    data: {
+      patientId: appointment.patientId,
+      doctorId: appointment.doctorId,
+      appointmentId: appointment.id,
+      items: { create: [{ labTestId: labTest.id, price: labTest.price }] },
+    },
+  });
+  revalidatePath("/staff/lab");
+}
+
 export async function checkInAppointment(appointmentId: string) {
   const session = await requireSession();
   const role = session.user.role;
@@ -587,7 +677,7 @@ export async function checkInAppointment(appointmentId: string) {
     if (appointment.status !== "CONFIRMED") {
       throw new UnauthorizedError("Appointment is not confirmed");
     }
-    if (!isWithinSelfCheckInWindow(appointment.scheduledAt)) {
+    if (!isWithinSelfCheckInWindow(appointment.scheduledAt, appointment.durationMinutes)) {
       throw new UnauthorizedError("Outside the self check-in window");
     }
   } else {
@@ -597,8 +687,10 @@ export async function checkInAppointment(appointmentId: string) {
   const checkedIn = await prisma.appointment.update({
     where: { id: appointmentId },
     data: { status: "CHECKED_IN", checkedInAt: new Date() },
-    include: { doctor: true, patient: true },
+    include: { doctor: true, patient: true, clinicService: true },
   });
+
+  await createLabOrderForLinkedService(checkedIn);
 
   if (checkedIn.doctor.notifyPatientWaiting) {
     await notifyStaffUsers({

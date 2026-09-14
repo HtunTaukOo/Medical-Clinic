@@ -11,11 +11,16 @@ import {
   fetchResourceDaySlots,
   fetchResourceMonthBookability,
   confirmResourceBooking,
+  fetchBlockAvailability,
+  fetchBlockMonthBookability,
+  fetchEligibleDoctorIds,
+  confirmBlockBooking,
 } from "@/actions/booking";
-import type { DaySlot } from "@/lib/booking-slots";
+import type { DaySlot, BlockAvailability } from "@/lib/booking-slots";
 import type { AppointmentFormState } from "@/actions/appointments";
 import { getSpecialtyIcon, matchSpecialty } from "@/lib/specialties";
 import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
+import { getTimeBlockById, formatBlockLabel, type TimeBlockId } from "@/lib/time-blocks";
 import { JoinWaitlistForm } from "@/components/appointments/join-waitlist-form";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -45,7 +50,7 @@ type SpecialtyOption = {
   name: string;
   icon: string;
   description: string | null;
-  bookByService: boolean;
+  bookingMode: "DOCTOR_CALENDAR" | "SERVICE_CAPACITY" | "BLOCK_CAPACITY";
   capacityPerSlot: number;
 };
 
@@ -148,6 +153,10 @@ export function BookingWizard({
   const [time, setTime] = useState<string | null>(null);
   const [slotCount, setSlotCount] = useState(1);
   const [daySlots, setDaySlots] = useState<DaySlot[]>([]);
+  const [blockId, setBlockId] = useState<TimeBlockId | null>(null);
+  const [blockAvailability, setBlockAvailability] = useState<BlockAvailability[]>([]);
+  const [eligibleDoctorIds, setEligibleDoctorIds] = useState<string[] | null>(null);
+  const [, startEligibleDoctorsTransition] = useTransition();
   const [slotsPending, startSlotsTransition] = useTransition();
   const [monthBookability, setMonthBookability] = useState<Record<number, boolean>>({});
   const [monthPending, startMonthTransition] = useTransition();
@@ -178,24 +187,48 @@ export function BookingWizard({
   );
 
   const currentSpecialtyOption = specialtyOptions.find((s) => s.name === specialty) ?? null;
-  const isBookByService = currentSpecialtyOption?.bookByService ?? false;
-  const steps = [
-    t("stepSpecialty"),
-    isBookByService ? t("stepService") : t("stepDoctor"),
-    t("stepDateTime"),
-    t("stepDetails"),
-    t("stepConfirm"),
-  ];
+  const isBookByService = currentSpecialtyOption?.bookingMode === "SERVICE_CAPACITY";
+  const isBlockCapacity = currentSpecialtyOption?.bookingMode === "BLOCK_CAPACITY";
+
+  // For BLOCK_CAPACITY, once a block is chosen, only offer doctors who are
+  // actually working that day/hours and not on leave — filtered server-side
+  // since leave/hours aren't in the client's doctor list.
+  const doctorsEligibleForBlock = useMemo(() => {
+    if (!isBlockCapacity || !date || !blockId || eligibleDoctorIds === null) return doctorsForSpecialty;
+    return doctorsForSpecialty.filter((d) => eligibleDoctorIds.includes(d.id));
+  }, [isBlockCapacity, date, blockId, doctorsForSpecialty, eligibleDoctorIds]);
+  const steps = isBlockCapacity
+    ? [t("stepSpecialty"), t("stepDateTime"), t("stepDoctor"), t("stepDetails"), t("stepConfirm")]
+    : [
+        t("stepSpecialty"),
+        isBookByService ? t("stepService") : t("stepDoctor"),
+        t("stepDateTime"),
+        t("stepDetails"),
+        t("stepConfirm"),
+      ];
 
   const selectedDoctor = doctors.find((d) => d.id === doctorId) ?? null;
   const selectedService = services.find((s) => s.id === clinicServiceId) ?? null;
-  const timeRangeLabel = time
-    ? slotCount > 1
-      ? `${formatTimeLabel(time)} – ${formatTimeLabel(addMinutesToTime(time, slotCount * 30))} (${slotCount * 30} min)`
-      : formatTimeLabel(time)
-    : null;
+  const selectedBlock = blockId ? getTimeBlockById(blockId) : null;
+  const timeRangeLabel = isBlockCapacity
+    ? selectedBlock
+      ? formatBlockLabel(selectedBlock)
+      : null
+    : time
+      ? slotCount > 1
+        ? `${formatTimeLabel(time)} – ${formatTimeLabel(addMinutesToTime(time, slotCount * 30))} (${slotCount * 30} min)`
+        : formatTimeLabel(time)
+      : null;
 
   useEffect(() => {
+    if (isBlockCapacity) {
+      if (!currentSpecialtyOption) return;
+      startMonthTransition(async () => {
+        const result = await fetchBlockMonthBookability(calendarYear, calendarMonth);
+        setMonthBookability(result);
+      });
+      return;
+    }
     if (!doctorId) return;
     startMonthTransition(async () => {
       const result = isBookByService
@@ -203,9 +236,40 @@ export function BookingWizard({
         : await fetchMonthBookability(doctorId, calendarYear, calendarMonth);
       setMonthBookability(result);
     });
-  }, [doctorId, isBookByService, calendarYear, calendarMonth]);
+  }, [isBlockCapacity, currentSpecialtyOption, doctorId, isBookByService, calendarYear, calendarMonth]);
+
+  useEffect(() => {
+    if (!isBlockCapacity || !currentSpecialtyOption || !date || !blockId) return;
+    startEligibleDoctorsTransition(async () => {
+      const ids = await fetchEligibleDoctorIds(
+        currentSpecialtyOption.name,
+        date.year,
+        date.month,
+        date.day,
+        blockId
+      );
+      setEligibleDoctorIds(ids);
+    });
+  }, [isBlockCapacity, currentSpecialtyOption, date, blockId]);
 
   function pickDate(d: YMD) {
+    if (isBlockCapacity) {
+      if (!currentSpecialtyOption) return;
+      setDate(d);
+      setBlockId(null);
+      setBlockAvailability([]);
+      startSlotsTransition(async () => {
+        const result = await fetchBlockAvailability(
+          currentSpecialtyOption.name,
+          currentSpecialtyOption.capacityPerSlot,
+          d.year,
+          d.month,
+          d.day
+        );
+        setBlockAvailability(result);
+      });
+      return;
+    }
     if (!doctorId) return;
     setDate(d);
     setTime(null);
@@ -238,6 +302,26 @@ export function BookingWizard({
   }
 
   function handleConfirm() {
+    if (isBlockCapacity) {
+      if (!doctorId || !date || !blockId || !reasonCategory || !currentSpecialtyOption) return;
+      const reason = notes ? `${reasonCategory}: ${notes}` : reasonCategory;
+      startSubmitTransition(async () => {
+        const result = await confirmBlockBooking(
+          currentSpecialtyOption.name,
+          doctorId,
+          date.year,
+          date.month,
+          date.day,
+          blockId,
+          reason,
+          clinicServiceId
+        );
+        setSubmitState(result);
+        if (result.success) setStep(6);
+      });
+      return;
+    }
+
     if (!doctorId || !date || !time || !reasonCategory) return;
     const reason = notes ? `${reasonCategory}: ${notes}` : reasonCategory;
     const durationMinutes = slotCount * 30;
@@ -302,11 +386,15 @@ export function BookingWizard({
   const monthGrid = getMonthGrid(calendarYear, calendarMonth);
   const prevMonth = addMonths(calendarYear, calendarMonth, -1);
   const nextMonth = addMonths(calendarYear, calendarMonth, 1);
-  const canContinue =
-    (step === 1 && !!specialty) ||
-    (step === 2 && !!doctorId) ||
-    (step === 3 && !!date && !!time) ||
-    (step === 4 && !!reasonCategory);
+  const canContinue = isBlockCapacity
+    ? (step === 1 && !!specialty) ||
+      (step === 2 && !!date && !!blockId) ||
+      (step === 3 && !!doctorId) ||
+      (step === 4 && !!reasonCategory)
+    : (step === 1 && !!specialty) ||
+      (step === 2 && !!doctorId) ||
+      (step === 3 && !!date && !!time) ||
+      (step === 4 && !!reasonCategory);
 
   return (
     <div className="mx-auto grid w-full max-w-4xl gap-6">
@@ -366,6 +454,10 @@ export function BookingWizard({
                       setSpecialty(s.name);
                       setDoctorId(null);
                       setClinicServiceId(null);
+                      setDate(null);
+                      setTime(null);
+                      setBlockId(null);
+                      setBlockAvailability([]);
                     }}
                     className={`rounded-xl border p-4 text-left transition-colors ${
                       selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
@@ -383,7 +475,126 @@ export function BookingWizard({
           </div>
         )}
 
-        {step === 2 && (
+        {step === 2 && isBlockCapacity && (
+          <div className="grid gap-6 lg:grid-cols-2">
+            <div className="grid gap-3">
+              <h2 className="text-xl font-semibold">{t("pickDateTime")}</h2>
+              <div className="flex items-center justify-between">
+                <p className="font-medium">
+                  {MONTH_NAMES[calendarMonth - 1]} {calendarYear}
+                </p>
+                <div className="flex gap-1">
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => {
+                      setCalendarYear(prevMonth.year);
+                      setCalendarMonth(prevMonth.month);
+                    }}
+                  >
+                    ‹
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon-sm"
+                    onClick={() => {
+                      setCalendarYear(nextMonth.year);
+                      setCalendarMonth(nextMonth.month);
+                    }}
+                  >
+                    ›
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
+                {[
+                  t("weekdaySun"), t("weekdayMon"), t("weekdayTue"), t("weekdayWed"),
+                  t("weekdayThu"), t("weekdayFri"), t("weekdaySat"),
+                ].map((d, i) => (
+                  <div key={i}>{d}</div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7 gap-1">
+                {monthGrid.flat().map((d, i) => {
+                  const inMonth = d.getMonth() === calendarMonth - 1;
+                  const ymd: YMD = { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() };
+                  const past = isPastDay(ymd, today);
+                  const bookable = inMonth && !past && monthBookability[ymd.day] !== false;
+                  const selected = isSameDay(date, ymd);
+                  return (
+                    <button
+                      key={i}
+                      type="button"
+                      aria-label={
+                        inMonth
+                          ? `${ymd.year}-${String(ymd.month).padStart(2, "0")}-${String(ymd.day).padStart(2, "0")}`
+                          : undefined
+                      }
+                      disabled={!inMonth || past || !bookable || monthPending}
+                      onClick={() => pickDate(ymd)}
+                      className={`aspect-square rounded-lg text-sm transition-colors ${
+                        !inMonth
+                          ? "invisible"
+                          : selected
+                            ? "bg-primary font-semibold text-primary-foreground"
+                            : !bookable || past
+                              ? "text-muted-foreground/40"
+                              : "hover:bg-muted"
+                      }`}
+                    >
+                      {d.getDate()}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="grid gap-3">
+              <p className="font-medium">
+                {date ? t("availableTimesFor", { date: formatDateLabel(date) }) : t("pickDateFirst")}
+              </p>
+              {!date ? (
+                <p className="text-sm text-muted-foreground">{t("selectDatePrompt")}</p>
+              ) : slotsPending ? (
+                <p className="text-sm text-muted-foreground">{t("loadingTimes")}</p>
+              ) : blockAvailability.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{t("noAvailableTimes")}</p>
+              ) : (
+                <div className="grid gap-2">
+                  {blockAvailability.map((b) => {
+                    const selected = blockId === b.blockId;
+                    return (
+                      <button
+                        key={b.blockId}
+                        type="button"
+                        disabled={!b.available}
+                        onClick={() => setBlockId(b.blockId)}
+                        className={`flex items-center justify-between rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                          selected
+                            ? "border-primary bg-primary text-primary-foreground"
+                            : b.available
+                              ? "hover:bg-muted/50"
+                              : "text-muted-foreground/40 line-through"
+                        }`}
+                      >
+                        <span>
+                          {formatTimeLabel(b.startTime)} – {formatTimeLabel(b.endTime)}
+                        </span>
+                        <span className={selected ? "" : "text-muted-foreground"}>
+                          {b.available
+                            ? t("blockCapacityLabel", { occupied: b.occupied, capacity: b.capacity })
+                            : t("blockFull")}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {step === 2 && !isBlockCapacity && (
           <div className="grid gap-6">
             <div>
               <h2 className="text-xl font-semibold">
@@ -513,7 +724,89 @@ export function BookingWizard({
           </div>
         )}
 
-        {step === 3 && (
+        {step === 3 && isBlockCapacity && (
+          <div className="grid gap-6">
+            <div>
+              <h2 className="text-xl font-semibold">{t("selectDoctor")}</h2>
+              <p className="text-muted-foreground">{specialty}</p>
+            </div>
+
+            {servicesForSpecialty.length > 0 && (
+              <div className="grid gap-2">
+                <Label>{t("specificServiceOptional")}</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
+                  {servicesForSpecialty.map((s) => {
+                    const selected = clinicServiceId === s.id;
+                    return (
+                      <button
+                        key={s.id}
+                        type="button"
+                        onClick={() => {
+                          if (selected) {
+                            setClinicServiceId(null);
+                            setReasonCategory((r) => (r === s.name ? null : r));
+                          } else {
+                            setClinicServiceId(s.id);
+                            setReasonCategory(s.name);
+                          }
+                        }}
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          selected
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "hover:bg-muted/50"
+                        }`}
+                      >
+                        <p className="text-sm font-medium">{s.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {s.durationMinutes} min · {formatKyat(s.price)}
+                        </p>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {doctorsEligibleForBlock.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("noDoctorsAvailable")}</p>
+            ) : (
+              <div className="grid gap-3">
+                {doctorsEligibleForBlock.map((d) => {
+                  const selected = doctorId === d.id;
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setDoctorId(d.id)}
+                      className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
+                        selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <Avatar className="size-12">
+                        <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                          {d.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="grid gap-0.5">
+                        <p className="font-semibold">{d.name}</p>
+                        {d.qualifications && (
+                          <p className="text-sm text-muted-foreground">{d.qualifications}</p>
+                        )}
+                        {d.experienceYears != null && (
+                          <p className="text-sm text-muted-foreground">
+                            {t("yearsExp", { years: d.experienceYears })}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 3 && !isBlockCapacity && (
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="grid gap-3">
               <h2 className="text-xl font-semibold">{t("pickDateTime")}</h2>
@@ -702,7 +995,7 @@ export function BookingWizard({
           </div>
         )}
 
-        {step === 5 && selectedDoctor && date && time && (
+        {step === 5 && selectedDoctor && date && (time || blockId) && (
           <div className="grid gap-6">
             <h2 className="text-xl font-semibold">{t("confirmAppointment")}</h2>
             <div className="grid gap-0 rounded-xl bg-muted/50 text-sm">

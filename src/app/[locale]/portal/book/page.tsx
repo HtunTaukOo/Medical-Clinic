@@ -48,7 +48,7 @@ export default async function BookAppointmentPage() {
     name: s.name,
     icon: s.icon,
     description: s.description,
-    bookByService: s.bookByService,
+    bookingMode: s.bookingMode,
     capacityPerSlot: s.capacityPerSlot,
   }));
 

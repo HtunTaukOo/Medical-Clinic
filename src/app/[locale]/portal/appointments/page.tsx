@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { PatientAppointmentCard } from "@/components/appointments/patient-appointment-card";
+import { appointmentProviderName, getBookByServiceSpecialtyNames } from "@/lib/appointment-provider";
+import { getTimeBlockById, formatTimeLabel } from "@/lib/time-blocks";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -77,13 +79,16 @@ export default async function PortalAppointmentsPage({
   const year = yearParam ? Number(yearParam) : clinicToday.year;
   const month = monthParam ? Number(monthParam) : clinicToday.month;
 
-  const appointments = patientId
-    ? await prisma.appointment.findMany({
-        where: { patientId },
-        orderBy: { scheduledAt: "desc" },
-        include: { doctor: { include: { user: true } } },
-      })
-    : [];
+  const [appointments, bookByServiceNames] = await Promise.all([
+    patientId
+      ? prisma.appointment.findMany({
+          where: { patientId },
+          orderBy: { scheduledAt: "desc" },
+          include: { doctor: { include: { user: true } }, clinicService: { select: { name: true } } },
+        })
+      : [],
+    getBookByServiceSpecialtyNames(),
+  ]);
 
   const appointmentsByTab: Record<AppointmentTab, typeof appointments> = {
     upcoming: appointments.filter(
@@ -100,8 +105,7 @@ export default async function PortalAppointmentsPage({
   const waitlistEntries = patientId
     ? await prisma.waitlist.findMany({
         where: { patientId, status: { in: ["WAITING", "NOTIFIED"] } },
-        orderBy: { requestedAt: "asc" },
-        include: { doctor: { include: { user: true } } },
+        orderBy: { requestedDate: "asc" },
       })
     : [];
 
@@ -147,15 +151,19 @@ export default async function PortalAppointmentsPage({
         <Card>
           <CardContent className="grid gap-2">
             <p className="text-sm font-medium">{tp("waitlist")}</p>
-            {waitlistEntries.map((entry) => (
+            {waitlistEntries.map((entry) => {
+              const block = getTimeBlockById(entry.blockId);
+              return (
               <div
                 key={entry.id}
                 className="flex items-center justify-between rounded-lg border p-3 text-sm"
               >
                 <div>
-                  <p className="font-medium">{entry.doctor.user.name}</p>
+                  <p className="font-medium">{entry.specialtyName}</p>
                   <p className="text-muted-foreground">
-                    {tp("requestedAround", { date: formatClinicDateTime(entry.requestedAt) })}
+                    {tp("requestedAround", {
+                      date: `${formatClinicDateTime(entry.requestedDate, { month: "short", day: "numeric", year: "numeric" })}${block ? ` · ${formatTimeLabel(block.startTime)} – ${formatTimeLabel(block.endTime)}` : ""}`,
+                    })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
@@ -169,7 +177,8 @@ export default async function PortalAppointmentsPage({
                   </form>
                 </div>
               </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       )}
@@ -223,7 +232,7 @@ export default async function PortalAppointmentsPage({
                 key={appt.id}
                 href={`/portal/appointments/${appt.id}`}
                 avatarIndex={index}
-                doctorName={appt.doctor.user.name}
+                doctorName={appointmentProviderName(appt, bookByServiceNames)}
                 specialty={appt.doctor.specialty ?? tp("generalMedicineFallback")}
                 reason={appt.reason}
                 dateLabel={formatClinicDateTime(appt.scheduledAt, {
@@ -294,13 +303,13 @@ export default async function PortalAppointmentsPage({
                           key={appt.id}
                           href={`/portal/appointments/${appt.id}`}
                           className={`truncate rounded px-1 py-0.5 text-xs ${STATUS_STYLES[appt.status]}`}
-                          title={`${appt.doctor.user.name} — ${STATUS_LABELS[appt.status] ?? appt.status}`}
+                          title={`${appointmentProviderName(appt, bookByServiceNames)} — ${STATUS_LABELS[appt.status] ?? appt.status}`}
                         >
                           {new Date(appt.scheduledAt).toLocaleTimeString([], {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}{" "}
-                          {appt.doctor.user.name}
+                          {appointmentProviderName(appt, bookByServiceNames)}
                         </Link>
                       ))}
                       {dayAppointments.length > 3 && (

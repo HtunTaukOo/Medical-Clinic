@@ -14,9 +14,13 @@ export default async function NewAppointmentPage({
   const t = await getTranslations("appointments");
   const { patientId } = await searchParams;
 
-  const [patients, doctors] = await Promise.all([
+  const [patients, doctors, blockSpecialties] = await Promise.all([
     prisma.patient.findMany({ orderBy: { name: "asc" } }),
     prisma.doctorProfile.findMany({ include: { user: true } }),
+    prisma.specialty.findMany({
+      where: { bookingMode: "BLOCK_CAPACITY" },
+      select: { name: true, capacityPerSlot: true },
+    }),
   ]);
 
   return (
@@ -31,6 +35,7 @@ export default async function NewAppointmentPage({
           name: d.user.name,
           specialty: d.specialty,
         }))}
+        blockSpecialties={blockSpecialties}
         redirectOnSuccess="/staff/appointments"
         defaultPatientId={patientId}
       />
