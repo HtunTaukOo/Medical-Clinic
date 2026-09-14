@@ -52,15 +52,17 @@ function formatK(value: number) {
   return `K ${Math.round(value).toLocaleString()}`;
 }
 
-function getGreeting(hour: number) {
-  if (hour < 12) return "Good morning";
-  if (hour < 18) return "Good afternoon";
-  return "Good evening";
+function getGreetingKey(hour: number) {
+  if (hour < 12) return "greetingMorning";
+  if (hour < 18) return "greetingAfternoon";
+  return "greetingEvening";
 }
 
 export default async function PortalDashboardPage() {
   const session = await auth();
   const t = await getTranslations();
+  const tp = await getTranslations("portal.home");
+  const tc = await getTranslations("clinic");
   const patientId = session?.user.patientId;
 
   const now = new Date();
@@ -154,7 +156,7 @@ export default async function PortalDashboardPage() {
     ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(settings.address)}`
     : null;
 
-  const greeting = getGreeting(Math.floor(clinicLocalMinutes(now) / 60));
+  const greeting = tp(getGreetingKey(Math.floor(clinicLocalMinutes(now) / 60)));
   const dateLabel = formatClinicDateTime(now, {
     weekday: "long",
     year: "numeric",
@@ -182,13 +184,16 @@ export default async function PortalDashboardPage() {
                 }
               >
                 <span className={`size-1.5 rounded-full ${openNow ? "bg-emerald-400" : "bg-red-400"}`} />
-                {openNow ? "Open Now" : "Closed Now"}
+                {openNow ? tc("statusOpenNow") : tc("statusClosedNow")}
               </Badge>
               <h1 className="text-2xl font-bold">{clinicName}</h1>
               <p className="text-sm text-white/80">
                 {todayHours.isOpen
-                  ? `Hours today: ${formatTime(todayHours.openTime)} – ${formatTime(todayHours.closeTime)}`
-                  : "Closed today"}
+                  ? tc("hoursToday", {
+                      opening: formatTime(todayHours.openTime),
+                      closing: formatTime(todayHours.closeTime),
+                    })
+                  : tp("closedToday")}
               </p>
               {settings.phones.length > 0 && (
                 <div className="flex flex-wrap gap-x-4 gap-y-1 text-sm text-white/80">
@@ -210,7 +215,7 @@ export default async function PortalDashboardPage() {
                 className="bg-white text-primary hover:bg-white/90 hover:text-primary"
               >
                 <a href={mapsUrl} target="_blank" rel="noopener noreferrer">
-                  Get Directions
+                  {tp("getDirections")}
                 </a>
               </Button>
             </div>
@@ -222,8 +227,8 @@ export default async function PortalDashboardPage() {
       {featuredMedicines.length > 0 && (
         <div className="grid gap-3">
           <div>
-            <p className="font-semibold">Featured Health Products</p>
-            <p className="text-sm text-muted-foreground">Curated by {clinicName} Pharmacy</p>
+            <p className="font-semibold">{tp("featuredProducts")}</p>
+            <p className="text-sm text-muted-foreground">{tp("curatedBy", { clinic: clinicName })}</p>
           </div>
           <div className="flex gap-4 overflow-x-auto pb-2">
             {featuredMedicines.map((m) => {
@@ -263,17 +268,13 @@ export default async function PortalDashboardPage() {
             {greeting}, {firstName}
           </h2>
           <p className="text-sm text-muted-foreground">
-            You have{" "}
-            <span className="bg-gradient-to-r from-primary-mid to-primary bg-clip-text font-semibold text-transparent">
-              {weekAppointmentCount}
-            </span>{" "}
-            upcoming appointment{weekAppointmentCount === 1 ? "" : "s"} this week.
+            {tp("upcomingThisWeek", { count: weekAppointmentCount })}
           </p>
         </div>
         <Button asChild>
           <Link href="/portal/book">
             <Plus className="size-4" />
-            Quick Book
+            {tp("quickBook")}
           </Link>
         </Button>
       </div>
@@ -282,36 +283,39 @@ export default async function PortalDashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SolidStatCard
           icon={CalendarClock}
-          label="Upcoming Appointments"
+          label={tp("upcomingAppointmentsStat")}
           value={upcomingAppointments.length}
           sublabel={
             upcomingAppointments[0]
-              ? `Next: ${new Date(upcomingAppointments[0].scheduledAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}`
+              ? tp("nextLabel", {
+                  date: new Date(upcomingAppointments[0].scheduledAt).toLocaleDateString(undefined, {
+                    month: "short",
+                    day: "numeric",
+                  }),
+                })
               : undefined
           }
           className="bg-blue-600"
         />
         <SolidStatCard
           icon={ClipboardList}
-          label="Active Prescriptions"
+          label={tp("activePrescriptionsStat")}
           value={activePrescriptions.length}
           sublabel={
-            renewalsDue.length > 0
-              ? `${renewalsDue.length} renewal${renewalsDue.length === 1 ? "" : "s"} due`
-              : undefined
+            renewalsDue.length > 0 ? tp("renewalsDue", { count: renewalsDue.length }) : undefined
           }
           className="bg-emerald-600"
         />
         <SolidStatCard
           icon={Receipt}
-          label="Unpaid Bills"
+          label={tp("unpaidBillsStat")}
           value={unpaidInvoices.length}
-          sublabel={unpaidTotal > 0 ? `${formatK(unpaidTotal)} due` : undefined}
+          sublabel={unpaidTotal > 0 ? tp("amountDue", { amount: formatK(unpaidTotal) }) : undefined}
           className="bg-orange-600"
         />
         <SolidStatCard
           icon={History}
-          label="Last Visit"
+          label={tp("lastVisitStat")}
           value={
             lastVisit
               ? new Date(lastVisit.scheduledAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })
@@ -328,9 +332,9 @@ export default async function PortalDashboardPage() {
           <Card>
             <CardContent className="grid gap-3">
               <div className="flex items-center justify-between">
-                <p className="font-semibold">Upcoming Appointments</p>
+                <p className="font-semibold">{tp("upcomingAppointmentsStat")}</p>
                 <Link href="/portal/appointments" className="text-sm underline">
-                  View all
+                  {tp("viewAll")}
                 </Link>
               </div>
               {upcomingAppointments.length === 0 && (
@@ -359,7 +363,7 @@ export default async function PortalDashboardPage() {
                         <div>
                           <p className="font-medium">{appt.doctor.user.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {appt.doctor.specialty ?? "General Practice"}
+                            {appt.doctor.specialty ?? tp("generalPracticeFallback")}
                           </p>
                         </div>
                       </div>
@@ -416,17 +420,17 @@ export default async function PortalDashboardPage() {
                   <Card className="border-none bg-emerald-50 shadow-none dark:bg-emerald-950/40">
                     <CardContent className="grid gap-0.5">
                       <p className="text-xs font-semibold tracking-wide text-emerald-700 uppercase dark:text-emerald-300">
-                        Recent Rx
+                        {tp("recentRx")}
                       </p>
                       <p className="font-medium text-emerald-900 dark:text-emerald-100">
-                        {recentPrescription.items[0]?.medicine.name ?? "Prescription"}
+                        {recentPrescription.items[0]?.medicine.name ?? tp("prescriptionFallback")}
                       </p>
                       <p className="text-sm text-emerald-900/70 dark:text-emerald-100/70">
                         {recentPrescription.items[0]
-                          ? `${recentPrescription.items[0].dosage} · ${recentPrescription.fulfilled ? "Fulfilled" : "Pending"}`
+                          ? `${recentPrescription.items[0].dosage} · ${recentPrescription.fulfilled ? tp("fulfilled") : tp("pending")}`
                           : recentPrescription.fulfilled
-                            ? "Fulfilled"
-                            : "Pending"}
+                            ? tp("fulfilled")
+                            : tp("pending")}
                       </p>
                     </CardContent>
                   </Card>
@@ -437,13 +441,13 @@ export default async function PortalDashboardPage() {
                   <Card className="border-none bg-orange-50 shadow-none dark:bg-orange-950/40">
                     <CardContent className="grid gap-0.5">
                       <p className="text-xs font-semibold tracking-wide text-orange-700 uppercase dark:text-orange-300">
-                        Unpaid Bill
+                        {tp("unpaidBill")}
                       </p>
                       <p className="font-medium text-orange-900 dark:text-orange-100">
-                        Invoice · {new Date(nextUnpaidInvoice.createdAt).toLocaleDateString()}
+                        {tp("invoiceOn", { date: new Date(nextUnpaidInvoice.createdAt).toLocaleDateString() })}
                       </p>
                       <p className="text-sm text-orange-900/70 dark:text-orange-100/70">
-                        {formatK(Number(nextUnpaidInvoice.total))} · Due
+                        {tp("amountDueShort", { amount: formatK(Number(nextUnpaidInvoice.total)) })}
                       </p>
                     </CardContent>
                   </Card>
@@ -455,9 +459,9 @@ export default async function PortalDashboardPage() {
 
         <Card>
           <CardContent className="grid gap-3">
-            <p className="font-semibold">Clinic Announcements</p>
+            <p className="font-semibold">{tp("clinicAnnouncements")}</p>
             {announcements.length === 0 ? (
-              <EmptyState icon={Megaphone} message="No announcements right now." />
+              <EmptyState icon={Megaphone} message={tp("noAnnouncements")} />
             ) : (
               announcements.map((a) => (
                 <div key={a.id} className="rounded-lg border p-3">

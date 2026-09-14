@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { CalendarDays, ChevronLeft, FlaskConical, AlertTriangle } from "lucide-react";
+import { CalendarDays, FlaskConical, AlertTriangle } from "lucide-react";
 import { GENDER_LABELS } from "@/lib/patients";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
@@ -19,6 +19,7 @@ import { EmptyState } from "@/components/empty-state";
 import { SetPasswordForm } from "@/components/staff/set-password-form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 import { initials, calculateAge } from "@/lib/format";
 import { AVATAR_COLORS } from "@/components/appointments/appointment-row";
 
@@ -46,18 +47,11 @@ const TABS = [
 
 export default async function PatientDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ from?: string }>;
 }) {
   const session = await requirePageRole(["ADMIN", "STAFF"]);
   const { id } = await params;
-  const { from } = await searchParams;
-  const backLink =
-    from === "users"
-      ? { href: "/staff/users?tab=patients", label: "User Management" }
-      : { href: "/staff/patients", label: "All Patients" };
   const tAppt = await getTranslations("appointments");
   const role = session.user.role;
 
@@ -131,13 +125,7 @@ export default async function PatientDetailPage({
 
   return (
     <div className="grid gap-6">
-      <Link
-        href={backLink.href}
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        {backLink.label}
-      </Link>
+      <BackLink href="/staff/patients" label="All Patients" />
 
       <Card>
         <CardContent className="flex flex-wrap items-start justify-between gap-4">

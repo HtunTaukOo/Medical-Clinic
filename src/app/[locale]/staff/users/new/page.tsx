@@ -1,8 +1,7 @@
-import { ChevronLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { requirePageRole } from "@/lib/authz";
 import { getActiveSpecialties } from "@/lib/specialties-data";
-import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 import { StaffForm } from "@/components/staff/staff-form";
 
 export default async function NewStaffPage({
@@ -19,13 +18,7 @@ export default async function NewStaffPage({
 
   return (
     <div className="grid gap-4">
-      <Link
-        href={backHref}
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href={backHref} />
       <h1 className="text-2xl font-semibold">{lockRole ? "Add Doctor" : t("new")}</h1>
       <StaffForm
         lockRole={lockRole}

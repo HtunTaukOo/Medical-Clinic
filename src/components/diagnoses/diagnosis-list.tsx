@@ -1,4 +1,5 @@
 import { Stethoscope } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { deleteDiagnosis, setDiagnosisStatus } from "@/actions/diagnoses";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,13 +16,7 @@ type DiagnosisItem = {
   doctor?: { user: { name: string } };
 };
 
-const SEVERITY_LABELS: Record<string, string> = {
-  MILD: "Mild",
-  MODERATE: "Moderate",
-  SEVERE: "Severe",
-};
-
-export function DiagnosisList({
+export async function DiagnosisList({
   diagnoses,
   canDelete = false,
   showDoctor = false,
@@ -30,8 +25,15 @@ export function DiagnosisList({
   canDelete?: boolean;
   showDoctor?: boolean;
 }) {
+  const t = await getTranslations("portal.diagnoses");
+  const SEVERITY_LABELS: Record<string, string> = {
+    MILD: t("severityMild"),
+    MODERATE: t("severityModerate"),
+    SEVERE: t("severitySevere"),
+  };
+
   if (diagnoses.length === 0) {
-    return <EmptyState icon={Stethoscope} message="No diagnoses recorded yet." />;
+    return <EmptyState icon={Stethoscope} message={t("noDiagnoses")} />;
   }
 
   return (
@@ -43,7 +45,7 @@ export function DiagnosisList({
               {d.code && <Badge variant="outline">{d.code}</Badge>}
               <span className="font-medium">{d.description}</span>
               <Badge variant={d.status === "ACTIVE" ? "default" : "success"}>
-                {d.status === "ACTIVE" ? "Active" : "Resolved"}
+                {d.status === "ACTIVE" ? t("statusActive") : t("statusResolved")}
               </Badge>
               {d.severity && <Badge variant="outline">{SEVERITY_LABELS[d.severity]}</Badge>}
             </div>
@@ -63,12 +65,12 @@ export function DiagnosisList({
                 )}
               >
                 <Button size="sm" variant="outline" type="submit">
-                  {d.status === "ACTIVE" ? "Mark resolved" : "Reopen"}
+                  {d.status === "ACTIVE" ? t("markResolved") : t("reopen")}
                 </Button>
               </form>
               <form action={deleteDiagnosis.bind(null, d.id)}>
                 <Button size="sm" variant="destructive" type="submit">
-                  Remove
+                  {t("remove")}
                 </Button>
               </form>
             </div>

@@ -16,7 +16,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
-import { ChevronLeft } from "lucide-react";
+import { BackLink } from "@/components/back-link";
 
 export default async function AppointmentDetailPage({
   params,
@@ -48,13 +48,7 @@ export default async function AppointmentDetailPage({
 
   return (
     <div className="grid gap-6">
-      <Link
-        href="/staff/appointments"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href="/staff/appointments" />
 
       <div className="flex items-center justify-between">
         <div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import {
   uploadMedicalDocument,
   type MedicalRecordFormState,
@@ -10,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
 export function DocumentUploadForm({ patientId }: { patientId: string }) {
+  const t = useTranslations("portal.documents");
   const boundAction = uploadMedicalDocument.bind(null, patientId);
   const [state, formAction, pending] = useActionState<
     MedicalRecordFormState,
@@ -19,7 +21,7 @@ export function DocumentUploadForm({ patientId }: { patientId: string }) {
   return (
     <form action={formAction} className="grid max-w-md gap-3">
       <div className="grid gap-2">
-        <Label htmlFor="file">Document</Label>
+        <Label htmlFor="file">{t("documentLabel")}</Label>
         <Input
           id="file"
           name="file"
@@ -29,13 +31,13 @@ export function DocumentUploadForm({ patientId }: { patientId: string }) {
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="note">Note (optional)</Label>
-        <Input id="note" name="note" placeholder="e.g. Prior history from previous clinic" />
+        <Label htmlFor="note">{t("noteOptional")}</Label>
+        <Input id="note" name="note" placeholder={t("notePlaceholder")} />
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-muted-foreground">Uploaded.</p>}
+      {state.success && <p className="text-sm text-muted-foreground">{t("uploaded")}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        Upload document
+        {t("upload")}
       </Button>
     </form>
   );

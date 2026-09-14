@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { updateEmergencyContact, type PatientFormState } from "@/actions/patients";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ export function EmergencyContactForm({
     emergencyContactAddress: string;
   };
 }) {
+  const t = useTranslations("portal.emergencyContact");
   const [state, formAction, pending] = useActionState<PatientFormState, FormData>(
     updateEmergencyContact,
     {}
@@ -27,14 +29,11 @@ export function EmergencyContactForm({
     <form action={formAction} className="grid gap-4">
       <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-800">
         <AlertTriangle className="mt-0.5 size-4 shrink-0" />
-        <p>
-          This person will be contacted in case of a medical emergency. Please keep this
-          information up to date.
-        </p>
+        <p>{t("warning")}</p>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
-          <Label htmlFor="emergencyContactName">Contact Name</Label>
+          <Label htmlFor="emergencyContactName">{t("contactName")}</Label>
           <Input
             id="emergencyContactName"
             name="emergencyContactName"
@@ -42,7 +41,7 @@ export function EmergencyContactForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="emergencyContactRelationship">Relationship</Label>
+          <Label htmlFor="emergencyContactRelationship">{t("relationship")}</Label>
           <Input
             id="emergencyContactRelationship"
             name="emergencyContactRelationship"
@@ -50,7 +49,7 @@ export function EmergencyContactForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="emergencyContactPhone">Phone Number</Label>
+          <Label htmlFor="emergencyContactPhone">{t("phone")}</Label>
           <Input
             id="emergencyContactPhone"
             name="emergencyContactPhone"
@@ -58,7 +57,7 @@ export function EmergencyContactForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="emergencyContactAltPhone">Alternate Phone</Label>
+          <Label htmlFor="emergencyContactAltPhone">{t("altPhone")}</Label>
           <Input
             id="emergencyContactAltPhone"
             name="emergencyContactAltPhone"
@@ -66,7 +65,7 @@ export function EmergencyContactForm({
           />
         </div>
         <div className="grid gap-1.5 sm:col-span-2">
-          <Label htmlFor="emergencyContactAddress">Address</Label>
+          <Label htmlFor="emergencyContactAddress">{t("address")}</Label>
           <Input
             id="emergencyContactAddress"
             name="emergencyContactAddress"
@@ -75,9 +74,9 @@ export function EmergencyContactForm({
         </div>
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-muted-foreground">Saved.</p>}
+      {state.success && <p className="text-sm text-muted-foreground">{t("saved")}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        Save Changes
+        {t("save")}
       </Button>
     </form>
   );

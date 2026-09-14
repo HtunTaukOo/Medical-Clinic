@@ -1,11 +1,11 @@
 import { notFound } from "next/navigation";
-import { ChevronLeft, Pill } from "lucide-react";
+import { Pill } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { cancelAppointment, checkInAppointment } from "@/actions/appointments";
 import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
-import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
 import { Badge } from "@/components/ui/badge";
@@ -20,8 +20,18 @@ export default async function PortalAppointmentDetailPage({
 }) {
   const session = await auth();
   const t = await getTranslations("appointments");
+  const td = await getTranslations("portal.appointmentDetail");
   const patientId = session?.user.patientId;
   const { id } = await params;
+
+  const STATUS_LABELS: Record<string, string> = {
+    REQUESTED: td("statusRequested"),
+    CONFIRMED: td("statusConfirmed"),
+    CHECKED_IN: td("statusCheckedIn"),
+    COMPLETED: td("statusCompleted"),
+    CANCELLED: td("statusCancelled"),
+    NO_SHOW: td("statusNoShow"),
+  };
 
   const appointment = await prisma.appointment.findUnique({
     where: { id },
@@ -46,13 +56,7 @@ export default async function PortalAppointmentDetailPage({
 
   return (
     <div className="grid gap-6">
-      <Link
-        href="/portal/appointments"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href="/portal/appointments" />
 
       <div className="flex items-center justify-between">
         <div>
@@ -61,7 +65,7 @@ export default async function PortalAppointmentDetailPage({
             {new Date(appointment.scheduledAt).toLocaleString()}
           </p>
         </div>
-        <Badge variant="outline">{appointment.status}</Badge>
+        <Badge variant="outline">{STATUS_LABELS[appointment.status] ?? appointment.status}</Badge>
       </div>
 
       {queuePosition != null && (
@@ -109,7 +113,7 @@ export default async function PortalAppointmentDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Diagnosis</CardTitle>
+          <CardTitle>{td("diagnosis")}</CardTitle>
         </CardHeader>
         <CardContent>
           <DiagnosisList diagnoses={appointment.diagnoses} />
@@ -118,11 +122,11 @@ export default async function PortalAppointmentDetailPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Prescriptions</CardTitle>
+          <CardTitle>{td("prescriptions")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3">
           {appointment.prescriptions.length === 0 ? (
-            <EmptyState icon={Pill} message="No prescriptions for this visit." />
+            <EmptyState icon={Pill} message={td("noPrescriptions")} />
           ) : (
             appointment.prescriptions.map((rx) => (
               <div key={rx.id} className="rounded-md border p-3">
@@ -131,7 +135,7 @@ export default async function PortalAppointmentDetailPage({
                     {new Date(rx.createdAt).toLocaleString()}
                   </span>
                   <Badge variant={rx.fulfilled ? "success" : "outline"}>
-                    {rx.fulfilled ? "Fulfilled" : "Pending"}
+                    {rx.fulfilled ? td("fulfilled") : td("pending")}
                   </Badge>
                 </div>
                 <ul className="text-sm">
@@ -141,7 +145,7 @@ export default async function PortalAppointmentDetailPage({
                       {item.timesPerDay && item.durationDays && (
                         <span className="text-muted-foreground">
                           {" "}
-                          (reminders: {item.timesPerDay}x/day for {item.durationDays} days)
+                          {td("reminderSchedule", { perDay: item.timesPerDay, days: item.durationDays })}
                         </span>
                       )}
                     </li>

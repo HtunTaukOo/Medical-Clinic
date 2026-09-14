@@ -236,7 +236,7 @@ export default async function UserManagementPage({
                       <div className="flex items-center justify-end gap-3">
                         {row.type === "PATIENT" && (
                           <Link
-                            href={`/staff/patients/${row.patientId}?from=users`}
+                            href={`/staff/patients/${row.patientId}`}
                             className="font-medium text-primary underline underline-offset-2"
                           >
                             Edit

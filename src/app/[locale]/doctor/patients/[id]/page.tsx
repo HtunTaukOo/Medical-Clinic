@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation";
-import { CalendarDays, FlaskConical, AlertTriangle, ChevronLeft } from "lucide-react";
+import { CalendarDays, FlaskConical, AlertTriangle } from "lucide-react";
+import { BackLink } from "@/components/back-link";
 import { GENDER_LABELS } from "@/lib/patients";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
@@ -119,13 +120,7 @@ export default async function DoctorPatientDetailPage({
 
   return (
     <div className="grid gap-6">
-      <Link
-        href="/doctor/patients"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        All Patients
-      </Link>
+      <BackLink href="/doctor/patients" label="All Patients" />
 
       <Card>
         <CardContent className="flex flex-wrap items-start justify-between gap-4">
@@ -135,6 +130,9 @@ export default async function DoctorPatientDetailPage({
             </Avatar>
             <div>
               <h1 className="text-xl font-semibold">{patient.name}</h1>
+              <p className="text-sm text-muted-foreground">
+                Patient ID: {patient.patientCode ?? "—"}
+              </p>
               {metaLine && <p className="text-sm text-muted-foreground">{metaLine}</p>}
               {contactLine && <p className="text-sm text-muted-foreground">{contactLine}</p>}
             </div>
@@ -236,7 +234,7 @@ export default async function DoctorPatientDetailPage({
               {!lastCompletedVisit ? (
                 <p className="text-sm text-muted-foreground">No completed visits yet.</p>
               ) : (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
                     {
                       label: "BP",
@@ -246,15 +244,21 @@ export default async function DoctorPatientDetailPage({
                           : "—",
                     },
                     {
+                      label: "Pulse",
+                      value: lastCompletedVisit.heartRateBpm
+                        ? `${lastCompletedVisit.heartRateBpm} bpm`
+                        : "—",
+                    },
+                    {
                       label: "Temp",
                       value: lastCompletedVisit.temperatureC
                         ? `${Number(lastCompletedVisit.temperatureC)}°C`
                         : "—",
                     },
                     {
-                      label: "Pulse",
-                      value: lastCompletedVisit.heartRateBpm
-                        ? `${lastCompletedVisit.heartRateBpm} bpm`
+                      label: "RR",
+                      value: lastCompletedVisit.respiratoryRate
+                        ? `${lastCompletedVisit.respiratoryRate} /min`
                         : "—",
                     },
                     {
@@ -266,6 +270,10 @@ export default async function DoctorPatientDetailPage({
                     {
                       label: "Weight",
                       value: patient.weightKg ? `${patient.weightKg} kg` : "—",
+                    },
+                    {
+                      label: "Height",
+                      value: patient.heightCm ? `${patient.heightCm} cm` : "—",
                     },
                     {
                       label: "BMI",

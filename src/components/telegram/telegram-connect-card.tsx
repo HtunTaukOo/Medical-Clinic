@@ -1,4 +1,5 @@
 import { Send } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { getTelegramBotUsername } from "@/lib/telegram";
@@ -26,7 +27,8 @@ export async function TelegramConnectCard() {
   const doctorId = !patientId ? session?.user.doctorId : undefined;
   if (!patientId && !doctorId) return null;
 
-  const copy = patientId ? COPY.patient : COPY.doctor;
+  const tp = await getTranslations("portal.telegram");
+  const copy = patientId ? { connected: tp("connected"), disconnected: tp("disconnected") } : COPY.doctor;
   const connectUrl = patientId
     ? `https://t.me/${botUsername}?start=p_${patientId}`
     : `https://t.me/${botUsername}?start=d_${doctorId}`;
@@ -49,7 +51,7 @@ export async function TelegramConnectCard() {
     <div className="grid gap-4">
       <p className="flex items-center gap-2 font-medium">
         <Send className="size-4" />
-        Telegram notifications
+        {tp("heading")}
       </p>
       <div className="flex items-center justify-between gap-4">
         {connected ? (
@@ -57,7 +59,7 @@ export async function TelegramConnectCard() {
             <p className="text-sm text-muted-foreground">{copy.connected}</p>
             <form action={disconnectTelegram}>
               <Button size="sm" variant="outline" type="submit">
-                Disconnect
+                {tp("disconnect")}
               </Button>
             </form>
           </>
@@ -66,7 +68,7 @@ export async function TelegramConnectCard() {
             <p className="text-sm text-muted-foreground">{copy.disconnected}</p>
             <Button asChild size="sm">
               <a href={connectUrl} target="_blank" rel="noopener noreferrer">
-                Connect
+                {tp("connect")}
               </a>
             </Button>
           </>

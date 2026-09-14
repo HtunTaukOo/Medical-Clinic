@@ -21,6 +21,7 @@ function formatKyat(value: number) {
 export default async function PortalInvoicesPage() {
   const session = await auth();
   const t = await getTranslations();
+  const tp = await getTranslations("portal.invoicesPage");
   const patientId = session?.user.patientId;
 
   const [invoices, settings] = await Promise.all([
@@ -49,8 +50,10 @@ export default async function PortalInvoicesPage() {
     return {
       id: invoice.id,
       title: invoice.appointment?.doctor
-        ? `${invoice.appointment.doctor.specialty ?? "General"} Consultation`
-        : (invoice.items[0]?.description ?? "Invoice"),
+        ? tp("consultationTitle", {
+            specialty: invoice.appointment.doctor.specialty ?? tp("generalFallback"),
+          })
+        : (invoice.items[0]?.description ?? tp("invoiceFallback")),
       doctorName: invoice.appointment?.doctor.user.name ?? null,
       date: invoice.createdAt,
       dueDate: invoice.status === "PAID" ? null : dueDate,
@@ -74,9 +77,7 @@ export default async function PortalInvoicesPage() {
     <div className="grid gap-4">
       <div>
         <h1 className="text-2xl font-semibold">{t("nav.billsPayments")}</h1>
-        <p className="text-sm text-muted-foreground">
-          Review invoices, pay outstanding bills, and download receipts.
-        </p>
+        <p className="text-sm text-muted-foreground">{tp("description")}</p>
       </div>
 
       {unpaid.length > 0 && (
@@ -84,11 +85,11 @@ export default async function PortalInvoicesPage() {
           <CardContent className="flex flex-wrap items-center justify-between gap-4">
             <div>
               <p className="text-xs font-semibold tracking-wide text-orange-700 uppercase">
-                Outstanding balance
+                {tp("outstandingBalance")}
               </p>
               <p className="text-3xl font-bold text-orange-700">{formatKyat(outstandingTotal)}</p>
               <p className="text-sm text-orange-700/80">
-                {unpaid.length} invoice{unpaid.length === 1 ? "" : "s"} pending payment
+                {tp("invoicesPending", { count: unpaid.length })}
               </p>
             </div>
             <PayNowDialog
@@ -96,7 +97,9 @@ export default async function PortalInvoicesPage() {
               phones={settings.phones}
               address={settings.address}
               trigger={
-                <Button className="bg-orange-600 text-white hover:bg-orange-700">Pay All Now</Button>
+                <Button className="bg-orange-600 text-white hover:bg-orange-700">
+                  {tp("payAllNow")}
+                </Button>
               }
             />
           </CardContent>
@@ -106,16 +109,16 @@ export default async function PortalInvoicesPage() {
       <Tabs defaultValue="unpaid">
         <TabsList className={PILL_TAB_LIST}>
           <TabsTrigger value="unpaid" className={PILL_TAB_TRIGGER}>
-            Unpaid ({unpaid.length})
+            {tp("tabUnpaid", { count: unpaid.length })}
           </TabsTrigger>
           <TabsTrigger value="paid" className={PILL_TAB_TRIGGER}>
-            Paid ({paid.length})
+            {tp("tabPaid", { count: paid.length })}
           </TabsTrigger>
         </TabsList>
         <TabsContent value="unpaid" className="mt-4">
           <InvoiceAccordion
             invoices={unpaid}
-            emptyMessage="No unpaid bills."
+            emptyMessage={tp("noUnpaid")}
             clinicPhones={settings.phones}
             clinicAddress={settings.address}
           />
@@ -123,7 +126,7 @@ export default async function PortalInvoicesPage() {
         <TabsContent value="paid" className="mt-4">
           <InvoiceAccordion
             invoices={paid}
-            emptyMessage="No paid bills yet."
+            emptyMessage={tp("noPaid")}
             clinicPhones={settings.phones}
             clinicAddress={settings.address}
           />

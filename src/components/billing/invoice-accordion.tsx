@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Receipt, CheckCircle2, Download } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,6 +36,7 @@ export function InvoiceAccordion({
   clinicPhones: string[];
   clinicAddress: string | null;
 }) {
+  const t = useTranslations("portal.billingCard");
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (invoices.length === 0) {
@@ -73,14 +75,20 @@ export function InvoiceAccordion({
                 </p>
                 {!isPaid && invoice.dueDate && (
                   <p className="text-sm text-orange-600">
-                    Due: {invoice.dueDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+                    {t("dueOn", {
+                      date: invoice.dueDate.toLocaleDateString(undefined, {
+                        month: "short",
+                        day: "numeric",
+                        year: "numeric",
+                      }),
+                    })}
                   </p>
                 )}
               </div>
               <div className="text-right">
                 <p className="font-semibold text-orange-600">{formatKyat(invoice.total)}</p>
                 <Badge variant={isPaid ? "success" : "outline"}>
-                  {invoice.status === "PARTIAL" ? "Partial" : isPaid ? "Paid" : "Unpaid"}
+                  {invoice.status === "PARTIAL" ? t("badgePartial") : isPaid ? t("badgePaid") : t("badgeUnpaid")}
                 </Badge>
               </div>
             </button>
@@ -88,7 +96,7 @@ export function InvoiceAccordion({
             {expanded && (
               <div className="grid gap-3 border-t p-3">
                 <p className="text-xs font-medium tracking-wide text-muted-foreground uppercase">
-                  Invoice items
+                  {t("invoiceItems")}
                 </p>
                 <div className="grid gap-1.5 text-sm">
                   {invoice.items.map((item) => (
@@ -102,14 +110,14 @@ export function InvoiceAccordion({
                   ))}
                 </div>
                 <div className="flex items-center justify-between border-t pt-2 font-semibold">
-                  <span>Total</span>
+                  <span>{t("total")}</span>
                   <span>{formatKyat(invoice.total)}</span>
                 </div>
                 {isPaid ? (
                   <Button asChild variant="outline" className="w-full">
                     <Link href={`/receipt/${invoice.id}`} target="_blank">
                       <Download className="size-4" />
-                      Download Receipt
+                      {t("downloadReceipt")}
                     </Link>
                   </Button>
                 ) : (
@@ -117,7 +125,7 @@ export function InvoiceAccordion({
                     amount={invoice.remaining}
                     phones={clinicPhones}
                     address={clinicAddress}
-                    trigger={<Button className="w-full">Pay Now</Button>}
+                    trigger={<Button className="w-full">{t("payNow")}</Button>}
                   />
                 )}
               </div>

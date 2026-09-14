@@ -22,15 +22,13 @@ const STATUS_STYLES: Record<string, string> = {
   NO_SHOW: "bg-orange-100 text-orange-800",
 };
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-
 const APPOINTMENT_TABS = ["upcoming", "completed", "cancelled"] as const;
 type AppointmentTab = (typeof APPOINTMENT_TABS)[number];
 
-const TAB_META: Record<AppointmentTab, { label: string; badgeClass: string }> = {
-  upcoming: { label: "Upcoming", badgeClass: "bg-blue-100 text-blue-700" },
-  completed: { label: "Completed", badgeClass: "bg-emerald-100 text-emerald-700" },
-  cancelled: { label: "Cancelled", badgeClass: "bg-rose-100 text-rose-700" },
+const TAB_BADGE_CLASS: Record<AppointmentTab, string> = {
+  upcoming: "bg-blue-100 text-blue-700",
+  completed: "bg-emerald-100 text-emerald-700",
+  cancelled: "bg-rose-100 text-rose-700",
 };
 
 export default async function PortalAppointmentsPage({
@@ -40,7 +38,28 @@ export default async function PortalAppointmentsPage({
 }) {
   const session = await auth();
   const t = await getTranslations("appointments");
+  const tp = await getTranslations("portal.appointmentsPage");
+  const td = await getTranslations("portal.appointmentDetail");
   const patientId = session?.user.patientId;
+
+  const STATUS_LABELS: Record<string, string> = {
+    REQUESTED: td("statusRequested"),
+    CONFIRMED: td("statusConfirmed"),
+    CHECKED_IN: td("statusCheckedIn"),
+    COMPLETED: td("statusCompleted"),
+    CANCELLED: td("statusCancelled"),
+    NO_SHOW: td("statusNoShow"),
+  };
+
+  const WEEKDAY_LABELS = [
+    tp("weekdaySun"), tp("weekdayMon"), tp("weekdayTue"), tp("weekdayWed"),
+    tp("weekdayThu"), tp("weekdayFri"), tp("weekdaySat"),
+  ];
+  const TAB_META: Record<AppointmentTab, { label: string; badgeClass: string }> = {
+    upcoming: { label: tp("tabUpcoming"), badgeClass: TAB_BADGE_CLASS.upcoming },
+    completed: { label: tp("tabCompleted"), badgeClass: TAB_BADGE_CLASS.completed },
+    cancelled: { label: tp("tabCancelled"), badgeClass: TAB_BADGE_CLASS.cancelled },
+  };
 
   const {
     view: viewParam,
@@ -122,15 +141,12 @@ export default async function PortalAppointmentsPage({
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
-        <Button asChild>
-          <Link href="/portal/book">{t("requestNew")}</Link>
-        </Button>
       </div>
 
       {waitlistEntries.length > 0 && (
         <Card>
           <CardContent className="grid gap-2">
-            <p className="text-sm font-medium">Waitlist</p>
+            <p className="text-sm font-medium">{tp("waitlist")}</p>
             {waitlistEntries.map((entry) => (
               <div
                 key={entry.id}
@@ -139,16 +155,16 @@ export default async function PortalAppointmentsPage({
                 <div>
                   <p className="font-medium">{entry.doctor.user.name}</p>
                   <p className="text-muted-foreground">
-                    Requested around {formatClinicDateTime(entry.requestedAt)}
+                    {tp("requestedAround", { date: formatClinicDateTime(entry.requestedAt) })}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   <Badge variant={entry.status === "NOTIFIED" ? "success" : "outline"}>
-                    {entry.status === "NOTIFIED" ? "Opening available!" : "Waiting"}
+                    {entry.status === "NOTIFIED" ? tp("openingAvailable") : tp("waiting")}
                   </Badge>
                   <form action={leaveWaitlist.bind(null, entry.id)}>
                     <Button size="sm" variant="outline" type="submit">
-                      Leave waitlist
+                      {tp("leaveWaitlist")}
                     </Button>
                   </form>
                 </div>
@@ -160,10 +176,10 @@ export default async function PortalAppointmentsPage({
 
       <div className="flex items-center gap-2">
         <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
-          <Link href="/portal/appointments?view=list">List</Link>
+          <Link href="/portal/appointments?view=list">{tp("viewList")}</Link>
         </Button>
         <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
-          <Link href="/portal/appointments?view=calendar">Calendar</Link>
+          <Link href="/portal/appointments?view=calendar">{tp("viewCalendar")}</Link>
         </Button>
       </div>
 
@@ -208,7 +224,7 @@ export default async function PortalAppointmentsPage({
                 href={`/portal/appointments/${appt.id}`}
                 avatarIndex={index}
                 doctorName={appt.doctor.user.name}
-                specialty={appt.doctor.specialty ?? "General Medicine"}
+                specialty={appt.doctor.specialty ?? tp("generalMedicineFallback")}
                 reason={appt.reason}
                 dateLabel={formatClinicDateTime(appt.scheduledAt, {
                   month: "short",
@@ -234,19 +250,19 @@ export default async function PortalAppointmentsPage({
             <div className="flex items-center gap-2">
               <Button asChild variant="outline" size="sm">
                 <Link href={`/portal/appointments?view=calendar&year=${prev.year}&month=${prev.month}`}>
-                  ← Prev
+                  {tp("prevWeek")}
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link
                   href={`/portal/appointments?view=calendar&year=${clinicToday.year}&month=${clinicToday.month}`}
                 >
-                  Today
+                  {tp("today")}
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link href={`/portal/appointments?view=calendar&year=${next.year}&month=${next.month}`}>
-                  Next →
+                  {tp("nextWeek")}
                 </Link>
               </Button>
             </div>
@@ -278,7 +294,7 @@ export default async function PortalAppointmentsPage({
                           key={appt.id}
                           href={`/portal/appointments/${appt.id}`}
                           className={`truncate rounded px-1 py-0.5 text-xs ${STATUS_STYLES[appt.status]}`}
-                          title={`${appt.doctor.user.name} — ${appt.status}`}
+                          title={`${appt.doctor.user.name} — ${STATUS_LABELS[appt.status] ?? appt.status}`}
                         >
                           {new Date(appt.scheduledAt).toLocaleTimeString([], {
                             hour: "2-digit",
@@ -289,7 +305,7 @@ export default async function PortalAppointmentsPage({
                       ))}
                       {dayAppointments.length > 3 && (
                         <span className="text-xs text-muted-foreground">
-                          +{dayAppointments.length - 3} more
+                          {tp("moreCount", { count: dayAppointments.length - 3 })}
                         </span>
                       )}
                       {dayReminders.slice(0, 2).map((reminder) => (
@@ -301,7 +317,7 @@ export default async function PortalAppointmentsPage({
                               : "bg-indigo-100 text-indigo-800"
                           }`}
                           title={`${reminder.prescriptionItem.medicine.name} — ${
-                            reminder.sent ? "reminder sent" : "reminder pending"
+                            reminder.sent ? tp("reminderSent") : tp("reminderPending")
                           }`}
                         >
                           <Pill className="size-3 shrink-0" />
@@ -316,8 +332,7 @@ export default async function PortalAppointmentsPage({
                       ))}
                       {dayReminders.length > 2 && (
                         <span className="text-xs text-muted-foreground">
-                          +{dayReminders.length - 2} more reminder
-                          {dayReminders.length - 2 === 1 ? "" : "s"}
+                          {tp("moreReminders", { count: dayReminders.length - 2 })}
                         </span>
                       )}
                     </div>

@@ -1,4 +1,5 @@
 import { Pill, Utensils, Leaf, ShieldAlert } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { deleteAllergy } from "@/actions/allergies";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -13,14 +14,11 @@ type AllergyItem = {
   firstNoted: Date | null;
 };
 
-const CATEGORY_META: Record<
-  AllergyItem["category"],
-  { label: string; icon: typeof Pill; iconClass: string }
-> = {
-  DRUG: { label: "Drug", icon: Pill, iconClass: "bg-rose-50 text-rose-600" },
-  FOOD: { label: "Food", icon: Utensils, iconClass: "bg-orange-50 text-orange-600" },
-  ENVIRONMENTAL: { label: "Environmental", icon: Leaf, iconClass: "bg-emerald-50 text-emerald-600" },
-  OTHER: { label: "Other", icon: ShieldAlert, iconClass: "bg-slate-100 text-slate-600" },
+const CATEGORY_ICON: Record<AllergyItem["category"], { icon: typeof Pill; iconClass: string }> = {
+  DRUG: { icon: Pill, iconClass: "bg-rose-50 text-rose-600" },
+  FOOD: { icon: Utensils, iconClass: "bg-orange-50 text-orange-600" },
+  ENVIRONMENTAL: { icon: Leaf, iconClass: "bg-emerald-50 text-emerald-600" },
+  OTHER: { icon: ShieldAlert, iconClass: "bg-slate-100 text-slate-600" },
 };
 
 const SEVERITY_STYLES: Record<AllergyItem["severity"], string> = {
@@ -29,42 +27,54 @@ const SEVERITY_STYLES: Record<AllergyItem["severity"], string> = {
   MILD: "bg-amber-50 text-amber-700",
 };
 
-const SEVERITY_LABELS: Record<AllergyItem["severity"], string> = {
-  SEVERE: "Severe",
-  MODERATE: "Moderate",
-  MILD: "Mild",
-};
-
-export function AllergyList({
+export async function AllergyList({
   allergies,
   canDelete = false,
 }: {
   allergies: AllergyItem[];
   canDelete?: boolean;
 }) {
+  const t = await getTranslations("portal.allergies");
+
+  const CATEGORY_LABEL: Record<AllergyItem["category"], string> = {
+    DRUG: t("categoryDrug"),
+    FOOD: t("categoryFood"),
+    ENVIRONMENTAL: t("categoryEnvironmental"),
+    OTHER: t("categoryOther"),
+  };
+  const SEVERITY_LABELS: Record<AllergyItem["severity"], string> = {
+    SEVERE: t("severitySevere"),
+    MODERATE: t("severityModerate"),
+    MILD: t("severityMild"),
+  };
+
   if (allergies.length === 0) {
-    return <EmptyState icon={ShieldAlert} message="No allergies recorded." />;
+    return <EmptyState icon={ShieldAlert} message={t("noAllergies")} />;
   }
 
   return (
     <div className="grid gap-3">
       {allergies.map((a) => {
-        const meta = CATEGORY_META[a.category];
-        const Icon = meta.icon;
+        const { icon: Icon, iconClass } = CATEGORY_ICON[a.category];
         return (
           <div key={a.id} className="flex items-start gap-3 rounded-lg border p-3">
-            <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${meta.iconClass}`}>
+            <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${iconClass}`}>
               <Icon className="size-4" />
             </div>
             <div className="flex-1">
               <p className="font-medium">{a.name}</p>
               <p className="text-sm text-muted-foreground">
-                {meta.label}
-                {a.reaction && ` · Reaction: ${a.reaction}`}
+                {CATEGORY_LABEL[a.category]}
+                {a.reaction && t("reactionLabel", { reaction: a.reaction })}
               </p>
               {a.firstNoted && (
                 <p className="text-xs text-muted-foreground">
-                  First noted: {new Date(a.firstNoted).toLocaleDateString(undefined, { year: "numeric", month: "short" })}
+                  {t("firstNoted", {
+                    date: new Date(a.firstNoted).toLocaleDateString(undefined, {
+                      year: "numeric",
+                      month: "short",
+                    }),
+                  })}
                 </p>
               )}
             </div>
@@ -73,7 +83,7 @@ export function AllergyList({
               {canDelete && (
                 <form action={deleteAllergy.bind(null, a.id)}>
                   <Button size="sm" variant="ghost" type="submit" className="h-7 px-2 text-xs text-destructive">
-                    Remove
+                    {t("remove")}
                   </Button>
                 </form>
               )}

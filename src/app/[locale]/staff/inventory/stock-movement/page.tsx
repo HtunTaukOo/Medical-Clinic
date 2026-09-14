@@ -1,7 +1,8 @@
-import { ArrowDownCircle, ArrowUpCircle, ChevronLeft, History } from "lucide-react";
+import { ArrowDownCircle, ArrowUpCircle, History } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
@@ -35,13 +36,7 @@ export default async function StockMovementPage({
 
   return (
     <div className="grid gap-6">
-      <Link
-        href="/staff/inventory"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href="/staff/inventory" />
 
       <h1 className="text-2xl font-semibold">Stock Movement</h1>
 

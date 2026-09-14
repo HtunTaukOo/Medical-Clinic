@@ -1,6 +1,7 @@
 "use client";
 
 import { Banknote, CreditCard, Smartphone, Phone, MapPin } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -25,34 +26,33 @@ export function PayNowDialog({
   address: string | null;
   trigger: React.ReactNode;
 }) {
+  const t = useTranslations("portal.billingCard");
   return (
     <Dialog>
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Pay {formatKyat(amount)}</DialogTitle>
-          <DialogDescription>
-            Online payment isn&apos;t available yet — here&apos;s how to settle this at the clinic.
-          </DialogDescription>
+          <DialogTitle>{t("payTitle", { amount: formatKyat(amount) })}</DialogTitle>
+          <DialogDescription>{t("payDescription")}</DialogDescription>
         </DialogHeader>
         <div className="grid gap-3 text-sm">
           <div className="grid gap-2 rounded-lg border p-3">
-            <p className="font-medium">Accepted payment methods</p>
+            <p className="font-medium">{t("acceptedMethods")}</p>
             <div className="grid gap-1.5 text-muted-foreground">
               <span className="flex items-center gap-2">
-                <Banknote className="size-4" /> Cash at reception
+                <Banknote className="size-4" /> {t("methodCash")}
               </span>
               <span className="flex items-center gap-2">
-                <CreditCard className="size-4" /> Card
+                <CreditCard className="size-4" /> {t("methodCard")}
               </span>
               <span className="flex items-center gap-2">
-                <Smartphone className="size-4" /> Mobile banking
+                <Smartphone className="size-4" /> {t("methodMobileBanking")}
               </span>
             </div>
           </div>
           {(phones.length > 0 || address) && (
             <div className="grid gap-2 rounded-lg border p-3">
-              <p className="font-medium">Contact the clinic to arrange payment</p>
+              <p className="font-medium">{t("contactClinic")}</p>
               <div className="grid gap-1.5 text-muted-foreground">
                 {phones.map((phone) => (
                   <span key={phone} className="flex items-center gap-2">
@@ -67,9 +67,7 @@ export function PayNowDialog({
               </div>
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
-            A staff member will record your payment once received, and this invoice will update automatically.
-          </p>
+          <p className="text-xs text-muted-foreground">{t("staffWillRecord")}</p>
         </div>
       </DialogContent>
     </Dialog>

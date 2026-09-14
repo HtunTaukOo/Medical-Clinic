@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, useTransition } from "react";
 import { Check } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "@/i18n/navigation";
 import {
   fetchDaySlots,
@@ -65,15 +66,6 @@ function pickAutoDoctor(pool: Doctor[]): Doctor | null {
 // server-only module this client component can't import directly).
 const MAX_SLOTS = 3;
 
-const REASON_OPTIONS = [
-  "Routine Check-up",
-  "Follow-up",
-  "New Symptom",
-  "Lab Results Review",
-  "Prescription Renewal",
-  "Other",
-];
-
 function isSameDay(a: YMD | null, b: YMD) {
   return a?.year === b.year && a?.month === b.month && a?.day === b.day;
 }
@@ -136,7 +128,16 @@ export function BookingWizard({
   specialtyOptions: SpecialtyOption[];
   today: YMD;
 }) {
+  const t = useTranslations("portal.booking");
   const router = useRouter();
+  const REASON_OPTIONS = [
+    t("reasonRoutine"),
+    t("reasonFollowUp"),
+    t("reasonNewSymptom"),
+    t("reasonLabReview"),
+    t("reasonRxRenewal"),
+    t("reasonOther"),
+  ];
   const [step, setStep] = useState(1);
   const [specialty, setSpecialty] = useState<string | null>(null);
   const [doctorId, setDoctorId] = useState<string | null>(null);
@@ -178,7 +179,13 @@ export function BookingWizard({
 
   const currentSpecialtyOption = specialtyOptions.find((s) => s.name === specialty) ?? null;
   const isBookByService = currentSpecialtyOption?.bookByService ?? false;
-  const steps = ["Specialty", isBookByService ? "Service" : "Doctor", "Date & Time", "Details", "Confirm"];
+  const steps = [
+    t("stepSpecialty"),
+    isBookByService ? t("stepService") : t("stepDoctor"),
+    t("stepDateTime"),
+    t("stepDetails"),
+    t("stepConfirm"),
+  ];
 
   const selectedDoctor = doctors.find((d) => d.id === doctorId) ?? null;
   const selectedService = services.find((s) => s.id === clinicServiceId) ?? null;
@@ -268,18 +275,16 @@ export function BookingWizard({
         <div className="flex size-16 items-center justify-center rounded-full bg-success/10">
           <Check className="size-9 text-success" />
         </div>
-        <h1 className="text-2xl font-bold">Appointment requested</h1>
-        <p className="max-w-sm text-muted-foreground">
-          We&apos;ll confirm your booking shortly. You can track its status in My Appointments.
-        </p>
+        <h1 className="text-2xl font-bold">{t("requested")}</h1>
+        <p className="max-w-sm text-muted-foreground">{t("requestedBody")}</p>
         <div className="grid w-full max-w-sm gap-0 rounded-xl border bg-card text-sm shadow-sm">
           {[
-            ["Specialty", specialty],
-            ["Doctor", selectedDoctor?.name],
-            ...(selectedService ? [["Service", selectedService.name]] : []),
-            ["Date", date && formatDateLabel(date)],
-            ["Time", timeRangeLabel],
-            ["Reason", reasonCategory],
+            [t("summarySpecialty"), specialty],
+            [t("summaryDoctor"), selectedDoctor?.name],
+            ...(selectedService ? [[t("summaryService"), selectedService.name]] : []),
+            [t("summaryDate"), date && formatDateLabel(date)],
+            [t("summaryTime"), timeRangeLabel],
+            [t("summaryReason"), reasonCategory],
           ].map(([label, value]) => (
             <div key={label} className="flex items-center justify-between border-b p-3 last:border-b-0">
               <span className="text-muted-foreground">{label}</span>
@@ -288,7 +293,7 @@ export function BookingWizard({
           ))}
         </div>
         <Button size="lg" className="w-full max-w-sm" onClick={() => router.push("/portal/appointments")}>
-          Done
+          {t("done")}
         </Button>
       </div>
     );
@@ -306,9 +311,9 @@ export function BookingWizard({
   return (
     <div className="mx-auto grid w-full max-w-4xl gap-6">
       <div>
-        <h1 className="text-2xl font-bold">Book an Appointment</h1>
+        <h1 className="text-2xl font-bold">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Choose your specialty, {isBookByService ? "service" : "doctor"}, date, and time.
+          {isBookByService ? t("subtitleService") : t("subtitleDoctor")}
         </p>
       </div>
 
@@ -348,7 +353,7 @@ export function BookingWizard({
       <div className="rounded-2xl border bg-card p-6 shadow-sm sm:p-8">
         {step === 1 && (
           <div className="grid gap-6">
-            <h2 className="text-xl font-semibold">Choose a Specialty</h2>
+            <h2 className="text-xl font-semibold">{t("chooseSpecialty")}</h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               {specialties.map((s) => {
                 const selected = specialty === s.name;
@@ -382,20 +387,16 @@ export function BookingWizard({
           <div className="grid gap-6">
             <div>
               <h2 className="text-xl font-semibold">
-                {isBookByService ? "Select a Service" : "Select a Doctor"}
+                {isBookByService ? t("selectService") : t("selectDoctor")}
               </h2>
               <p className="text-muted-foreground">{specialty}</p>
             </div>
 
             {isBookByService ? (
               servicesForSpecialty.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No services configured for this specialty yet.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("noServicesConfigured")}</p>
               ) : doctorsForSpecialty.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No staff are set up for this specialty yet. Please check back soon.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("noStaffConfigured")}</p>
               ) : (
                 <div className="grid gap-3 sm:grid-cols-2">
                   {servicesForSpecialty.map((s) => {
@@ -428,7 +429,7 @@ export function BookingWizard({
               <>
                 {servicesForSpecialty.length > 0 && (
                   <div className="grid gap-2">
-                    <Label>Is this for a specific service? (optional)</Label>
+                    <Label>{t("specificServiceOptional")}</Label>
                     <div className="grid gap-2 sm:grid-cols-2">
                       {servicesForSpecialty.map((s) => {
                         const selected = clinicServiceId === s.id;
@@ -463,9 +464,7 @@ export function BookingWizard({
                 )}
 
                 {doctorsForSpecialty.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">
-                    No doctors available in this specialty yet.
-                  </p>
+                  <p className="text-sm text-muted-foreground">{t("noDoctorsAvailable")}</p>
                 ) : (
                   <div className="grid gap-3">
                     {doctorsForSpecialty.map((d) => {
@@ -490,17 +489,17 @@ export function BookingWizard({
                               <p className="text-sm text-muted-foreground">{d.qualifications}</p>
                             )}
                             <p className="text-sm text-muted-foreground">
-                              {d.experienceYears != null && `${d.experienceYears} yrs exp. · `}
+                              {d.experienceYears != null && t("yearsExp", { years: d.experienceYears })}
                               {d.slotsAvailableToday > 0 ? (
                                 <span className="text-success">
-                                  {d.slotsAvailableToday} slot{d.slotsAvailableToday === 1 ? "" : "s"} available today
+                                  {t("slotsAvailableToday", { count: d.slotsAvailableToday })}
                                 </span>
                               ) : d.nextAvailability ? (
                                 <span className="text-muted-foreground">
-                                  Next available: {d.nextAvailability.label}
+                                  {t("nextAvailable", { label: d.nextAvailability.label })}
                                 </span>
                               ) : (
-                                <span className="text-muted-foreground">No upcoming availability</span>
+                                <span className="text-muted-foreground">{t("noUpcomingAvailability")}</span>
                               )}
                             </p>
                           </div>
@@ -517,7 +516,7 @@ export function BookingWizard({
         {step === 3 && (
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="grid gap-3">
-              <h2 className="text-xl font-semibold">Pick a Date &amp; Time</h2>
+              <h2 className="text-xl font-semibold">{t("pickDateTime")}</h2>
               <div className="flex items-center justify-between">
                 <p className="font-medium">
                   {MONTH_NAMES[calendarMonth - 1]} {calendarYear}
@@ -546,8 +545,11 @@ export function BookingWizard({
                 </div>
               </div>
               <div className="grid grid-cols-7 gap-1 text-center text-xs text-muted-foreground">
-                {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((d) => (
-                  <div key={d}>{d}</div>
+                {[
+                  t("weekdaySun"), t("weekdayMon"), t("weekdayTue"), t("weekdayWed"),
+                  t("weekdayThu"), t("weekdayFri"), t("weekdaySat"),
+                ].map((d, i) => (
+                  <div key={i}>{d}</div>
                 ))}
               </div>
               <div className="grid grid-cols-7 gap-1">
@@ -587,16 +589,14 @@ export function BookingWizard({
 
             <div className="grid gap-3">
               <p className="font-medium">
-                {date ? `Available Times — ${formatDateLabel(date)}` : "Pick a date first"}
+                {date ? t("availableTimesFor", { date: formatDateLabel(date) }) : t("pickDateFirst")}
               </p>
               {!date ? (
-                <p className="text-sm text-muted-foreground">
-                  Select a date on the calendar to see open times.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("selectDatePrompt")}</p>
               ) : slotsPending ? (
-                <p className="text-sm text-muted-foreground">Loading times…</p>
+                <p className="text-sm text-muted-foreground">{t("loadingTimes")}</p>
               ) : daySlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No available times on this day.</p>
+                <p className="text-sm text-muted-foreground">{t("noAvailableTimes")}</p>
               ) : (
                 <div className="grid grid-cols-3 gap-2">
                   {daySlots.map((s) => (
@@ -621,13 +621,14 @@ export function BookingWizard({
 
               {time && (
                 <div className="grid gap-2">
-                  <p className="text-sm font-medium">
-                    Expect this visit to run long? Reserve more time.
-                  </p>
+                  <p className="text-sm font-medium">{t("reserveMoreTime")}</p>
                   {minSlots > 1 && (
                     <p className="text-xs text-muted-foreground">
-                      {selectedService?.name} takes about {selectedService?.durationMinutes} min, so at least{" "}
-                      {minSlots * 30} min is reserved.
+                      {t("minDurationHint", {
+                        service: selectedService?.name ?? "",
+                        duration: selectedService?.durationMinutes ?? 0,
+                        min: minSlots * 30,
+                      })}
                     </p>
                   )}
                   <div className="flex gap-2">
@@ -666,10 +667,10 @@ export function BookingWizard({
 
         {step === 4 && (
           <div className="grid gap-6">
-            <h2 className="text-xl font-semibold">Visit Details</h2>
+            <h2 className="text-xl font-semibold">{t("visitDetails")}</h2>
             <div className="grid gap-2">
               <Label>
-                Reason for Visit <span className="text-destructive">*</span>
+                {t("reasonForVisit")} <span className="text-destructive">*</span>
               </Label>
               <div className="grid gap-2 sm:grid-cols-3">
                 {REASON_OPTIONS.map((r) => (
@@ -689,13 +690,13 @@ export function BookingWizard({
               </div>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="notes">Additional Notes</Label>
+              <Label htmlFor="notes">{t("additionalNotes")}</Label>
               <Textarea
                 id="notes"
                 rows={3}
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Describe your symptoms or anything else the doctor should know…"
+                placeholder={t("notesPlaceholder")}
               />
             </div>
           </div>
@@ -703,15 +704,15 @@ export function BookingWizard({
 
         {step === 5 && selectedDoctor && date && time && (
           <div className="grid gap-6">
-            <h2 className="text-xl font-semibold">Confirm Appointment</h2>
+            <h2 className="text-xl font-semibold">{t("confirmAppointment")}</h2>
             <div className="grid gap-0 rounded-xl bg-muted/50 text-sm">
               {[
-                ["Specialty", specialty],
-                ["Doctor", selectedDoctor.name],
-                ...(selectedService ? [["Service", selectedService.name]] : []),
-                ["Date", formatDateLabel(date)],
-                ["Time", timeRangeLabel],
-                ["Reason", reasonCategory],
+                [t("summarySpecialty"), specialty],
+                [t("summaryDoctor"), selectedDoctor.name],
+                ...(selectedService ? [[t("summaryService"), selectedService.name]] : []),
+                [t("summaryDate"), formatDateLabel(date)],
+                [t("summaryTime"), timeRangeLabel],
+                [t("summaryReason"), reasonCategory],
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between p-3">
                   <span className="text-muted-foreground">{label}</span>
@@ -720,15 +721,12 @@ export function BookingWizard({
               ))}
             </div>
             <div className="rounded-lg bg-primary/5 p-3 text-sm text-primary">
-              <span className="font-medium">Reminder:</span> Please arrive 10 minutes early. Bring
-              your ID and any previous medical records.
+              <span className="font-medium">{t("reminderLabel")}</span> {t("reminderBody")}
             </div>
             {submitState.error && <p className="text-sm text-destructive">{submitState.error}</p>}
             {submitState.conflict && (
               <div className="grid gap-2">
-                <p className="text-sm text-muted-foreground">
-                  That time was just taken. Pick a different time, or join the waitlist for it.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("slotTakenMessage")}</p>
                 <JoinWaitlistForm
                   doctorId={submitState.conflict.doctorId}
                   scheduledAt={submitState.conflict.scheduledAt}
@@ -745,15 +743,15 @@ export function BookingWizard({
             disabled={step === 1}
             onClick={() => setStep((s) => Math.max(1, s - 1))}
           >
-            Back
+            {t("back")}
           </Button>
           {step < 5 ? (
             <Button disabled={!canContinue} onClick={() => setStep((s) => s + 1)}>
-              Continue
+              {t("continue")}
             </Button>
           ) : (
             <Button disabled={submitPending} onClick={handleConfirm}>
-              {submitPending ? "Booking…" : "Confirm Booking"}
+              {submitPending ? t("booking") : t("confirmBooking")}
             </Button>
           )}
         </div>

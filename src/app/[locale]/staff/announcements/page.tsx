@@ -1,4 +1,4 @@
-import { ChevronLeft, Megaphone } from "lucide-react";
+import { Megaphone } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { toggleAnnouncementActive } from "@/actions/announcements";
@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
-import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 
 export default async function AnnouncementsPage() {
   await requirePageRole(["ADMIN", "STAFF"]);
@@ -18,13 +18,7 @@ export default async function AnnouncementsPage() {
 
   return (
     <div className="grid gap-6">
-      <Link
-        href="/staff"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href="/staff" />
 
       <div>
         <h1 className="text-2xl font-semibold">Announcements</h1>

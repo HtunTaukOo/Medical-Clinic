@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { redirect } from "@/i18n/navigation";
 import { AppShell, type NavItem } from "@/components/app-shell";
@@ -12,6 +13,7 @@ export default async function PortalLayout({
 }) {
   const { locale } = await params;
   const session = await auth();
+  const t = await getTranslations("nav");
 
   if (!session?.user || session.user.role !== "PATIENT") {
     redirect({ href: "/login", locale });
@@ -36,7 +38,7 @@ export default async function PortalLayout({
     <AppShell
       locale={locale}
       userName={session.user.name ?? ""}
-      roleLabel="Patient Portal"
+      roleLabel={t("patientPortal")}
       navItems={NAV_ITEMS}
       sidebarDark
     >

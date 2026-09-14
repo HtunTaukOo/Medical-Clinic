@@ -167,7 +167,8 @@ export type NextAvailability = { label: string; year: number; month: number; day
 // at least one open slot, for the "Next: Today / Tomorrow / ..." badge.
 export async function getNextAvailability(
   doctor: DoctorForSlots,
-  from: Date = new Date()
+  from: Date = new Date(),
+  labels: { today: string; tomorrow: string } = { today: "Today", tomorrow: "Tomorrow" }
 ): Promise<NextAvailability | null> {
   const { year: fromYear, month: fromMonth, day: fromDay } = clinicDateParts(from);
   const fromMidnight = clinicMidnightForYMD(fromYear, fromMonth, fromDay);
@@ -179,9 +180,9 @@ export async function getNextAvailability(
     if (slots.length > 0) {
       const label =
         offset === 0
-          ? "Today"
+          ? labels.today
           : offset === 1
-            ? "Tomorrow"
+            ? labels.tomorrow
             : candidateMidnight.toLocaleDateString(undefined, {
                 timeZone: "Asia/Yangon",
                 weekday: "short",

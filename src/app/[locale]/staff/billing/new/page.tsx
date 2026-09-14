@@ -1,9 +1,8 @@
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
-import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 import { InvoiceForm } from "@/components/billing/invoice-form";
 
 export default async function NewInvoicePage({
@@ -40,13 +39,7 @@ export default async function NewInvoicePage({
 
     return (
       <div className="grid gap-4">
-        <Link
-          href={`/staff/appointments/${appointment.id}`}
-          className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ChevronLeft className="size-4" />
-          Back
-        </Link>
+        <BackLink href={`/staff/appointments/${appointment.id}`} />
         <InvoiceForm
           lockedPatient={{ id: appointment.patientId, name: appointment.patient.name }}
           appointmentId={appointment.id}
@@ -63,13 +56,7 @@ export default async function NewInvoicePage({
 
   return (
     <div className="grid gap-4">
-      <Link
-        href="/staff/billing"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href="/staff/billing" />
       <InvoiceForm
         patients={patients.map((p) => ({ id: p.id, name: p.name }))}
         nextInvoiceNumber={invoiceCount + 1}

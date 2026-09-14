@@ -1,8 +1,7 @@
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
-import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 import { DoctorAvailabilityForm } from "@/components/staff/doctor-availability-form";
 import { DoctorLeaveManager } from "@/components/staff/doctor-leave-manager";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,13 +29,7 @@ export default async function DoctorAvailabilityPage({
 
   return (
     <div className="grid gap-6">
-      <Link
-        href="/staff/doctors"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href="/staff/users?tab=doctors" />
 
       <div>
         <h1 className="text-2xl font-semibold">{doctor.user.name}</h1>

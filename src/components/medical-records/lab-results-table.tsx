@@ -1,4 +1,5 @@
 import { FlaskConical } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
@@ -21,16 +22,17 @@ const STATUS_STYLES: Record<string, string> = {
   LOW: "bg-blue-100 text-blue-700",
 };
 
-const STATUS_LABELS: Record<string, string> = {
-  NORMAL: "Normal",
-  BORDERLINE: "Borderline",
-  HIGH: "High",
-  LOW: "Low",
-};
+export async function LabResultsTable({ rows }: { rows: LabResultRow[] }) {
+  const t = await getTranslations("portal.labResults");
+  const STATUS_LABELS: Record<string, string> = {
+    NORMAL: t("statusNormal"),
+    BORDERLINE: t("statusBorderline"),
+    HIGH: t("statusHigh"),
+    LOW: t("statusLow"),
+  };
 
-export function LabResultsTable({ rows }: { rows: LabResultRow[] }) {
   if (rows.length === 0) {
-    return <EmptyState icon={FlaskConical} message="No lab results yet." />;
+    return <EmptyState icon={FlaskConical} message={t("noResults")} />;
   }
 
   return (
@@ -38,11 +40,11 @@ export function LabResultsTable({ rows }: { rows: LabResultRow[] }) {
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
-            <th className="px-4 py-2.5 font-medium">Test</th>
-            <th className="px-4 py-2.5 font-medium">Result</th>
-            <th className="px-4 py-2.5 font-medium">Reference</th>
-            <th className="px-4 py-2.5 font-medium">Status</th>
-            <th className="px-4 py-2.5 font-medium">Date</th>
+            <th className="px-4 py-2.5 font-medium">{t("colTest")}</th>
+            <th className="px-4 py-2.5 font-medium">{t("colResult")}</th>
+            <th className="px-4 py-2.5 font-medium">{t("colReference")}</th>
+            <th className="px-4 py-2.5 font-medium">{t("colStatus")}</th>
+            <th className="px-4 py-2.5 font-medium">{t("colDate")}</th>
           </tr>
         </thead>
         <tbody>

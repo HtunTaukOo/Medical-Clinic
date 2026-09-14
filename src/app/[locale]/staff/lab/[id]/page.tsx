@@ -1,10 +1,10 @@
 import { notFound } from "next/navigation";
-import { ChevronLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { collectSample } from "@/actions/lab";
 import { ResultEntryForm } from "@/components/lab/result-entry-form";
 import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -30,13 +30,7 @@ export default async function LabOrderDetailPage({
 
   return (
     <div className="grid gap-6">
-      <Link
-        href="/staff/lab"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href="/staff/lab" />
 
       <div className="flex items-center justify-between">
         <div>

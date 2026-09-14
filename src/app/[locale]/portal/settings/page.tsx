@@ -1,4 +1,5 @@
 import { User, HeartPulse, ShieldCheck, Lock, Settings2, Send } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { initials } from "@/lib/format";
@@ -30,6 +31,7 @@ const SIDEBAR_TAB_TRIGGER =
 export default async function PortalSettingsPage() {
   const session = await auth();
   const patientId = session?.user.patientId;
+  const t = await getTranslations("portal.settingsPage");
 
   const [patient, allergies] = await Promise.all([
     patientId ? prisma.patient.findUnique({ where: { id: patientId } }) : null,
@@ -39,7 +41,7 @@ export default async function PortalSettingsPage() {
   ]);
 
   if (!patient) {
-    return <EmptyState icon={User} message="No patient profile found." />;
+    return <EmptyState icon={User} message={t("noProfile")} />;
   }
 
   const memberSince = patient.createdAt.toLocaleDateString(undefined, {
@@ -58,14 +60,14 @@ export default async function PortalSettingsPage() {
         <div>
           <h1 className="text-2xl font-semibold">{patient.name}</h1>
           <p className="text-sm text-muted-foreground">
-            Patient ID: {patient.patientCode ?? "—"}
+            {t("patientId", { code: patient.patientCode ?? "—" })}
           </p>
           <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
             <Badge className="gap-1.5 bg-emerald-100 text-emerald-700">
               <span className="size-1.5 rounded-full bg-emerald-500" />
-              {patient.active ? "Active Patient" : "Inactive Patient"}
+              {patient.active ? t("active") : t("inactive")}
             </Badge>
-            <span>· Member since {memberSince}</span>
+            <span>{t("memberSince", { date: memberSince })}</span>
           </div>
         </div>
       </div>
@@ -78,27 +80,27 @@ export default async function PortalSettingsPage() {
         <TabsList className={SIDEBAR_TAB_LIST}>
           <TabsTrigger value="personal" className={SIDEBAR_TAB_TRIGGER}>
             <User className="size-4 text-violet-500" />
-            Personal Details
+            {t("tabPersonal")}
           </TabsTrigger>
           <TabsTrigger value="emergency" className={SIDEBAR_TAB_TRIGGER}>
             <HeartPulse className="size-4 text-rose-500" />
-            Emergency Contact
+            {t("tabEmergency")}
           </TabsTrigger>
           <TabsTrigger value="insurance" className={SIDEBAR_TAB_TRIGGER}>
             <ShieldCheck className="size-4 text-emerald-500" />
-            Insurance
+            {t("tabInsurance")}
           </TabsTrigger>
           <TabsTrigger value="security" className={SIDEBAR_TAB_TRIGGER}>
             <Lock className="size-4 text-amber-500" />
-            Security
+            {t("tabSecurity")}
           </TabsTrigger>
           <TabsTrigger value="privacy" className={SIDEBAR_TAB_TRIGGER}>
             <Settings2 className="size-4 text-indigo-500" />
-            Privacy
+            {t("tabPrivacy")}
           </TabsTrigger>
           <TabsTrigger value="telegram" className={SIDEBAR_TAB_TRIGGER}>
             <Send className="size-4 text-sky-500" />
-            Telegram
+            {t("tabTelegram")}
           </TabsTrigger>
         </TabsList>
 
@@ -122,7 +124,7 @@ export default async function PortalSettingsPage() {
               />
               <div className="grid gap-3 border-t pt-6">
                 <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Allergies
+                  {t("allergiesSection")}
                 </p>
                 <AllergyList allergies={allergies} canDelete />
                 <AllergyForm action={addOwnAllergy} />
@@ -161,56 +163,56 @@ export default async function PortalSettingsPage() {
             <TabsContent value="privacy" className="grid gap-6">
               <div>
                 <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Notifications
+                  {t("notificationsSection")}
                 </p>
                 <div className="grid divide-y">
                   <PrivacyToggle
                     field="notifyAppointmentReminders"
-                    label="Appointment Reminders"
-                    description="SMS & app reminders 24 hours before each visit"
+                    label={t("toggleApptRemindersLabel")}
+                    description={t("toggleApptRemindersDesc")}
                     defaultChecked={patient.notifyAppointmentReminders}
                   />
                   <PrivacyToggle
                     field="notifyLabResults"
-                    label="Lab Result Alerts"
-                    description="Notify me when new lab results are available"
+                    label={t("toggleLabResultsLabel")}
+                    description={t("toggleLabResultsDesc")}
                     defaultChecked={patient.notifyLabResults}
                   />
                   <PrivacyToggle
                     field="notifyPrescriptionRenewals"
-                    label="Prescription Renewals"
-                    description="Alert me 7 days before a prescription expires"
+                    label={t("toggleRxRenewalsLabel")}
+                    description={t("toggleRxRenewalsDesc")}
                     defaultChecked={patient.notifyPrescriptionRenewals}
                   />
                   <PrivacyToggle
                     field="notifyAnnouncements"
-                    label="Clinic Announcements"
-                    description="Receive news and updates from NCA Clinic"
+                    label={t("toggleAnnouncementsLabel")}
+                    description={t("toggleAnnouncementsDesc")}
                     defaultChecked={patient.notifyAnnouncements}
                   />
                   <PrivacyToggle
                     field="notifyPromotions"
-                    label="Promotional Offers"
-                    description="Special health packages and pharmacy discounts"
+                    label={t("togglePromotionsLabel")}
+                    description={t("togglePromotionsDesc")}
                     defaultChecked={patient.notifyPromotions}
                   />
                 </div>
               </div>
               <div>
                 <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Data & Privacy
+                  {t("dataPrivacySection")}
                 </p>
                 <div className="grid divide-y">
                   <PrivacyToggle
                     field="shareRecordsWithSpecialist"
-                    label="Share Records with Specialist"
-                    description="Allow referred doctors to view your medical history"
+                    label={t("toggleShareRecordsLabel")}
+                    description={t("toggleShareRecordsDesc")}
                     defaultChecked={patient.shareRecordsWithSpecialist}
                   />
                   <PrivacyToggle
                     field="allowAnalytics"
-                    label="Analytics Data"
-                    description="Help improve our portal by sharing anonymised usage data"
+                    label={t("toggleAnalyticsLabel")}
+                    description={t("toggleAnalyticsDesc")}
                     defaultChecked={patient.allowAnalytics}
                   />
                 </div>

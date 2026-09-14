@@ -1,7 +1,6 @@
-import { ChevronLeft } from "lucide-react";
 import { requirePageRole } from "@/lib/authz";
 import { clinicDateKey } from "@/lib/clinic-hours";
-import { Link } from "@/i18n/navigation";
+import { BackLink } from "@/components/back-link";
 import { ExpenseForm } from "@/components/staff/expense-form";
 
 export default async function NewExpensePage() {
@@ -9,13 +8,7 @@ export default async function NewExpensePage() {
 
   return (
     <div className="grid gap-4">
-      <Link
-        href="/staff/expenses"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href="/staff/expenses" />
       <h1 className="text-2xl font-semibold">Add Expense</h1>
       <ExpenseForm defaultPaidAt={clinicDateKey(new Date())} />
     </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   rescheduleAppointment,
   type RescheduleAppointmentState,
@@ -27,6 +28,7 @@ export function RescheduleDialog({
   patientName: string;
   trigger: React.ReactNode;
 }) {
+  const t = useTranslations("portal.reschedule");
   const [open, setOpen] = useState(false);
   const action = rescheduleAppointment.bind(null, appointmentId);
   const [state, formAction, pending] = useActionState<RescheduleAppointmentState, FormData>(
@@ -48,14 +50,12 @@ export function RescheduleDialog({
       <DialogTrigger asChild>{trigger}</DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Reschedule Appointment</DialogTitle>
-          <DialogDescription>
-            Choose a new date and time for {patientName}&apos;s appointment.
-          </DialogDescription>
+          <DialogTitle>{t("title")}</DialogTitle>
+          <DialogDescription>{t("description", { patient: patientName })}</DialogDescription>
         </DialogHeader>
         <form action={formAction} className="grid gap-4">
           <div className="grid gap-2">
-            <Label htmlFor={`scheduledAt-${appointmentId}`}>New date &amp; time</Label>
+            <Label htmlFor={`scheduledAt-${appointmentId}`}>{t("newDateTime")}</Label>
             <Input
               id={`scheduledAt-${appointmentId}`}
               name="scheduledAt"
@@ -64,17 +64,17 @@ export function RescheduleDialog({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor={`reason-${appointmentId}`}>Reason (optional)</Label>
+            <Label htmlFor={`reason-${appointmentId}`}>{t("reasonOptional")}</Label>
             <Textarea
               id={`reason-${appointmentId}`}
               name="reason"
-              placeholder="Why is this being rescheduled?"
+              placeholder={t("reasonPlaceholder")}
               rows={2}
             />
           </div>
           {state.error && <p className="text-sm text-destructive">{state.error}</p>}
           <Button type="submit" disabled={pending} className="w-fit">
-            Save
+            {t("save")}
           </Button>
         </form>
       </DialogContent>

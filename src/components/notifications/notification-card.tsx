@@ -1,6 +1,7 @@
 "use client";
 
 import { useTransition, type ReactNode } from "react";
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { CheckCircle2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -12,16 +13,18 @@ const TONE_ICON_CLASS: Record<NotificationTone, string> = {
   WARNING: "bg-amber-100 text-amber-600",
 };
 
-export function formatRelativeTime(date: Date, now: Date) {
+type RelativeTimeTranslator = (key: string, values?: Record<string, number>) => string;
+
+export function formatRelativeTime(date: Date, now: Date, t: RelativeTimeTranslator) {
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return "Just now";
-  if (diffMin < 60) return `${diffMin} minute${diffMin === 1 ? "" : "s"} ago`;
+  if (diffMin < 1) return t("justNow");
+  if (diffMin < 60) return t("minutesAgo", { count: diffMin });
   const diffHours = Math.floor(diffMin / 60);
-  if (diffHours < 24) return `${diffHours} hour${diffHours === 1 ? "" : "s"} ago`;
+  if (diffHours < 24) return t("hoursAgo", { count: diffHours });
   const diffDays = Math.floor(diffHours / 24);
-  if (diffDays === 1) return "Yesterday";
-  if (diffDays < 7) return `${diffDays} days ago`;
+  if (diffDays === 1) return t("yesterday");
+  if (diffDays < 7) return t("daysAgo", { count: diffDays });
   return date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
@@ -44,6 +47,7 @@ export function NotificationCard({
   meta: { label: string; icon: ReactNode; badgeClass: string };
   markRead: (id: string) => Promise<void>;
 }) {
+  const t = useTranslations("portal.relativeTime");
   const [, startTransition] = useTransition();
   const icon = notification.tone === "SUCCESS" ? <CheckCircle2 className="size-4" /> : meta.icon;
 
@@ -65,7 +69,7 @@ export function NotificationCard({
         <p className="text-sm text-muted-foreground">{notification.body}</p>
         <div className="mt-2 flex items-center gap-2">
           <Badge className={meta.badgeClass}>{meta.label}</Badge>
-          <span className="text-xs text-muted-foreground">{formatRelativeTime(notification.createdAt, now)}</span>
+          <span className="text-xs text-muted-foreground">{formatRelativeTime(notification.createdAt, now, t)}</span>
         </div>
       </div>
       {!notification.read && (

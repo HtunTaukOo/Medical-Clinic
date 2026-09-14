@@ -1,4 +1,5 @@
 import { FileText, StickyNote, Download } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { deleteMedicalRecord } from "@/actions/medical-records";
 import { ImagePreview } from "@/components/medical-records/image-preview";
 import { DicomPreview } from "@/components/medical-records/dicom-preview";
@@ -33,15 +34,17 @@ function formatFileSize(bytes?: number) {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-export function MedicalRecordList({
+export async function MedicalRecordList({
   records,
   currentUserId,
 }: {
   records: RecordItem[];
   currentUserId?: string;
 }) {
+  const t = await getTranslations("portal.documents");
+
   if (records.length === 0) {
-    return <EmptyState icon={FileText} message="No medical records yet." />;
+    return <EmptyState icon={FileText} message={t("noRecords")} />;
   }
 
   return (
@@ -70,7 +73,7 @@ export function MedicalRecordList({
               {canRemove && (
                 <form action={deleteMedicalRecord.bind(null, record.id)}>
                   <Button size="sm" variant="destructive" type="submit">
-                    Remove
+                    {t("remove")}
                   </Button>
                 </form>
               )}
@@ -100,13 +103,13 @@ export function MedicalRecordList({
                 <Button asChild size="sm" variant="outline">
                   <a href={fileUrl} target="_blank" rel="noopener noreferrer">
                     <Download className="size-3.5" />
-                    Download
+                    {t("download")}
                   </a>
                 </Button>
                 {canRemove && (
                   <form action={deleteMedicalRecord.bind(null, record.id)}>
                     <Button size="sm" variant="destructive" type="submit">
-                      Remove
+                      {t("remove")}
                     </Button>
                   </form>
                 )}

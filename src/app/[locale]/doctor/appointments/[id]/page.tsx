@@ -25,7 +25,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Link } from "@/i18n/navigation";
-import { CalendarPlus, ChevronLeft } from "lucide-react";
+import { CalendarPlus } from "lucide-react";
+import { BackLink } from "@/components/back-link";
 import { initials } from "@/lib/format";
 import { GENDER_LETTER, AVATAR_COLORS } from "@/components/appointments/appointment-row";
 
@@ -90,6 +91,7 @@ export default async function DoctorAppointmentDetailPage({
     appointment.status === "CONFIRMED" ||
     appointment.status === "CHECKED_IN" ||
     appointment.status === "COMPLETED";
+  const backHref = canWriteNote ? "/doctor/consultations" : "/doctor/appointments";
   const isSameDayAsVisit = dateKey(appointment.scheduledAt) === dateKey(new Date());
   const canPrescribe = canWriteNote && isSameDayAsVisit;
 
@@ -124,13 +126,7 @@ export default async function DoctorAppointmentDetailPage({
       <div className="grid gap-6">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
-            <Link
-              href="/doctor/consultations"
-              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-            >
-              <ChevronLeft className="size-4" />
-              Back
-            </Link>
+            <BackLink href={backHref} />
             <Avatar className="size-9">
               <AvatarFallback className={AVATAR_COLORS[0]}>
                 {initials(appointment.patient.name)}
@@ -316,13 +312,7 @@ export default async function DoctorAppointmentDetailPage({
 
   return (
     <div className="grid gap-6">
-      <Link
-        href="/doctor/appointments"
-        className="flex w-fit items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-      >
-        <ChevronLeft className="size-4" />
-        Back
-      </Link>
+      <BackLink href={backHref} />
 
       <div className="flex items-center justify-between">
         <div>

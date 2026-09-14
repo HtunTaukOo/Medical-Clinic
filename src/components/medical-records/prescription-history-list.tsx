@@ -1,4 +1,5 @@
 import { Pill, Clock3, RefreshCcw } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
@@ -23,15 +24,17 @@ function isActive(item: PrescriptionRecord, now: number) {
   return start + item.durationDays * 86400000 > now;
 }
 
-export function PrescriptionHistoryList({
+export async function PrescriptionHistoryList({
   items,
   now,
 }: {
   items: PrescriptionRecord[];
   now: Date;
 }) {
+  const t = await getTranslations("portal.prescriptions");
+
   if (items.length === 0) {
-    return <EmptyState icon={Pill} message="No prescriptions yet." />;
+    return <EmptyState icon={Pill} message={t("noPrescriptions")} />;
   }
 
   const nowMs = now.getTime();
@@ -40,8 +43,9 @@ export function PrescriptionHistoryList({
     <div className="grid gap-3">
       {items.map((item) => {
         const active = isActive(item, nowMs);
-        const frequency = item.frequency ?? (item.timesPerDay ? `${item.timesPerDay}x daily` : null);
-        const duration = item.durationDays ? `${item.durationDays} days` : "Ongoing";
+        const frequency =
+          item.frequency ?? (item.timesPerDay ? t("timesDaily", { count: item.timesPerDay }) : null);
+        const duration = item.durationDays ? t("durationDays", { count: item.durationDays }) : t("ongoing");
 
         return (
           <Card key={item.id}>
@@ -56,7 +60,7 @@ export function PrescriptionHistoryList({
                   )}
                 </div>
                 <Badge variant={active ? "success" : "outline"}>
-                  {active ? "Active" : "Completed"}
+                  {active ? t("statusActive") : t("statusCompleted")}
                 </Badge>
               </div>
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
@@ -70,7 +74,7 @@ export function PrescriptionHistoryList({
                 {item.refillsLeft != null && (
                   <span className="flex items-center gap-1.5">
                     <RefreshCcw className="size-3.5" />
-                    {item.refillsLeft} refill{item.refillsLeft === 1 ? "" : "s"} left
+                    {t("refillsLeft", { count: item.refillsLeft })}
                   </span>
                 )}
               </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import type { AllergyFormState } from "@/actions/allergies";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ export function AllergyForm({
 }: {
   action: (state: AllergyFormState, formData: FormData) => Promise<AllergyFormState>;
 }) {
+  const t = useTranslations("portal.allergies");
   const [state, formAction, pending] = useActionState<AllergyFormState, FormData>(
     action,
     {}
@@ -30,47 +32,47 @@ export function AllergyForm({
       className="grid gap-3 sm:grid-cols-2"
     >
       <div className="grid gap-1.5">
-        <Label htmlFor="allergy-name">Allergen</Label>
-        <Input id="allergy-name" name="name" required placeholder="e.g. Penicillin" />
+        <Label htmlFor="allergy-name">{t("allergen")}</Label>
+        <Input id="allergy-name" name="name" required placeholder={t("allergenPlaceholder")} />
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="allergy-category">Category</Label>
+        <Label htmlFor="allergy-category">{t("category")}</Label>
         <Select name="category" defaultValue="OTHER">
           <SelectTrigger id="allergy-category" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="DRUG">Drug</SelectItem>
-            <SelectItem value="FOOD">Food</SelectItem>
-            <SelectItem value="ENVIRONMENTAL">Environmental</SelectItem>
-            <SelectItem value="OTHER">Other</SelectItem>
+            <SelectItem value="DRUG">{t("categoryDrug")}</SelectItem>
+            <SelectItem value="FOOD">{t("categoryFood")}</SelectItem>
+            <SelectItem value="ENVIRONMENTAL">{t("categoryEnvironmental")}</SelectItem>
+            <SelectItem value="OTHER">{t("categoryOther")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="allergy-reaction">Reaction (optional)</Label>
-        <Input id="allergy-reaction" name="reaction" placeholder="e.g. Hives, Anaphylaxis" />
+        <Label htmlFor="allergy-reaction">{t("reactionOptional")}</Label>
+        <Input id="allergy-reaction" name="reaction" placeholder={t("reactionPlaceholder")} />
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="allergy-severity">Severity</Label>
+        <Label htmlFor="allergy-severity">{t("severity")}</Label>
         <Select name="severity" defaultValue="MILD">
           <SelectTrigger id="allergy-severity" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="MILD">Mild</SelectItem>
-            <SelectItem value="MODERATE">Moderate</SelectItem>
-            <SelectItem value="SEVERE">Severe</SelectItem>
+            <SelectItem value="MILD">{t("severityMild")}</SelectItem>
+            <SelectItem value="MODERATE">{t("severityModerate")}</SelectItem>
+            <SelectItem value="SEVERE">{t("severitySevere")}</SelectItem>
           </SelectContent>
         </Select>
       </div>
       <div className="grid gap-1.5">
-        <Label htmlFor="allergy-first-noted">First noted (optional)</Label>
+        <Label htmlFor="allergy-first-noted">{t("firstNotedOptional")}</Label>
         <Input id="allergy-first-noted" name="firstNoted" type="date" />
       </div>
       {state.error && <p className="text-sm text-destructive sm:col-span-2">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit sm:col-span-2">
-        Add allergy
+        {t("add")}
       </Button>
     </form>
   );

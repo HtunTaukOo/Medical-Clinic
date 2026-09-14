@@ -2,6 +2,7 @@
 
 import { useActionState } from "react";
 import { ShieldCheck } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { updateInsuranceInfo, type PatientFormState } from "@/actions/patients";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,6 +21,7 @@ export function InsuranceForm({
     insuranceExpiryDate: string;
   };
 }) {
+  const t = useTranslations("portal.insurance");
   const [state, formAction, pending] = useActionState<PatientFormState, FormData>(
     updateInsuranceInfo,
     {}
@@ -42,20 +44,24 @@ export function InsuranceForm({
             </p>
             <p className="text-sm text-muted-foreground">
               {defaultValues.insuranceExpiryDate
-                ? `Policy ${isExpired ? "expired" : "active"} · Expires ${new Date(
-                    defaultValues.insuranceExpiryDate
-                  ).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
-                : "Policy on file"}
+                ? t(isExpired ? "policyExpired" : "policyActive", {
+                    date: new Date(defaultValues.insuranceExpiryDate).toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                      year: "numeric",
+                    }),
+                  })
+                : t("policyOnFile")}
             </p>
           </div>
           <Badge variant={isExpired ? "outline" : "success"}>
-            {isExpired ? "Expired" : "Active"}
+            {isExpired ? t("badgeExpired") : t("badgeActive")}
           </Badge>
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
-          <Label htmlFor="insuranceProvider">Insurance Provider</Label>
+          <Label htmlFor="insuranceProvider">{t("provider")}</Label>
           <Input
             id="insuranceProvider"
             name="insuranceProvider"
@@ -63,7 +69,7 @@ export function InsuranceForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="insurancePolicyNumber">Policy Number</Label>
+          <Label htmlFor="insurancePolicyNumber">{t("policyNumber")}</Label>
           <Input
             id="insurancePolicyNumber"
             name="insurancePolicyNumber"
@@ -71,7 +77,7 @@ export function InsuranceForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="insuranceGroupNumber">Group Number</Label>
+          <Label htmlFor="insuranceGroupNumber">{t("groupNumber")}</Label>
           <Input
             id="insuranceGroupNumber"
             name="insuranceGroupNumber"
@@ -79,7 +85,7 @@ export function InsuranceForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="insuranceCoverageType">Coverage Type</Label>
+          <Label htmlFor="insuranceCoverageType">{t("coverageType")}</Label>
           <Input
             id="insuranceCoverageType"
             name="insuranceCoverageType"
@@ -87,7 +93,7 @@ export function InsuranceForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="insurancePolicyHolder">Policy Holder</Label>
+          <Label htmlFor="insurancePolicyHolder">{t("policyHolder")}</Label>
           <Input
             id="insurancePolicyHolder"
             name="insurancePolicyHolder"
@@ -95,7 +101,7 @@ export function InsuranceForm({
           />
         </div>
         <div className="grid gap-1.5">
-          <Label htmlFor="insuranceExpiryDate">Expiry Date</Label>
+          <Label htmlFor="insuranceExpiryDate">{t("expiryDate")}</Label>
           <Input
             id="insuranceExpiryDate"
             name="insuranceExpiryDate"
@@ -105,9 +111,9 @@ export function InsuranceForm({
         </div>
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-muted-foreground">Saved.</p>}
+      {state.success && <p className="text-sm text-muted-foreground">{t("saved")}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        Save Changes
+        {t("save")}
       </Button>
     </form>
   );
