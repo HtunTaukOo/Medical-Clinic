@@ -125,6 +125,12 @@ export function RegisterWalkInForm({
         </p>
       )}
 
+      {isServiceBooking && selectedService && (
+        <p className="rounded-lg border border-dashed bg-muted/40 p-3 text-sm text-muted-foreground">
+          This will register the patient into the current time block for {selectedService.specialty}.
+        </p>
+      )}
+
       {isServiceBooking && (
         <>
           <div className="grid gap-2">

@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { createExpense, updateExpense, type ExpenseFormState } from "@/actions/expenses";
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,24 +15,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
-  RENT: "Rent",
-  UTILITIES: "Utilities",
-  SALARIES: "Salaries",
-  SUPPLIES: "Supplies",
-  EQUIPMENT: "Equipment",
-  MAINTENANCE: "Maintenance",
-  MARKETING: "Marketing",
-  INSURANCE: "Insurance",
-  OTHER: "Other",
-};
-
-const EXPENSE_CATEGORIES = Object.keys(EXPENSE_CATEGORY_LABELS);
-
 export function ExpenseForm({
   expense,
   defaultPaidAt,
   onSaved,
+  redirectOnSuccess = "/staff/expenses",
+  allowedCategories,
 }: {
   expense?: {
     id: string;
@@ -45,17 +34,23 @@ export function ExpenseForm({
   // own clock isn't trustworthy enough to default a financial record's date.
   defaultPaidAt?: string;
   onSaved?: () => void;
+  redirectOnSuccess?: string;
+  // Restricts the category dropdown — staff only get the day-to-day
+  // operational categories (also enforced server-side in createExpense),
+  // admin gets every category (the default, when this is omitted).
+  allowedCategories?: readonly string[];
 }) {
   const router = useRouter();
   const action = expense ? updateExpense.bind(null, expense.id) : createExpense;
   const [state, formAction, pending] = useActionState<ExpenseFormState, FormData>(action, {});
+  const categoryOptions = allowedCategories ?? EXPENSE_CATEGORIES;
 
   useEffect(() => {
     if (state.success) {
       if (onSaved) onSaved();
-      else router.push("/staff/expenses");
+      else router.push(redirectOnSuccess);
     }
-  }, [state.success, onSaved, router]);
+  }, [state.success, onSaved, redirectOnSuccess, router]);
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -77,9 +72,9 @@ export function ExpenseForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {EXPENSE_CATEGORIES.map((c) => (
+              {categoryOptions.map((c) => (
                 <SelectItem key={c} value={c}>
-                  {EXPENSE_CATEGORY_LABELS[c]}
+                  {EXPENSE_CATEGORY_LABELS[c as keyof typeof EXPENSE_CATEGORY_LABELS]}
                 </SelectItem>
               ))}
             </SelectContent>

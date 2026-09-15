@@ -120,7 +120,7 @@ export async function convertWalkInToAppointment(
 
   let scheduledAt = now;
   let durationMinutes: number | undefined = clinicService?.durationMinutes;
-  if (specialty?.bookingMode === "BLOCK_CAPACITY") {
+  if (specialty?.bookingMode === "BLOCK_CAPACITY" || specialty?.bookingMode === "SERVICE_CAPACITY") {
     const clinicHours = await getClinicHoursForDate(now);
     if (!clinicHours.isOpen) {
       return { error: "The clinic is closed today." };
@@ -134,7 +134,7 @@ export async function convertWalkInToAppointment(
     const { available } = await isBlockSlotAvailable(specialty.name, specialty.capacityPerSlot, scheduledAt);
     if (!available) {
       return {
-        error: `This time block is at capacity (${specialty.capacityPerSlot} patients). Please try a different doctor.`,
+        error: `This time block is at capacity (${specialty.capacityPerSlot} patients). Please try again shortly.`,
       };
     }
   }

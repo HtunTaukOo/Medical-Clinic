@@ -6,7 +6,6 @@ import type { AppointmentFormState } from "@/actions/appointments";
 import { useRouter, Link } from "@/i18n/navigation";
 import { JoinWaitlistForm } from "@/components/appointments/join-waitlist-form";
 import { BlockPicker } from "@/components/appointments/block-picker";
-import { ResourceSlotPicker } from "@/components/appointments/resource-slot-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -162,7 +161,7 @@ export function AppointmentForm({
           </div>
           <input type="hidden" name="specialtyName" value={selectedService?.specialty ?? ""} />
           {selectedServiceSpecialty && (
-            <ResourceSlotPicker
+            <BlockPicker
               specialtyName={selectedServiceSpecialty.name}
               capacityPerSlot={selectedServiceSpecialty.capacityPerSlot}
             />

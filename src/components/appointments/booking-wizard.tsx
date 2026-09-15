@@ -8,8 +8,6 @@ import {
   fetchDaySlots,
   fetchMonthBookability,
   confirmBooking,
-  fetchResourceDaySlots,
-  fetchResourceMonthBookability,
   confirmResourceBooking,
   fetchBlockAvailability,
   fetchBlockMonthBookability,
@@ -189,6 +187,13 @@ export function BookingWizard({
   const currentSpecialtyOption = specialtyOptions.find((s) => s.name === specialty) ?? null;
   const isBookByService = currentSpecialtyOption?.bookingMode === "SERVICE_CAPACITY";
   const isBlockCapacity = currentSpecialtyOption?.bookingMode === "BLOCK_CAPACITY";
+  // SERVICE_CAPACITY (e.g. Lab Visit) shares the exact same fixed-block time
+  // model as BLOCK_CAPACITY doctors — the only real difference is that there's
+  // no doctor to pick (auto-assigned instead), so it gets a "Service" step in
+  // the doctor step's place rather than a different time model entirely. Only
+  // the legacy, currently-unused DOCTOR_CALENDAR mode still uses continuous
+  // slots + a duration picker, further below.
+  const usesTimeBlocks = isBlockCapacity || isBookByService;
 
   // For BLOCK_CAPACITY, once a block is chosen, only offer doctors who are
   // actually working that day/hours and not on leave — filtered server-side
@@ -197,20 +202,20 @@ export function BookingWizard({
     if (!isBlockCapacity || !date || !blockId || eligibleDoctorIds === null) return doctorsForSpecialty;
     return doctorsForSpecialty.filter((d) => eligibleDoctorIds.includes(d.id));
   }, [isBlockCapacity, date, blockId, doctorsForSpecialty, eligibleDoctorIds]);
-  const steps = isBlockCapacity
-    ? [t("stepSpecialty"), t("stepDateTime"), t("stepDoctor"), t("stepDetails"), t("stepConfirm")]
-    : [
+  const steps = usesTimeBlocks
+    ? [
         t("stepSpecialty"),
-        isBookByService ? t("stepService") : t("stepDoctor"),
         t("stepDateTime"),
+        isBookByService ? t("stepService") : t("stepDoctor"),
         t("stepDetails"),
         t("stepConfirm"),
-      ];
+      ]
+    : [t("stepSpecialty"), t("stepDoctor"), t("stepDateTime"), t("stepDetails"), t("stepConfirm")];
 
   const selectedDoctor = doctors.find((d) => d.id === doctorId) ?? null;
   const selectedService = services.find((s) => s.id === clinicServiceId) ?? null;
   const selectedBlock = blockId ? getTimeBlockById(blockId) : null;
-  const timeRangeLabel = isBlockCapacity
+  const timeRangeLabel = usesTimeBlocks
     ? selectedBlock
       ? formatBlockLabel(selectedBlock)
       : null
@@ -221,7 +226,7 @@ export function BookingWizard({
       : null;
 
   useEffect(() => {
-    if (isBlockCapacity) {
+    if (usesTimeBlocks) {
       if (!currentSpecialtyOption) return;
       startMonthTransition(async () => {
         const result = await fetchBlockMonthBookability(calendarYear, calendarMonth);
@@ -231,12 +236,10 @@ export function BookingWizard({
     }
     if (!doctorId) return;
     startMonthTransition(async () => {
-      const result = isBookByService
-        ? await fetchResourceMonthBookability(calendarYear, calendarMonth)
-        : await fetchMonthBookability(doctorId, calendarYear, calendarMonth);
+      const result = await fetchMonthBookability(doctorId, calendarYear, calendarMonth);
       setMonthBookability(result);
     });
-  }, [isBlockCapacity, currentSpecialtyOption, doctorId, isBookByService, calendarYear, calendarMonth]);
+  }, [usesTimeBlocks, currentSpecialtyOption, doctorId, calendarYear, calendarMonth]);
 
   useEffect(() => {
     if (!isBlockCapacity || !currentSpecialtyOption || !date || !blockId) return;
@@ -253,7 +256,7 @@ export function BookingWizard({
   }, [isBlockCapacity, currentSpecialtyOption, date, blockId]);
 
   function pickDate(d: YMD) {
-    if (isBlockCapacity) {
+    if (usesTimeBlocks) {
       if (!currentSpecialtyOption) return;
       setDate(d);
       setBlockId(null);
@@ -276,16 +279,7 @@ export function BookingWizard({
     setSlotCount(1);
     setDaySlots([]);
     startSlotsTransition(async () => {
-      const result =
-        isBookByService && currentSpecialtyOption
-          ? await fetchResourceDaySlots(
-              currentSpecialtyOption.name,
-              currentSpecialtyOption.capacityPerSlot,
-              d.year,
-              d.month,
-              d.day
-            )
-          : await fetchDaySlots(doctorId, d.year, d.month, d.day);
+      const result = await fetchDaySlots(doctorId, d.year, d.month, d.day);
       setDaySlots(result);
     });
   }
@@ -302,20 +296,34 @@ export function BookingWizard({
   }
 
   function handleConfirm() {
-    if (isBlockCapacity) {
-      if (!doctorId || !date || !blockId || !reasonCategory || !currentSpecialtyOption) return;
+    if (usesTimeBlocks) {
+      if (!date || !blockId || !reasonCategory || !currentSpecialtyOption) return;
       const reason = notes ? `${reasonCategory}: ${notes}` : reasonCategory;
       startSubmitTransition(async () => {
-        const result = await confirmBlockBooking(
-          currentSpecialtyOption.name,
-          doctorId,
-          date.year,
-          date.month,
-          date.day,
-          blockId,
-          reason,
-          clinicServiceId
-        );
+        const result =
+          isBookByService
+            ? await confirmResourceBooking(
+                currentSpecialtyOption.name,
+                date.year,
+                date.month,
+                date.day,
+                blockId,
+                reason,
+                clinicServiceId
+              )
+            : doctorId
+              ? await confirmBlockBooking(
+                  currentSpecialtyOption.name,
+                  doctorId,
+                  date.year,
+                  date.month,
+                  date.day,
+                  blockId,
+                  reason,
+                  clinicServiceId
+                )
+              : null;
+        if (!result) return;
         setSubmitState(result);
         if (result.success) setStep(6);
       });
@@ -326,28 +334,16 @@ export function BookingWizard({
     const reason = notes ? `${reasonCategory}: ${notes}` : reasonCategory;
     const durationMinutes = slotCount * 30;
     startSubmitTransition(async () => {
-      const result =
-        isBookByService && currentSpecialtyOption
-          ? await confirmResourceBooking(
-              currentSpecialtyOption.name,
-              date.year,
-              date.month,
-              date.day,
-              time,
-              reason,
-              durationMinutes,
-              clinicServiceId
-            )
-          : await confirmBooking(
-              doctorId,
-              date.year,
-              date.month,
-              date.day,
-              time,
-              reason,
-              durationMinutes,
-              clinicServiceId
-            );
+      const result = await confirmBooking(
+        doctorId,
+        date.year,
+        date.month,
+        date.day,
+        time,
+        reason,
+        durationMinutes,
+        clinicServiceId
+      );
       setSubmitState(result);
       if (result.success) setStep(6);
     });
@@ -364,7 +360,7 @@ export function BookingWizard({
         <div className="grid w-full max-w-sm gap-0 rounded-xl border bg-card text-sm shadow-sm">
           {[
             [t("summarySpecialty"), specialty],
-            [t("summaryDoctor"), selectedDoctor?.name],
+            ...(isBookByService ? [] : [[t("summaryDoctor"), selectedDoctor?.name]]),
             ...(selectedService ? [[t("summaryService"), selectedService.name]] : []),
             [t("summaryDate"), date && formatDateLabel(date)],
             [t("summaryTime"), timeRangeLabel],
@@ -386,10 +382,10 @@ export function BookingWizard({
   const monthGrid = getMonthGrid(calendarYear, calendarMonth);
   const prevMonth = addMonths(calendarYear, calendarMonth, -1);
   const nextMonth = addMonths(calendarYear, calendarMonth, 1);
-  const canContinue = isBlockCapacity
+  const canContinue = usesTimeBlocks
     ? (step === 1 && !!specialty) ||
       (step === 2 && !!date && !!blockId) ||
-      (step === 3 && !!doctorId) ||
+      (step === 3 && (isBookByService ? !!clinicServiceId : !!doctorId)) ||
       (step === 4 && !!reasonCategory)
     : (step === 1 && !!specialty) ||
       (step === 2 && !!doctorId) ||
@@ -475,7 +471,7 @@ export function BookingWizard({
           </div>
         )}
 
-        {step === 2 && isBlockCapacity && (
+        {step === 2 && usesTimeBlocks && (
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="grid gap-3">
               <h2 className="text-xl font-semibold">{t("pickDateTime")}</h2>
@@ -594,22 +590,17 @@ export function BookingWizard({
           </div>
         )}
 
-        {step === 2 && !isBlockCapacity && (
+        {step === 2 && !usesTimeBlocks && (
           <div className="grid gap-6">
             <div>
-              <h2 className="text-xl font-semibold">
-                {isBookByService ? t("selectService") : t("selectDoctor")}
-              </h2>
+              <h2 className="text-xl font-semibold">{t("selectDoctor")}</h2>
               <p className="text-muted-foreground">{specialty}</p>
             </div>
 
-            {isBookByService ? (
-              servicesForSpecialty.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("noServicesConfigured")}</p>
-              ) : doctorsForSpecialty.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t("noStaffConfigured")}</p>
-              ) : (
-                <div className="grid gap-3 sm:grid-cols-2">
+            {servicesForSpecialty.length > 0 && (
+              <div className="grid gap-2">
+                <Label>{t("specificServiceOptional")}</Label>
+                <div className="grid gap-2 sm:grid-cols-2">
                   {servicesForSpecialty.map((s) => {
                     const selected = clinicServiceId === s.id;
                     return (
@@ -617,114 +608,122 @@ export function BookingWizard({
                         key={s.id}
                         type="button"
                         onClick={() => {
-                          const autoDoctor = pickAutoDoctor(doctorsForSpecialty);
-                          if (!autoDoctor) return;
-                          setClinicServiceId(s.id);
-                          setDoctorId(autoDoctor.id);
-                          setReasonCategory(s.name);
+                          if (selected) {
+                            setClinicServiceId(null);
+                            setReasonCategory((r) => (r === s.name ? null : r));
+                          } else {
+                            setClinicServiceId(s.id);
+                            setReasonCategory(s.name);
+                          }
                         }}
-                        className={`rounded-xl border p-4 text-left transition-colors ${
-                          selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
+                        className={`rounded-lg border p-3 text-left transition-colors ${
+                          selected
+                            ? "border-primary bg-primary/5 ring-1 ring-primary"
+                            : "hover:bg-muted/50"
                         }`}
                       >
-                        <p className="font-semibold">{s.name}</p>
-                        <p className="text-sm text-muted-foreground">
+                        <p className="text-sm font-medium">{s.name}</p>
+                        <p className="text-xs text-muted-foreground">
                           {s.durationMinutes} min · {formatKyat(s.price)}
                         </p>
                       </button>
                     );
                   })}
                 </div>
-              )
-            ) : (
-              <>
-                {servicesForSpecialty.length > 0 && (
-                  <div className="grid gap-2">
-                    <Label>{t("specificServiceOptional")}</Label>
-                    <div className="grid gap-2 sm:grid-cols-2">
-                      {servicesForSpecialty.map((s) => {
-                        const selected = clinicServiceId === s.id;
-                        return (
-                          <button
-                            key={s.id}
-                            type="button"
-                            onClick={() => {
-                              if (selected) {
-                                setClinicServiceId(null);
-                                setReasonCategory((r) => (r === s.name ? null : r));
-                              } else {
-                                setClinicServiceId(s.id);
-                                setReasonCategory(s.name);
-                              }
-                            }}
-                            className={`rounded-lg border p-3 text-left transition-colors ${
-                              selected
-                                ? "border-primary bg-primary/5 ring-1 ring-primary"
-                                : "hover:bg-muted/50"
-                            }`}
-                          >
-                            <p className="text-sm font-medium">{s.name}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {s.durationMinutes} min · {formatKyat(s.price)}
-                            </p>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
+              </div>
+            )}
 
-                {doctorsForSpecialty.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">{t("noDoctorsAvailable")}</p>
-                ) : (
-                  <div className="grid gap-3">
-                    {doctorsForSpecialty.map((d) => {
-                      const selected = doctorId === d.id;
-                      return (
-                        <button
-                          key={d.id}
-                          type="button"
-                          onClick={() => setDoctorId(d.id)}
-                          className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
-                            selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
-                          }`}
-                        >
-                          <Avatar className="size-12">
-                            <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                              {d.initials}
-                            </AvatarFallback>
-                          </Avatar>
-                          <div className="grid gap-0.5">
-                            <p className="font-semibold">{d.name}</p>
-                            {d.qualifications && (
-                              <p className="text-sm text-muted-foreground">{d.qualifications}</p>
-                            )}
-                            <p className="text-sm text-muted-foreground">
-                              {d.experienceYears != null && t("yearsExp", { years: d.experienceYears })}
-                              {d.slotsAvailableToday > 0 ? (
-                                <span className="text-success">
-                                  {t("slotsAvailableToday", { count: d.slotsAvailableToday })}
-                                </span>
-                              ) : d.nextAvailability ? (
-                                <span className="text-muted-foreground">
-                                  {t("nextAvailable", { label: d.nextAvailability.label })}
-                                </span>
-                              ) : (
-                                <span className="text-muted-foreground">{t("noUpcomingAvailability")}</span>
-                              )}
-                            </p>
-                          </div>
-                        </button>
-                      );
-                    })}
-                  </div>
-                )}
-              </>
+            {doctorsForSpecialty.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("noDoctorsAvailable")}</p>
+            ) : (
+              <div className="grid gap-3">
+                {doctorsForSpecialty.map((d) => {
+                  const selected = doctorId === d.id;
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => setDoctorId(d.id)}
+                      className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
+                        selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <Avatar className="size-12">
+                        <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                          {d.initials}
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="grid gap-0.5">
+                        <p className="font-semibold">{d.name}</p>
+                        {d.qualifications && (
+                          <p className="text-sm text-muted-foreground">{d.qualifications}</p>
+                        )}
+                        <p className="text-sm text-muted-foreground">
+                          {d.experienceYears != null && t("yearsExp", { years: d.experienceYears })}
+                          {d.slotsAvailableToday > 0 ? (
+                            <span className="text-success">
+                              {t("slotsAvailableToday", { count: d.slotsAvailableToday })}
+                            </span>
+                          ) : d.nextAvailability ? (
+                            <span className="text-muted-foreground">
+                              {t("nextAvailable", { label: d.nextAvailability.label })}
+                            </span>
+                          ) : (
+                            <span className="text-muted-foreground">{t("noUpcomingAvailability")}</span>
+                          )}
+                        </p>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </div>
         )}
 
-        {step === 3 && isBlockCapacity && (
+        {step === 3 && usesTimeBlocks && isBookByService && (
+          <div className="grid gap-6">
+            <div>
+              <h2 className="text-xl font-semibold">{t("selectService")}</h2>
+              <p className="text-muted-foreground">{specialty}</p>
+            </div>
+
+            {servicesForSpecialty.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("noServicesConfigured")}</p>
+            ) : doctorsForSpecialty.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t("noStaffConfigured")}</p>
+            ) : (
+              <div className="grid gap-3 sm:grid-cols-2">
+                {servicesForSpecialty.map((s) => {
+                  const selected = clinicServiceId === s.id;
+                  return (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => {
+                        const autoDoctor = pickAutoDoctor(doctorsForSpecialty);
+                        if (!autoDoctor) return;
+                        setClinicServiceId(s.id);
+                        setDoctorId(autoDoctor.id);
+                        setReasonCategory(s.name);
+                      }}
+                      className={`rounded-xl border p-4 text-left transition-colors ${
+                        selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
+                      }`}
+                    >
+                      <p className="font-semibold">{s.name}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {s.durationMinutes} min · {formatKyat(s.price)}
+                      </p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {step === 3 && usesTimeBlocks && !isBookByService && (
           <div className="grid gap-6">
             <div>
               <h2 className="text-xl font-semibold">{t("selectDoctor")}</h2>
@@ -806,7 +805,7 @@ export function BookingWizard({
           </div>
         )}
 
-        {step === 3 && !isBlockCapacity && (
+        {step === 3 && !usesTimeBlocks && (
           <div className="grid gap-6 lg:grid-cols-2">
             <div className="grid gap-3">
               <h2 className="text-xl font-semibold">{t("pickDateTime")}</h2>
@@ -1001,7 +1000,7 @@ export function BookingWizard({
             <div className="grid gap-0 rounded-xl bg-muted/50 text-sm">
               {[
                 [t("summarySpecialty"), specialty],
-                [t("summaryDoctor"), selectedDoctor.name],
+                ...(isBookByService ? [] : [[t("summaryDoctor"), selectedDoctor.name]]),
                 ...(selectedService ? [[t("summaryService"), selectedService.name]] : []),
                 [t("summaryDate"), formatDateLabel(date)],
                 [t("summaryTime"), timeRangeLabel],

@@ -48,11 +48,24 @@ export function NewSaleForm({
   medicines,
   patients,
   initialRxCode,
+  initialPatientId,
+  initialMedicineId,
+  initialRequestId,
 }: {
   pendingPrescriptions: PendingRx[];
   medicines: Medicine[];
   patients: { id: string; name: string }[];
   initialRxCode?: string;
+  // Prefill for the "Sell" link on a Patient Requests card that has no
+  // prescription behind it (a "Notify Pharmacy" request) — preselects the
+  // patient and adds the medicine as an OTC item, same end state as if
+  // staff had searched for both by hand.
+  initialPatientId?: string;
+  initialMedicineId?: string;
+  // Set when arriving here via a Patient Request's "Sell" link — completing
+  // this sale also marks that request COMPLETED, so staff don't have to do
+  // both steps separately.
+  initialRequestId?: string;
 }) {
   const [state, formAction, pending] = useActionState<CompleteSaleState, FormData>(completeSale, {});
 
@@ -63,19 +76,35 @@ export function NewSaleForm({
   const [lookupError, setLookupError] = useState<string | null>(null);
   const [items, setItems] = useState<SaleItem[]>(() => {
     const initial = initialRxCode ? findRx(pendingPrescriptions, initialRxCode) : null;
-    return initial
-      ? initial.items.map((item) => ({
-          medicineId: item.medicine.id,
-          name: `${item.medicine.name} (${item.dosage})`,
-          quantity: item.quantity ?? 1,
-          unitPrice: item.medicine.price,
-          source: "rx" as const,
-        }))
+    if (initial) {
+      return initial.items.map((item) => ({
+        medicineId: item.medicine.id,
+        name: `${item.medicine.name} (${item.dosage})`,
+        quantity: item.quantity ?? 1,
+        unitPrice: item.medicine.price,
+        source: "rx" as const,
+      }));
+    }
+    const initialMedicine = initialMedicineId
+      ? medicines.find((m) => m.id === initialMedicineId)
+      : null;
+    return initialMedicine
+      ? [
+          {
+            medicineId: initialMedicine.id,
+            name: initialMedicine.name,
+            quantity: 1,
+            unitPrice: initialMedicine.price,
+            source: "otc" as const,
+          },
+        ]
       : [];
   });
 
-  const [selectedPatient, setSelectedPatient] = useState<{ id: string; name: string } | null>(
-    null
+  const [selectedPatient, setSelectedPatient] = useState<{ id: string; name: string } | null>(() =>
+    !initialRxCode && initialPatientId
+      ? (patients.find((p) => p.id === initialPatientId) ?? null)
+      : null
   );
   const [patientQuery, setPatientQuery] = useState("");
   const [showPatientResults, setShowPatientResults] = useState(false);
@@ -179,6 +208,7 @@ export function NewSaleForm({
     if (!patient || items.length === 0) return;
     formData.set("patientId", patient.id);
     if (resolvedRx) formData.set("prescriptionId", resolvedRx.id);
+    if (initialRequestId) formData.set("requestId", initialRequestId);
     formData.set(
       "items",
       JSON.stringify(items.map(({ medicineId, name, quantity, unitPrice }) => ({ medicineId, name, quantity, unitPrice })))

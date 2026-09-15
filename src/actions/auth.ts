@@ -3,6 +3,7 @@
 import { z } from "zod";
 import { randomBytes } from "crypto";
 import bcrypt from "bcryptjs";
+import { headers } from "next/headers";
 import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage } from "@/lib/telegram";
 import { logActivity } from "@/lib/audit";
@@ -10,6 +11,18 @@ import { generatePatientCode } from "@/lib/patients";
 import { requireSession } from "@/lib/authz";
 
 const RESET_TOKEN_TTL_MS = 60 * 60 * 1000;
+
+// Derived from the actual incoming request so links are correct on
+// localhost, Vercel previews, and production without keeping an env var in
+// sync with wherever this happens to be deployed. AUTH_URL still wins when
+// set, for deployments behind a proxy that strips/misreports these headers.
+async function resolveBaseUrl() {
+  if (process.env.AUTH_URL) return process.env.AUTH_URL;
+  const headersList = await headers();
+  const host = headersList.get("host") ?? "localhost:3000";
+  const protocol = headersList.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  return `${protocol}://${host}`;
+}
 
 const registerSchema = z.object({
   name: z.string().min(1),
@@ -89,7 +102,7 @@ export async function requestPasswordReset(
     });
 
     if (user.patient?.telegramChatId) {
-      const baseUrl = process.env.AUTH_URL ?? "http://localhost:3000";
+      const baseUrl = await resolveBaseUrl();
       const resetUrl = `${baseUrl}/en/reset-password?token=${token}`;
       await sendTelegramMessage(
         user.patient.telegramChatId,

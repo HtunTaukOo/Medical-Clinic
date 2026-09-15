@@ -1,9 +1,10 @@
-import { ClipboardList, Pill, Receipt, Undo2 } from "lucide-react";
+import { ClipboardList, Pill, Receipt, Undo2, Bell } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
-import { getExpiryStatus } from "@/lib/inventory";
+import { getExpiryStatus, getStockStatus, STOCK_STATUS_LABEL, STOCK_STATUS_CLASS } from "@/lib/inventory";
 import { rxCode } from "@/lib/pharmacy";
 import { processReturn } from "@/actions/pharmacy";
+import { cancelMedicineRequest } from "@/actions/medicine-requests";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -23,26 +24,14 @@ function formatKyat(value: number) {
   return `K ${Math.round(value).toLocaleString()}`;
 }
 
-type StockStatus = "OUT_OF_STOCK" | "LOW_STOCK" | "IN_STOCK";
-
-function getStockStatus(stockQty: number, reorderLevel: number): StockStatus {
-  if (stockQty === 0) return "OUT_OF_STOCK";
-  if (stockQty <= reorderLevel) return "LOW_STOCK";
-  return "IN_STOCK";
-}
-
 const STATUS_LABEL: Record<string, string> = {
-  OUT_OF_STOCK: "out of stock",
-  LOW_STOCK: "low stock",
-  IN_STOCK: "in stock",
+  ...STOCK_STATUS_LABEL,
   EXPIRING: "expiring soon",
   EXPIRED: "expired",
 };
 
 const STATUS_CLASS: Record<string, string> = {
-  OUT_OF_STOCK: "bg-rose-100 text-rose-700",
-  LOW_STOCK: "bg-amber-100 text-amber-700",
-  IN_STOCK: "bg-emerald-100 text-emerald-700",
+  ...STOCK_STATUS_CLASS,
   EXPIRING: "bg-orange-100 text-orange-700",
   EXPIRED: "bg-rose-100 text-rose-700",
 };
@@ -50,6 +39,7 @@ const STATUS_CLASS: Record<string, string> = {
 const TABS = [
   { value: "new", label: "New Sale" },
   { value: "prescriptions", label: "Prescriptions" },
+  { value: "requests", label: "Patient Requests" },
   { value: "products", label: "Products" },
   { value: "history", label: "Sales History" },
   { value: "returns", label: "Returns" },
@@ -67,42 +57,60 @@ function todayRange() {
 export default async function PharmacyPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string; rx?: string }>;
+  searchParams: Promise<{
+    tab?: string;
+    rx?: string;
+    patientId?: string;
+    medicineId?: string;
+    requestId?: string;
+  }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
-  const { tab: tabParam, rx } = await searchParams;
+  const { tab: tabParam, rx, patientId, medicineId, requestId } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "new";
 
   const needsPending = tab === "new" || tab === "prescriptions";
   const { start: todayStart, end: todayEnd } = todayRange();
 
-  const [pendingPrescriptions, allMedicines, patients, sales, returns] = await Promise.all([
-    needsPending
-      ? prisma.prescription.findMany({
-          where: { fulfilled: false },
-          include: { patient: true, items: { include: { medicine: true } } },
-          orderBy: { createdAt: "asc" },
-        })
-      : Promise.resolve([]),
-    tab === "new" || tab === "products"
-      ? prisma.medicine.findMany({ orderBy: { name: "asc" } })
-      : Promise.resolve([]),
-    tab === "new" ? prisma.patient.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
-    tab === "history"
-      ? prisma.pharmacySale.findMany({
-          orderBy: { createdAt: "desc" },
-          include: { patient: true, items: true },
-          take: 200,
-        })
-      : Promise.resolve([]),
-    tab === "returns"
-      ? prisma.pharmacySale.findMany({
-          where: { status: "RETURNED", returnedAt: { gte: todayStart, lt: todayEnd } },
-          orderBy: { returnedAt: "desc" },
-          include: { patient: true, items: true },
-        })
-      : Promise.resolve([]),
-  ]);
+  const [pendingPrescriptions, allMedicines, patients, sales, returns, pendingRequests] =
+    await Promise.all([
+      needsPending
+        ? prisma.prescription.findMany({
+            where: { fulfilled: false },
+            include: { patient: true, items: { include: { medicine: true } } },
+            orderBy: { createdAt: "asc" },
+          })
+        : Promise.resolve([]),
+      tab === "new" || tab === "products"
+        ? prisma.medicine.findMany({ orderBy: { name: "asc" } })
+        : Promise.resolve([]),
+      tab === "new" ? prisma.patient.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
+      tab === "history"
+        ? prisma.pharmacySale.findMany({
+            orderBy: { createdAt: "desc" },
+            include: { patient: true, items: true },
+            take: 200,
+          })
+        : Promise.resolve([]),
+      tab === "returns"
+        ? prisma.pharmacySale.findMany({
+            where: { status: "RETURNED", returnedAt: { gte: todayStart, lt: todayEnd } },
+            orderBy: { returnedAt: "desc" },
+            include: { patient: true, items: true },
+          })
+        : Promise.resolve([]),
+      tab === "requests"
+        ? prisma.medicineRequest.findMany({
+            where: { status: "PENDING" },
+            include: {
+              patient: true,
+              medicine: true,
+              prescription: { include: { items: { include: { medicine: true } } } },
+            },
+            orderBy: { createdAt: "asc" },
+          })
+        : Promise.resolve([]),
+    ]);
 
   return (
     <div className="grid gap-6">
@@ -153,6 +161,9 @@ export default async function PharmacyPage({
           }))}
           patients={patients.map((p) => ({ id: p.id, name: p.name }))}
           initialRxCode={rx}
+          initialPatientId={patientId}
+          initialMedicineId={medicineId}
+          initialRequestId={requestId}
         />
       )}
 
@@ -183,6 +194,61 @@ export default async function PharmacyPage({
                 </CardContent>
               </Card>
             ))}
+          </div>
+        ))}
+
+      {tab === "requests" &&
+        (pendingRequests.length === 0 ? (
+          <EmptyState icon={Bell} message="No pending patient requests." />
+        ) : (
+          <div className="grid gap-3">
+            {pendingRequests.map((req) => {
+              const isRefill = !!req.prescription;
+              const sellHref = isRefill
+                ? `/staff/pharmacy?tab=new&rx=${rxCode(req.prescription!.id, req.prescription!.createdAt)}&requestId=${req.id}`
+                : `/staff/pharmacy?tab=new&patientId=${req.patientId}&medicineId=${req.medicineId}&requestId=${req.id}`;
+              return (
+                <Card key={req.id}>
+                  <CardContent className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium">{req.patient.name}</span>
+                        <Badge variant="outline" className="bg-cyan-100 text-cyan-700">
+                          {isRefill ? "Refill Request" : "Notify Pharmacy"}
+                        </Badge>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {isRefill
+                          ? req.prescription!.items.map((i) => i.medicine.name).join(", ")
+                          : `${req.medicine?.name ?? "Unknown medicine"}${req.quantity ? ` · qty ${req.quantity}` : ""}`}
+                      </p>
+                      {req.note && <p className="text-sm text-muted-foreground">“{req.note}”</p>}
+                      <p className="text-xs text-muted-foreground">
+                        Requested{" "}
+                        {req.createdAt.toLocaleDateString(undefined, {
+                          month: "short",
+                          day: "numeric",
+                          year: "numeric",
+                        })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Button asChild size="sm">
+                        <Link href={sellHref}>Sell</Link>
+                      </Button>
+                      <form action={cancelMedicineRequest.bind(null, req.id)}>
+                        <button
+                          type="submit"
+                          className="text-sm font-medium text-destructive hover:underline"
+                        >
+                          Dismiss
+                        </button>
+                      </form>
+                    </div>
+                  </CardContent>
+                </Card>
+              );
+            })}
           </div>
         ))}
 

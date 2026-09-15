@@ -122,6 +122,7 @@ model Patient {
   allergyRecords       Allergy[]
   notifications        Notification[]
   pharmacySales        PharmacySale[]
+  medicineRequests     MedicineRequest[]
 }
 
 enum AllergyCategory {
@@ -387,15 +388,20 @@ enum InvoiceStatus {
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  patientId     String
-  patient       Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
-  appointmentId String?       @unique
-  appointment   Appointment?  @relation(fields: [appointmentId], references: [id])
-  status        InvoiceStatus @default(UNPAID)
-  total         Decimal       @db.Decimal(10, 2)
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  id             String        @id @default(cuid())
+  patientId      String
+  patient        Patient       @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  appointmentId  String?       @unique
+  appointment    Appointment?  @relation(fields: [appointmentId], references: [id])
+  // Set when this invoice was generated from a pharmacy sale rather than an
+  // appointment — lets pharmacy revenue flow into the same billing/reports
+  // system instead of being tracked separately (see PharmacySale below).
+  pharmacySaleId String?       @unique
+  pharmacySale   PharmacySale? @relation(fields: [pharmacySaleId], references: [id])
+  status         InvoiceStatus @default(UNPAID)
+  total          Decimal       @db.Decimal(10, 2)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
 
   items    InvoiceItem[]
   payments Payment[]
@@ -568,6 +574,7 @@ enum StaffNotificationCategory {
   ANNOUNCEMENT
   BILLING
   LEAVE
+  PHARMACY
 }
 
 model StaffNotification {
@@ -607,6 +614,7 @@ model Medicine {
   stockTransactions  StockTransaction[]
   purchaseOrderItems PurchaseOrderItem[]
   pharmacySaleItems  PharmacySaleItem[]
+  medicineRequests   MedicineRequest[]
 }
 
 model Supplier {
@@ -673,8 +681,9 @@ model Prescription {
   fulfilledAt   DateTime?
   createdAt     DateTime      @default(now())
 
-  items PrescriptionItem[]
-  sales PharmacySale[]
+  items            PrescriptionItem[]
+  sales            PharmacySale[]
+  medicineRequests MedicineRequest[]
 
   @@index([patientId])
 }
@@ -734,7 +743,8 @@ model PharmacySale {
   returnedAt     DateTime?
   createdAt      DateTime           @default(now())
 
-  items PharmacySaleItem[]
+  items   PharmacySaleItem[]
+  invoice Invoice?
 
   @@index([patientId])
   @@index([createdAt])
@@ -749,6 +759,36 @@ model PharmacySaleItem {
   name       String
   quantity   Int
   unitPrice  Decimal      @db.Decimal(10, 2)
+}
+
+enum MedicineRequestStatus {
+  PENDING
+  COMPLETED
+  CANCELLED
+}
+
+// A patient-initiated "Request Refill" (linked to a Prescription) or "Notify
+// Pharmacy" (linked to a Medicine, no prescription) — a lightweight queue for
+// staff to see and complete in person at /staff/pharmacy. Not an online sale:
+// no payment, no automatic linking to the eventual PharmacySale.
+model MedicineRequest {
+  id              String                @id @default(cuid())
+  patientId       String
+  patient         Patient               @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  medicineId      String?
+  medicine        Medicine?             @relation(fields: [medicineId], references: [id])
+  prescriptionId  String?
+  prescription    Prescription?         @relation(fields: [prescriptionId], references: [id])
+  quantity        Int?
+  note            String?
+  status          MedicineRequestStatus @default(PENDING)
+  completedById   String?
+  completedByName String?
+  completedAt     DateTime?
+  createdAt       DateTime              @default(now())
+
+  @@index([status, createdAt])
+  @@index([patientId])
 }
 
 enum StockTransactionType {

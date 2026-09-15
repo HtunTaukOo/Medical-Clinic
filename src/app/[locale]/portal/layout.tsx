@@ -29,6 +29,7 @@ export default async function PortalLayout({
     { href: "/portal/book", labelKey: "bookAppointment" },
     { href: "/portal/appointments", labelKey: "myAppointments" },
     { href: "/portal/medical-records", labelKey: "medicalRecords" },
+    { href: "/portal/medicines", labelKey: "medicines" },
     { href: "/portal/invoices", labelKey: "billsPayments" },
     { href: "/portal/notifications", labelKey: "notifications", badge: unreadCount },
     { href: "/portal/settings", labelKey: "profile" },

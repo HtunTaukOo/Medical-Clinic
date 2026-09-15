@@ -6,7 +6,6 @@ import {
   getAvailableSlots,
   getDaySlots,
   isDayBookable,
-  getResourceDaySlots,
   isResourceDayBookable,
   getBlockDaySlots,
   type DaySlot,
@@ -100,44 +99,17 @@ export async function confirmBooking(
   );
 }
 
-// The "book by service" counterpart to fetchDaySlots/fetchMonthBookability/
-// confirmBooking above — availability comes from clinic hours + a shared
-// capacity for the specialty (e.g. a lab with 3 stations) instead of any one
-// doctor's calendar.
-export async function fetchResourceDaySlots(
-  specialtyName: string,
-  capacityPerSlot: number,
-  year: number,
-  month: number,
-  day: number
-): Promise<DaySlot[]> {
-  await requireSession();
-  return getResourceDaySlots({ specialtyName, capacityPerSlot }, year, month, day);
-}
-
-export async function fetchResourceMonthBookability(
-  year: number,
-  month: number
-): Promise<Record<number, boolean>> {
-  await requireSession();
-  const daysInMonth = new Date(year, month, 0).getDate();
-  const result: Record<number, boolean> = {};
-  await Promise.all(
-    Array.from({ length: daysInMonth }, (_, i) => i + 1).map(async (day) => {
-      result[day] = await isResourceDayBookable(year, month, day);
-    })
-  );
-  return result;
-}
-
+// The "book by service" counterpart to confirmBlockBooking below — same
+// fixed 5 daily blocks and pooled-capacity model, but there's no real doctor
+// to pick (a SERVICE_CAPACITY specialty like Lab Visit is one shared
+// resource), so the doctor of record is auto-assigned instead of chosen.
 export async function confirmResourceBooking(
   specialtyName: string,
   year: number,
   month: number,
   day: number,
-  time: string,
+  blockId: string,
   reason: string,
-  durationMinutes: number = 30,
   clinicServiceId?: string | null
 ): Promise<AppointmentFormState> {
   const session = await requireSession();
@@ -147,6 +119,11 @@ export async function confirmResourceBooking(
   const specialty = await prisma.specialty.findUnique({ where: { name: specialtyName } });
   if (!specialty || specialty.bookingMode !== "SERVICE_CAPACITY") {
     return { error: "This specialty isn't set up for service-based booking." };
+  }
+
+  const block = getTimeBlockById(blockId);
+  if (!block) {
+    return { error: "Invalid time block." };
   }
 
   // Deterministic (by id) so this always agrees with the client's own
@@ -161,7 +138,7 @@ export async function confirmResourceBooking(
   }
 
   const scheduledAt = new Date(
-    clinicMidnightForYMD(year, month, day).getTime() + toMinutes(time) * 60 * 1000
+    clinicMidnightForYMD(year, month, day).getTime() + toMinutes(block.startTime) * 60 * 1000
   );
 
   return submitAppointmentRequest(
@@ -169,9 +146,10 @@ export async function confirmResourceBooking(
     doctor.id,
     scheduledAt,
     reason || undefined,
-    durationMinutes,
+    blockDurationMinutes(block),
     clinicServiceId,
-    { specialtyName, capacityPerSlot: specialty.capacityPerSlot }
+    { specialtyName, capacityPerSlot: specialty.capacityPerSlot },
+    { mode: "BLOCK_CAPACITY" }
   );
 }
 

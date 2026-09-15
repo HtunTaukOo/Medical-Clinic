@@ -48,8 +48,6 @@ const bookingSchema = z.object({
   doctorId: z.string().optional(),
   specialtyName: z.string().optional(),
   clinicServiceId: z.string().optional(),
-  resourceDate: z.string().optional(),
-  resourceTime: z.string().optional(),
   scheduledAt: z.string().optional(),
   blockDate: z.string().optional(),
   blockId: z.string().optional(),
@@ -77,8 +75,6 @@ export async function createAppointment(
     doctorId: formData.get("doctorId") || undefined,
     specialtyName: formData.get("specialtyName") || undefined,
     clinicServiceId: formData.get("clinicServiceId") || undefined,
-    resourceDate: formData.get("resourceDate") || undefined,
-    resourceTime: formData.get("resourceTime") || undefined,
     scheduledAt: formData.get("scheduledAt") || undefined,
     blockDate: formData.get("blockDate") || undefined,
     blockId: formData.get("blockId") || undefined,
@@ -119,14 +115,6 @@ export async function createAppointment(
     if (!assignedDoctor) {
       return { error: "No staff are set up for this specialty yet. Please contact the clinic." };
     }
-    if (!parsed.data.resourceDate || !parsed.data.resourceTime) {
-      return { error: "Please choose a date and time." };
-    }
-    const [y, m, d] = parsed.data.resourceDate.split("-").map(Number);
-    baseDate = new Date(
-      clinicMidnightForYMD(y, m, d).getTime() + toMinutes(parsed.data.resourceTime) * 60 * 1000
-    );
-    durationMinutes = service.durationMinutes;
     clinicServiceId = service.id;
     doctorId = assignedDoctor.id;
   } else {
@@ -137,20 +125,23 @@ export async function createAppointment(
       ? await prisma.specialty.findUnique({ where: { name: doctor.specialty } })
       : null;
     isBlockMode = specialty?.bookingMode === "BLOCK_CAPACITY";
+  }
 
-    if (isBlockMode) {
-      if (!parsed.data.blockDate || !parsed.data.blockId) {
-        return { error: "Please choose a date and time block." };
-      }
-      const block = getTimeBlockById(parsed.data.blockId);
-      if (!block) return { error: "Invalid time block." };
-      const [y, m, d] = parsed.data.blockDate.split("-").map(Number);
-      baseDate = new Date(clinicMidnightForYMD(y, m, d).getTime() + toMinutes(block.startTime) * 60 * 1000);
-      durationMinutes = blockDurationMinutes(block);
-    } else {
-      if (!parsed.data.scheduledAt) return { error: "Please choose a date and time." };
-      baseDate = new Date(parsed.data.scheduledAt);
+  // SERVICE_CAPACITY (Lab Visit) shares the exact same fixed 5-block time
+  // model as BLOCK_CAPACITY doctors — see confirmResourceBooking in
+  // src/actions/booking.ts for the equivalent on the patient-facing side.
+  if (isServiceBooking || isBlockMode) {
+    if (!parsed.data.blockDate || !parsed.data.blockId) {
+      return { error: "Please choose a date and time block." };
     }
+    const block = getTimeBlockById(parsed.data.blockId);
+    if (!block) return { error: "Invalid time block." };
+    const [y, m, d] = parsed.data.blockDate.split("-").map(Number);
+    baseDate = new Date(clinicMidnightForYMD(y, m, d).getTime() + toMinutes(block.startTime) * 60 * 1000);
+    durationMinutes = blockDurationMinutes(block);
+  } else {
+    if (!parsed.data.scheduledAt) return { error: "Please choose a date and time." };
+    baseDate = new Date(parsed.data.scheduledAt);
   }
 
   const isRecurring = !!parsed.data.repeatWeekly;

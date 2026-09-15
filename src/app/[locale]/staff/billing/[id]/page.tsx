@@ -1,5 +1,5 @@
 import { notFound } from "next/navigation";
-import { Trash2, AlertTriangle } from "lucide-react";
+import { Trash2, AlertTriangle, PillBottle } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
@@ -10,6 +10,7 @@ import { AddInvoiceItemForm } from "@/components/billing/add-invoice-item-form";
 import { RefundForm } from "@/components/billing/refund-form";
 import { ClaimForm } from "@/components/billing/claim-form";
 import { ClaimDecisionForm } from "@/components/billing/claim-decision-form";
+import { Link } from "@/i18n/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -52,6 +53,11 @@ export default async function InvoiceDetailPage({
 
   const boundRecordPayment = recordPayment.bind(null, invoice.id);
   const hasRejectedClaim = claims.some((c) => c.status === "REJECTED");
+  // A pharmacy-sourced invoice must only be edited/refunded/voided from the
+  // pharmacy Return flow, which keeps stock and the PharmacySale record in
+  // sync — the generic billing tools below don't know about either.
+  const isPharmacyInvoice = !!invoice.pharmacySaleId;
+  const canEditItems = invoice.status !== "PAID" && !isPharmacyInvoice;
 
   return (
     <div className="grid gap-6">
@@ -72,6 +78,20 @@ export default async function InvoiceDetailPage({
         </div>
       )}
 
+      {invoice.pharmacySaleId && (
+        <div className="flex items-center gap-3 rounded-xl border border-cyan-200 bg-cyan-50 p-4 text-cyan-800">
+          <PillBottle className="size-5 shrink-0" />
+          <p className="text-sm">
+            This invoice was generated from a pharmacy sale. To edit items, void a payment, or
+            process a refund, use{" "}
+            <Link href="/staff/pharmacy?tab=history" className="font-medium underline">
+              Pharmacy &gt; Sales History
+            </Link>{" "}
+            instead — the &quot;Return&quot; button there keeps stock and this invoice in sync.
+          </p>
+        </div>
+      )}
+
       <Card>
         <CardHeader>
           <CardTitle>{t("invoices")}</CardTitle>
@@ -83,7 +103,7 @@ export default async function InvoiceDetailPage({
                 <TableHead>{t("description")}</TableHead>
                 <TableHead>{t("quantity")}</TableHead>
                 <TableHead>{t("unitPrice")}</TableHead>
-                {invoice.status !== "PAID" && <TableHead className="text-right" />}
+                {canEditItems && <TableHead className="text-right" />}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -92,7 +112,7 @@ export default async function InvoiceDetailPage({
                   <TableCell>{item.description}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{Number(item.unitPrice).toFixed(2)}</TableCell>
-                  {invoice.status !== "PAID" && (
+                  {canEditItems && (
                     <TableCell className="text-right">
                       {invoice.items.length > 1 && (
                         <form action={removeInvoiceItem.bind(null, invoice.id, item.id)}>
@@ -110,7 +130,7 @@ export default async function InvoiceDetailPage({
           <p className="mt-4 text-lg font-semibold">
             {t("total")}: {Number(invoice.total).toFixed(2)}
           </p>
-          {invoice.status !== "PAID" && (
+          {canEditItems && (
             <div className="mt-4">
               <AddInvoiceItemForm
                 invoiceId={invoice.id}
@@ -139,7 +159,7 @@ export default async function InvoiceDetailPage({
                   <span>{new Date(payment.paidAt).toLocaleString()}</span>
                   <span>{payment.method}</span>
                   <span>{Number(payment.amount).toFixed(2)}</span>
-                  {session.user.role === "ADMIN" && (
+                  {session.user.role === "ADMIN" && !isPharmacyInvoice && (
                     <form action={voidPayment.bind(null, invoice.id, payment.id)}>
                       <Button size="sm" variant="ghost" type="submit">
                         {t("void")}
@@ -154,7 +174,7 @@ export default async function InvoiceDetailPage({
                     {new Date(refund.createdAt).toLocaleDateString()})
                   </p>
                 ))}
-                {session.user.role === "ADMIN" && refundable > 0 && (
+                {session.user.role === "ADMIN" && refundable > 0 && !isPharmacyInvoice && (
                   <RefundForm
                     invoiceId={invoice.id}
                     paymentId={payment.id}

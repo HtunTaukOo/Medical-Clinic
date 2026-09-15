@@ -1,4 +1,4 @@
-import { Bell, CalendarClock, Package, Megaphone, Receipt, CalendarOff } from "lucide-react";
+import { Bell, CalendarClock, Package, Megaphone, Receipt, CalendarOff, Pill } from "lucide-react";
 import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { markAllStaffNotificationsRead, markStaffNotificationRead } from "@/actions/notifications";
@@ -23,6 +23,7 @@ const CATEGORY_META: Record<
   ANNOUNCEMENT: { label: "Announcements", icon: Megaphone, badgeClass: "bg-purple-100 text-purple-700" },
   BILLING: { label: "Billing", icon: Receipt, badgeClass: "bg-rose-100 text-rose-700" },
   LEAVE: { label: "Leave Requests", icon: CalendarOff, badgeClass: "bg-orange-100 text-orange-700" },
+  PHARMACY: { label: "Pharmacy Requests", icon: Pill, badgeClass: "bg-cyan-100 text-cyan-700" },
 };
 
 function cardMeta(category: StaffNotificationCategory) {

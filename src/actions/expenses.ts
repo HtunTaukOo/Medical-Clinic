@@ -5,18 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { parseDateOnlyInput } from "@/lib/doctor-availability";
-
-const EXPENSE_CATEGORIES = [
-  "RENT",
-  "UTILITIES",
-  "SALARIES",
-  "SUPPLIES",
-  "EQUIPMENT",
-  "MAINTENANCE",
-  "MARKETING",
-  "INSURANCE",
-  "OTHER",
-] as const;
+import { EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES } from "@/lib/expenses";
 
 function revalidateExpenseConsumers() {
   revalidatePath("/staff/expenses");
@@ -33,11 +22,15 @@ const expenseSchema = z.object({
 
 export type ExpenseFormState = { error?: string; success?: boolean };
 
+// Staff can record day-to-day costs (supplies, small purchases) as they
+// happen, but only admins can see the full expense list (it includes
+// Salaries/Rent) or edit/delete an entry — see updateExpense/deleteExpense
+// below, both still admin-only.
 export async function createExpense(
   _prevState: ExpenseFormState,
   formData: FormData
 ): Promise<ExpenseFormState> {
-  const session = await requireRole(["ADMIN"]);
+  const session = await requireRole(["ADMIN", "STAFF"]);
 
   const parsed = expenseSchema.safeParse({
     category: formData.get("category"),
@@ -48,6 +41,12 @@ export async function createExpense(
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+  if (
+    session.user.role === "STAFF" &&
+    !(STAFF_EXPENSE_CATEGORIES as readonly string[]).includes(parsed.data.category)
+  ) {
+    return { error: "Staff can only record Supplies, Equipment, Maintenance, or Other expenses." };
   }
 
   await prisma.expense.create({

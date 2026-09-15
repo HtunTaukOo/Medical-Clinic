@@ -107,6 +107,9 @@ const invoiceItemSchema = z.object({
 
 export type InvoiceItemFormState = { error?: string; success?: boolean };
 
+const PHARMACY_INVOICE_ERROR =
+  "This invoice was generated from a pharmacy sale — manage it from Pharmacy > Sales History instead, so stock and the sale record stay in sync.";
+
 export async function addInvoiceItem(
   invoiceId: string,
   _prevState: InvoiceItemFormState,
@@ -115,6 +118,9 @@ export async function addInvoiceItem(
   const session = await requireRole(STAFF_ROLES);
 
   const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
+  if (invoice.pharmacySaleId) {
+    return { error: PHARMACY_INVOICE_ERROR };
+  }
   if (invoice.status === "PAID") {
     return { error: "This invoice is already fully paid and can no longer be edited" };
   }
@@ -152,6 +158,9 @@ export async function removeInvoiceItem(invoiceId: string, itemId: string) {
     where: { id: invoiceId },
     include: { items: true },
   });
+  if (invoice.pharmacySaleId) {
+    throw new Error(PHARMACY_INVOICE_ERROR);
+  }
   if (invoice.status === "PAID") {
     throw new Error("This invoice is already fully paid and can no longer be edited");
   }
@@ -178,6 +187,11 @@ export async function removeInvoiceItem(invoiceId: string, itemId: string) {
 
 export async function voidPayment(invoiceId: string, paymentId: string) {
   const session = await requireRole(["ADMIN"]);
+
+  const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
+  if (invoice.pharmacySaleId) {
+    throw new Error(PHARMACY_INVOICE_ERROR);
+  }
 
   const payment = await prisma.payment.findUnique({ where: { id: paymentId } });
   await prisma.payment.delete({ where: { id: paymentId } });
@@ -214,6 +228,9 @@ export async function refundPayment(
     where: { id: paymentId },
     include: { refunds: true, invoice: { include: { patient: true } } },
   });
+  if (payment.invoice.pharmacySaleId) {
+    return { error: PHARMACY_INVOICE_ERROR };
+  }
 
   const parsed = refundSchema.safeParse({
     amount: formData.get("amount"),

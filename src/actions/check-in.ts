@@ -86,13 +86,14 @@ export async function registerAndCheckIn(
 
   const now = new Date();
 
-  // A block-mode walk-in is always "right now" — resolve whichever of the 5
-  // fixed blocks contains the current clinic-local time (clamped to the
-  // nearest one if outside all of them, e.g. before the clinic's first
-  // block), then capacity-check it the same way the booking wizard does.
+  // A block-mode (or shared-capacity service, e.g. Lab Visit) walk-in is
+  // always "right now" — resolve whichever of the 5 fixed blocks contains
+  // the current clinic-local time (clamped to the nearest one if outside all
+  // of them, e.g. before the clinic's first block), then capacity-check it
+  // the same way the booking wizard does.
   let scheduledAt = now;
   let durationMinutes: number | undefined = clinicService?.durationMinutes;
-  if (specialty?.bookingMode === "BLOCK_CAPACITY") {
+  if (specialty?.bookingMode === "BLOCK_CAPACITY" || specialty?.bookingMode === "SERVICE_CAPACITY") {
     const clinicHours = await getClinicHoursForDate(now);
     if (!clinicHours.isOpen) {
       return { error: "The clinic is closed today." };
@@ -106,7 +107,7 @@ export async function registerAndCheckIn(
     const { available } = await isBlockSlotAvailable(specialty.name, specialty.capacityPerSlot, scheduledAt);
     if (!available) {
       return {
-        error: `This time block is at capacity (${specialty.capacityPerSlot} patients). Please try a different doctor.`,
+        error: `This time block is at capacity (${specialty.capacityPerSlot} patients). Please try again shortly.`,
       };
     }
   }

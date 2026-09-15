@@ -67,7 +67,12 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
     roles: ["ADMIN", "STAFF"],
     group: "sectionOperations",
   },
-  { href: "/staff/expenses", labelKey: "expenses", roles: ["ADMIN"], group: "sectionAdmin" },
+  {
+    href: "/staff/expenses",
+    labelKey: "expenses",
+    roles: ["ADMIN", "STAFF"],
+    group: "sectionAdmin",
+  },
   { href: "/staff/reports", labelKey: "reports", roles: ["ADMIN"], group: "sectionAdmin" },
   {
     href: "/staff/activity-log",

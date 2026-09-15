@@ -64,6 +64,7 @@ const ICONS: Record<string, LucideIcon> = {
   expenses: HandCoins,
   inventory: Pill,
   pharmacy: PillBottle,
+  medicines: PillBottle,
   staff: UserCog,
   doctorsSchedules: Stethoscope,
   clinicServices: Building2,

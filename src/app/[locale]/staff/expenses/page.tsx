@@ -1,9 +1,14 @@
 import { Receipt, Plus, HandCoins } from "lucide-react";
+import type { ExpenseCategory, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
-import { clinicMidnightForYMD, clinicDateParts } from "@/lib/clinic-hours";
+import { clinicDateKey } from "@/lib/clinic-hours";
+import { resolveReportRange, formatRangeLabel } from "@/lib/reports";
 import { deleteExpense } from "@/actions/expenses";
+import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, STAFF_EXPENSE_CATEGORIES } from "@/lib/expenses";
 import { ExpenseEditDialog } from "@/components/staff/expense-edit-dialog";
+import { ExpenseCategoryFilter } from "@/components/staff/expense-category-filter";
+import { DateRangeFilter } from "@/components/reports/date-range-filter";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -22,18 +27,6 @@ function formatKyat(value: number) {
   return `K ${Math.round(value).toLocaleString()}`;
 }
 
-const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
-  RENT: "Rent",
-  UTILITIES: "Utilities",
-  SALARIES: "Salaries",
-  SUPPLIES: "Supplies",
-  EQUIPMENT: "Equipment",
-  MAINTENANCE: "Maintenance",
-  MARKETING: "Marketing",
-  INSURANCE: "Insurance",
-  OTHER: "Other",
-};
-
 const CATEGORY_COLORS: Record<string, string> = {
   RENT: "bg-blue-100 text-blue-700",
   UTILITIES: "bg-cyan-100 text-cyan-700",
@@ -46,29 +39,45 @@ const CATEGORY_COLORS: Record<string, string> = {
   OTHER: "bg-gray-100 text-gray-600",
 };
 
-export default async function ExpensesPage() {
-  await requirePageRole(["ADMIN"]);
+export default async function ExpensesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string; to?: string; category?: string }>;
+}) {
+  const session = await requirePageRole(["ADMIN", "STAFF"]);
+  const isStaff = session.user.role === "STAFF";
+  const allowedCategories: readonly string[] = isStaff ? STAFF_EXPENSE_CATEGORIES : EXPENSE_CATEGORIES;
 
-  const now = new Date();
-  const { year, month } = clinicDateParts(now);
-  const monthStart = clinicMidnightForYMD(year, month, 1);
-  const nextMonthStart = clinicMidnightForYMD(month === 12 ? year + 1 : year, month === 12 ? 1 : month + 1, 1);
+  const { from, to, category: categoryParam } = await searchParams;
+  const range = resolveReportRange(from, to);
+  const category: ExpenseCategory | null =
+    categoryParam && allowedCategories.includes(categoryParam)
+      ? (categoryParam as ExpenseCategory)
+      : null;
 
-  const [expenses, monthTotal] = await Promise.all([
+  // Staff get a shared log of what any staff member has recorded (always in
+  // the staff-allowed categories, enforced at creation) — never an admin's
+  // own entries, and never Rent/Salaries/etc, regardless of category filter.
+  const where: Prisma.ExpenseWhereInput = {
+    paidAt: { gte: range.start, lt: range.endExclusive },
+    ...(category ? { category } : {}),
+    ...(isStaff ? { recordedBy: { role: "STAFF" } } : {}),
+  };
+
+  // The "Total Expenses" banner only makes sense for admin — staff's list is
+  // already a filtered subset (their categories, staff-recorded only), so a
+  // dollar total there would look like the clinic's real spend but wouldn't
+  // be it. Skip computing it for staff rather than show a misleading figure.
+  const [expenses, rangeTotal] = await Promise.all([
     prisma.expense.findMany({
+      where,
       orderBy: { paidAt: "desc" },
       include: { recordedBy: true },
     }),
-    prisma.expense.aggregate({
-      _sum: { amount: true },
-      where: { paidAt: { gte: monthStart, lt: nextMonthStart } },
-    }),
+    isStaff ? Promise.resolve(null) : prisma.expense.aggregate({ _sum: { amount: true }, where }),
   ]);
 
-  const totalThisMonth = Number(monthTotal._sum.amount ?? 0);
-  const countThisMonth = expenses.filter(
-    (e) => e.paidAt >= monthStart && e.paidAt < nextMonthStart
-  ).length;
+  const totalInRange = rangeTotal ? Number(rangeTotal._sum.amount ?? 0) : 0;
 
   return (
     <div className="grid gap-4">
@@ -85,23 +94,37 @@ export default async function ExpensesPage() {
         </Button>
       </div>
 
-      <div className="flex items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-rose-500 to-rose-600 p-6 text-white">
-        <div>
-          <p className="text-xs font-semibold tracking-wide text-rose-50 uppercase">
-            Total Expenses (This Month)
-          </p>
-          <p className="mt-1 text-3xl font-bold">{formatKyat(totalThisMonth)}</p>
-          <p className="mt-1 text-sm text-rose-50">
-            {countThisMonth} expense{countThisMonth === 1 ? "" : "s"} recorded
-          </p>
-        </div>
-        <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
-          <HandCoins className="size-5" />
-        </div>
+      <div className="flex flex-wrap items-center gap-3">
+        <DateRangeFilter
+          defaultFrom={range.from}
+          defaultTo={range.to}
+          todayKey={clinicDateKey(new Date())}
+        />
+        <ExpenseCategoryFilter
+          defaultCategory={category ?? "all"}
+          categories={isStaff ? STAFF_EXPENSE_CATEGORIES : undefined}
+        />
       </div>
 
+      {!isStaff && (
+        <div className="flex items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-rose-500 to-rose-600 p-6 text-white">
+          <div>
+            <p className="text-xs font-semibold tracking-wide text-rose-50 uppercase">
+              Total Expenses ({formatRangeLabel(range)})
+            </p>
+            <p className="mt-1 text-3xl font-bold">{formatKyat(totalInRange)}</p>
+            <p className="mt-1 text-sm text-rose-50">
+              {expenses.length} expense{expenses.length === 1 ? "" : "s"} recorded
+            </p>
+          </div>
+          <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
+            <HandCoins className="size-5" />
+          </div>
+        </div>
+      )}
+
       {expenses.length === 0 ? (
-        <EmptyState icon={Receipt} message="No expenses recorded yet." />
+        <EmptyState icon={Receipt} message="No expenses match these filters." />
       ) : (
         <Card>
           <CardContent>
@@ -114,7 +137,7 @@ export default async function ExpensesPage() {
                   <TableHead>Vendor</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Recorded By</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  {!isStaff && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -138,28 +161,30 @@ export default async function ExpensesPage() {
                     <TableCell className="text-muted-foreground">
                       {expense.recordedBy.name}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <div className="flex items-center justify-end gap-3">
-                        <ExpenseEditDialog
-                          expense={{
-                            id: expense.id,
-                            category: expense.category,
-                            description: expense.description,
-                            amount: Number(expense.amount),
-                            vendor: expense.vendor,
-                            paidAt: expense.paidAt.toISOString().slice(0, 10),
-                          }}
-                        />
-                        <form action={deleteExpense.bind(null, expense.id)}>
-                          <button
-                            type="submit"
-                            className="font-medium text-destructive hover:underline"
-                          >
-                            Delete
-                          </button>
-                        </form>
-                      </div>
-                    </TableCell>
+                    {!isStaff && (
+                      <TableCell className="text-right">
+                        <div className="flex items-center justify-end gap-3">
+                          <ExpenseEditDialog
+                            expense={{
+                              id: expense.id,
+                              category: expense.category,
+                              description: expense.description,
+                              amount: Number(expense.amount),
+                              vendor: expense.vendor,
+                              paidAt: expense.paidAt.toISOString().slice(0, 10),
+                            }}
+                          />
+                          <form action={deleteExpense.bind(null, expense.id)}>
+                            <button
+                              type="submit"
+                              className="font-medium text-destructive hover:underline"
+                            >
+                              Delete
+                            </button>
+                          </form>
+                        </div>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>

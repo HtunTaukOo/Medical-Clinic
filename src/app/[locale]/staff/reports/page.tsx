@@ -1,5 +1,6 @@
 import { Download, FileBarChart2 } from "lucide-react";
 import { requirePageRole } from "@/lib/authz";
+import { clinicDateKey } from "@/lib/clinic-hours";
 import {
   REPORT_TABS,
   resolveReportRange,
@@ -75,7 +76,11 @@ export default async function ReportsPage({
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <DateRangeFilter defaultFrom={range.from} defaultTo={range.to} />
+        <DateRangeFilter
+          defaultFrom={range.from}
+          defaultTo={range.to}
+          todayKey={clinicDateKey(new Date())}
+        />
         <Button asChild size="sm">
           <a href={exportHref}>
             <Download />

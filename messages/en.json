@@ -3,6 +3,11 @@
     "name": "Nyein Chan Aung Clinic",
     "shortName": "NCA Clinic"
   },
+  "notFound": {
+    "title": "Page not found",
+    "description": "This page doesn't exist, or the record it linked to (an appointment, for example) may have since been removed.",
+    "backHome": "Back to Home"
+  },
   "nav": {
     "dashboard": "Dashboard",
     "checkIn": "Patient Check-in",
@@ -20,6 +25,7 @@
     "findDoctors": "Find Doctors",
     "settings": "Settings",
     "medicalRecords": "Medical Records",
+    "medicines": "Medicines",
     "queue": "Queue",
     "reports": "Reports",
     "activityLog": "Activity Log",
@@ -444,6 +450,18 @@
       "generalMedicineFallback": "General Medicine",
       "reasonLabel": "Reason: {reason}",
       "uploadPrompt": "New to the clinic? Upload your previous medical history or records here."
+    },
+    "medicines": {
+      "description": "Browse what the pharmacy carries, and let staff know when you need something — they'll have it ready for you to pick up and pay for in person.",
+      "tabAvailable": "Available Medicines",
+      "tabPrescriptions": "My Prescriptions",
+      "noMedicines": "No medicines in the catalogue yet.",
+      "noPrescriptions": "No prescriptions yet.",
+      "fulfilled": "Fulfilled",
+      "pendingStatus": "Pending",
+      "requestRefill": "Request Refill",
+      "notifyPharmacy": "Notify Pharmacy",
+      "requestPending": "Request Pending"
     },
     "diagnoses": {
       "noDiagnoses": "No diagnoses recorded yet.",

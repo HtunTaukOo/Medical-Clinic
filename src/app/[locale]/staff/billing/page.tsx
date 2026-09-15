@@ -2,7 +2,9 @@ import { Plus, Receipt } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
-import { clinicMidnight } from "@/lib/clinic-hours";
+import { clinicDateKey } from "@/lib/clinic-hours";
+import { resolveReportRange, formatRangeLabel } from "@/lib/reports";
+import { DateRangeFilter } from "@/components/reports/date-range-filter";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -38,18 +40,18 @@ const STATUS_STYLES: Record<string, string> = {
 export default async function BillingPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; from?: string; to?: string }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("billing");
-  const { tab: tabParam } = await searchParams;
+  const { tab: tabParam, from, to } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "all";
+  const range = resolveReportRange(from, to);
+  const dateQuery = `${from ? `&from=${from}` : ""}${to ? `&to=${to}` : ""}`;
 
-  const todayStart = clinicMidnight(new Date());
-  const todayEnd = new Date(todayStart.getTime() + 86400000);
-
-  const [invoicesAsc, todaysPayments, paidInvoicesToday] = await Promise.all([
+  const [invoicesAsc, rangePayments, paidInvoicesInRange] = await Promise.all([
     prisma.invoice.findMany({
+      where: { createdAt: { gte: range.start, lt: range.endExclusive } },
       orderBy: { createdAt: "asc" },
       include: {
         patient: true,
@@ -59,15 +61,18 @@ export default async function BillingPage({
       },
     }),
     prisma.payment.findMany({
-      where: { paidAt: { gte: todayStart, lt: todayEnd } },
+      where: { paidAt: { gte: range.start, lt: range.endExclusive } },
       select: { amount: true },
     }),
     prisma.invoice.count({
-      where: { status: "PAID", payments: { some: { paidAt: { gte: todayStart, lt: todayEnd } } } },
+      where: {
+        status: "PAID",
+        payments: { some: { paidAt: { gte: range.start, lt: range.endExclusive } } },
+      },
     }),
   ]);
 
-  const totalRevenueToday = todaysPayments.reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalRevenueInRange = rangePayments.reduce((sum, p) => sum + Number(p.amount), 0);
 
   const rows = invoicesAsc.map((invoice, index) => {
     const grossPaid = invoice.payments.reduce((sum, p) => sum + Number(p.amount), 0);
@@ -125,14 +130,20 @@ export default async function BillingPage({
         </div>
       </div>
 
+      <DateRangeFilter
+        defaultFrom={range.from}
+        defaultTo={range.to}
+        todayKey={clinicDateKey(new Date())}
+      />
+
       <div className="flex items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-emerald-600 p-6 text-white">
         <div>
           <p className="text-xs font-semibold tracking-wide text-emerald-50 uppercase">
-            Total Revenue (Today)
+            Total Revenue ({formatRangeLabel(range)})
           </p>
-          <p className="mt-1 text-3xl font-bold">{formatKyat(totalRevenueToday)}</p>
+          <p className="mt-1 text-3xl font-bold">{formatKyat(totalRevenueInRange)}</p>
           <p className="mt-1 text-sm text-emerald-50">
-            {paidInvoicesToday} paid invoice{paidInvoicesToday === 1 ? "" : "s"}
+            {paidInvoicesInRange} paid invoice{paidInvoicesInRange === 1 ? "" : "s"}
           </p>
         </div>
         <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
@@ -144,7 +155,7 @@ export default async function BillingPage({
         {TABS.map(({ value, label }) => (
           <Link
             key={value}
-            href={`/staff/billing?tab=${value}`}
+            href={`/staff/billing?tab=${value}${dateQuery}`}
             className={
               tab === value
                 ? "rounded-lg bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm"
@@ -198,6 +209,11 @@ export default async function BillingPage({
                               ? "Partial"
                               : "Unpaid"}
                         </Badge>
+                        {invoice.pharmacySaleId && (
+                          <Badge variant="outline" className="bg-cyan-100 text-cyan-700">
+                            Pharmacy
+                          </Badge>
+                        )}
                         {hasRefund && (
                           <Badge variant="outline" className="bg-slate-100 text-slate-600">
                             {t("refunded")}
@@ -223,19 +239,32 @@ export default async function BillingPage({
                         {grossPaid > 0 && (
                           <>
                             <Link
-                              href={`/receipt/${invoice.id}`}
+                              href={
+                                invoice.pharmacySaleId
+                                  ? `/pharmacy-receipt/${invoice.pharmacySaleId}`
+                                  : `/receipt/${invoice.id}`
+                              }
+                              target={invoice.pharmacySaleId ? "_blank" : undefined}
                               className="font-medium text-primary hover:underline"
                             >
                               View Receipt
                             </Link>
-                            {netPaid > 0 && (
-                              <Link
-                                href={`/staff/billing/${invoice.id}`}
-                                className="font-medium text-rose-600 hover:underline"
-                              >
-                                {t("refund")}
-                              </Link>
-                            )}
+                            {netPaid > 0 &&
+                              (invoice.pharmacySaleId ? (
+                                <Link
+                                  href="/staff/pharmacy?tab=history"
+                                  className="font-medium text-rose-600 hover:underline"
+                                >
+                                  Process Return
+                                </Link>
+                              ) : (
+                                <Link
+                                  href={`/staff/billing/${invoice.id}`}
+                                  className="font-medium text-rose-600 hover:underline"
+                                >
+                                  {t("refund")}
+                                </Link>
+                              ))}
                           </>
                         )}
                       </div>

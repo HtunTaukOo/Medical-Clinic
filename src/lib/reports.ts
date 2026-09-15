@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { clinicDateKey } from "@/lib/clinic-hours";
+import { EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 
 export const MONTH_NAMES = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -59,6 +60,14 @@ export function formatDateLabel(key: string) {
     year: "numeric",
     timeZone: "UTC",
   });
+}
+
+// A human label for a date-range summary card, e.g. "Sep 15, 2026" for a
+// single day or "Sep 1 – Sep 15, 2026" for a range.
+export function formatRangeLabel(range: Pick<ReportRange, "from" | "to">) {
+  return range.from === range.to
+    ? formatDateLabel(range.from)
+    : `${formatDateLabel(range.from)} – ${formatDateLabel(range.to)}`;
 }
 
 // A calendar day, expressed both as clinic-local Y-M-D keys (for grouping/display)
@@ -463,17 +472,6 @@ export async function getServiceUsageReport(range: ReportRange): Promise<Reports
   };
 }
 
-const EXPENSE_CATEGORY_LABELS: Record<string, string> = {
-  RENT: "Rent",
-  UTILITIES: "Utilities",
-  SALARIES: "Salaries",
-  SUPPLIES: "Supplies",
-  EQUIPMENT: "Equipment",
-  MAINTENANCE: "Maintenance",
-  MARKETING: "Marketing",
-  INSURANCE: "Insurance",
-  OTHER: "Other",
-};
 
 export async function getExpensesReport(range: ReportRange): Promise<ReportsPageData> {
   const extendedStart = new Date(range.start.getTime() - 86400000);
@@ -525,7 +523,9 @@ export async function getExpensesReport(range: ReportRange): Promise<ReportsPage
     totalValue: formatKyat(totalExpenses),
     growthPercent: pctChange(totalExpenses, previousExpenses),
     topPerformerLabel: "Top Category",
-    topPerformerValue: topCategory ? EXPENSE_CATEGORY_LABELS[topCategory] : "—",
+    topPerformerValue: topCategory
+      ? EXPENSE_CATEGORY_LABELS[topCategory as keyof typeof EXPENSE_CATEGORY_LABELS]
+      : "—",
     rows: tableRows,
   };
 }
