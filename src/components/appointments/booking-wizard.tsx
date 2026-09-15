@@ -18,7 +18,7 @@ import type { DaySlot, BlockAvailability } from "@/lib/booking-slots";
 import type { AppointmentFormState } from "@/actions/appointments";
 import { getSpecialtyIcon, matchSpecialty } from "@/lib/specialties";
 import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
-import { getTimeBlockById, formatBlockLabel, type TimeBlockId } from "@/lib/time-blocks";
+import { formatBlockLabel } from "@/lib/time-blocks";
 import { JoinWaitlistForm } from "@/components/appointments/join-waitlist-form";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -151,7 +151,7 @@ export function BookingWizard({
   const [time, setTime] = useState<string | null>(null);
   const [slotCount, setSlotCount] = useState(1);
   const [daySlots, setDaySlots] = useState<DaySlot[]>([]);
-  const [blockId, setBlockId] = useState<TimeBlockId | null>(null);
+  const [blockId, setBlockId] = useState<string | null>(null);
   const [blockAvailability, setBlockAvailability] = useState<BlockAvailability[]>([]);
   const [eligibleDoctorIds, setEligibleDoctorIds] = useState<string[] | null>(null);
   const [, startEligibleDoctorsTransition] = useTransition();
@@ -214,7 +214,7 @@ export function BookingWizard({
 
   const selectedDoctor = doctors.find((d) => d.id === doctorId) ?? null;
   const selectedService = services.find((s) => s.id === clinicServiceId) ?? null;
-  const selectedBlock = blockId ? getTimeBlockById(blockId) : null;
+  const selectedBlock = blockId ? (blockAvailability.find((b) => b.blockId === blockId) ?? null) : null;
   const timeRangeLabel = usesTimeBlocks
     ? selectedBlock
       ? formatBlockLabel(selectedBlock)

@@ -12,7 +12,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { PatientAppointmentCard } from "@/components/appointments/patient-appointment-card";
 import { appointmentProviderName, getBookByServiceSpecialtyNames } from "@/lib/appointment-provider";
-import { getTimeBlockById, formatTimeLabel } from "@/lib/time-blocks";
+import { formatTimeLabel } from "@/lib/time-blocks";
+import { getBlocksForDate } from "@/lib/booking-slots";
 import { cn } from "@/lib/utils";
 
 const STATUS_STYLES: Record<string, string> = {
@@ -108,6 +109,11 @@ export default async function PortalAppointmentsPage({
         orderBy: { requestedDate: "asc" },
       })
     : [];
+  // Blocks are generated per weekday now, so a stored blockId only resolves
+  // to a definition alongside that entry's own requestedDate.
+  const waitlistEntryBlocks = await Promise.all(
+    waitlistEntries.map((entry) => getBlocksForDate(entry.requestedDate))
+  );
 
   const weeks = getMonthGrid(year, month);
   const byDay = new Map<string, typeof appointments>();
@@ -151,8 +157,8 @@ export default async function PortalAppointmentsPage({
         <Card>
           <CardContent className="grid gap-2">
             <p className="text-sm font-medium">{tp("waitlist")}</p>
-            {waitlistEntries.map((entry) => {
-              const block = getTimeBlockById(entry.blockId);
+            {waitlistEntries.map((entry, index) => {
+              const block = waitlistEntryBlocks[index].find((b) => b.id === entry.blockId) ?? null;
               return (
               <div
                 key={entry.id}

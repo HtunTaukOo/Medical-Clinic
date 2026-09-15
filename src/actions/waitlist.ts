@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireSession, UnauthorizedError } from "@/lib/authz";
 import { clinicMidnight } from "@/lib/clinic-hours";
 import { blockContainingMinuteOfDay, formatBlockLabel } from "@/lib/time-blocks";
+import { getBlocksForDate } from "@/lib/booking-slots";
 import { notifyPatient } from "@/lib/telegram";
 
 // Waitlist is per specialty+day+block (capacity is pooled across every
@@ -20,7 +21,8 @@ async function resolveWaitlistTarget(doctorId: string, scheduledAt: Date) {
 
   const requestedDate = clinicMidnight(scheduledAt);
   const minutesOfDay = Math.round((scheduledAt.getTime() - requestedDate.getTime()) / 60000);
-  const block = blockContainingMinuteOfDay(minutesOfDay);
+  const blocks = await getBlocksForDate(requestedDate);
+  const block = blockContainingMinuteOfDay(blocks, minutesOfDay);
   if (!block) return null;
 
   return { specialtyName: specialty.name, requestedDate, block };

@@ -10,7 +10,7 @@ import { generatePatientCode } from "@/lib/patients";
 import { logActivity } from "@/lib/audit";
 import { createLabOrderForLinkedService } from "@/actions/appointments";
 import { getClinicHoursForDate, clinicLocalMinutes, clinicMidnight, toMinutes } from "@/lib/clinic-hours";
-import { blockContainingMinuteOfDay, nearestBlock, blockDurationMinutes } from "@/lib/time-blocks";
+import { generateTimeBlocks, blockContainingMinuteOfDay, nearestBlock, blockDurationMinutes, blockCapacity } from "@/lib/time-blocks";
 import { isBlockSlotAvailable } from "@/lib/scheduling";
 
 const registerSchema = z.object({
@@ -87,10 +87,10 @@ export async function registerAndCheckIn(
   const now = new Date();
 
   // A block-mode (or shared-capacity service, e.g. Lab Visit) walk-in is
-  // always "right now" — resolve whichever of the 5 fixed blocks contains
-  // the current clinic-local time (clamped to the nearest one if outside all
-  // of them, e.g. before the clinic's first block), then capacity-check it
-  // the same way the booking wizard does.
+  // always "right now" — resolve whichever of today's generated blocks
+  // contains the current clinic-local time (clamped to the nearest one if
+  // outside all of them, e.g. before the clinic's first block), then
+  // capacity-check it the same way the booking wizard does.
   let scheduledAt = now;
   let durationMinutes: number | undefined = clinicService?.durationMinutes;
   if (specialty?.bookingMode === "BLOCK_CAPACITY" || specialty?.bookingMode === "SERVICE_CAPACITY") {
@@ -98,16 +98,21 @@ export async function registerAndCheckIn(
     if (!clinicHours.isOpen) {
       return { error: "The clinic is closed today." };
     }
+    const blocks = generateTimeBlocks(clinicHours.openTime, clinicHours.closeTime);
     const minutesNow = clinicLocalMinutes(now);
-    const block = blockContainingMinuteOfDay(minutesNow) ?? nearestBlock(minutesNow);
+    const block = blockContainingMinuteOfDay(blocks, minutesNow) ?? nearestBlock(blocks, minutesNow);
+    if (!block) {
+      return { error: "No bookable time blocks configured for today." };
+    }
     const dayStart = clinicMidnight(now);
     scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
     durationMinutes = blockDurationMinutes(block);
 
-    const { available } = await isBlockSlotAvailable(specialty.name, specialty.capacityPerSlot, scheduledAt);
+    const capacity = blockCapacity(block, specialty.capacityPerSlot);
+    const { available } = await isBlockSlotAvailable(specialty.name, capacity, scheduledAt);
     if (!available) {
       return {
-        error: `This time block is at capacity (${specialty.capacityPerSlot} patients). Please try again shortly.`,
+        error: `This time block is at capacity (${capacity} patients). Please try again shortly.`,
       };
     }
   }

@@ -35,7 +35,8 @@ import { notifyPatient, notifyStaff, notifyDoctor } from "@/lib/telegram";
 import { createNotification, notifyStaffUsers } from "@/lib/notifications";
 import { notifyWaitlistOfOpening } from "@/actions/waitlist";
 import { logActivity } from "@/lib/audit";
-import { TIME_BLOCKS, blockDurationMinutes, getTimeBlockById } from "@/lib/time-blocks";
+import { blockDurationMinutes, blockCapacity, STANDARD_BLOCK_MINUTES } from "@/lib/time-blocks";
+import { getBlocksForDate } from "@/lib/booking-slots";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
 const CAPACITY_CONFLICT_MESSAGE = "That slot just filled up. Please pick a different time, or join the waitlist.";
@@ -95,6 +96,11 @@ export async function createAppointment(
   let baseDate: Date;
   let durationMinutes: number | undefined;
   let clinicServiceId: string | undefined;
+  // The chosen block's own capacity (reduced from the specialty's full
+  // capacityPerSlot when it's a trailing partial-duration block) — computed
+  // once below, reused for every recurring occurrence since they all land on
+  // the same weekday and therefore the same block.
+  let blockCapacityPerSlot: number | undefined;
 
   if (isServiceBooking) {
     specialty = await prisma.specialty.findUnique({ where: { name: parsed.data.specialtyName! } });
@@ -127,18 +133,20 @@ export async function createAppointment(
     isBlockMode = specialty?.bookingMode === "BLOCK_CAPACITY";
   }
 
-  // SERVICE_CAPACITY (Lab Visit) shares the exact same fixed 5-block time
-  // model as BLOCK_CAPACITY doctors — see confirmResourceBooking in
+  // SERVICE_CAPACITY (Lab Visit) shares the exact same day-generated block
+  // time model as BLOCK_CAPACITY doctors — see confirmResourceBooking in
   // src/actions/booking.ts for the equivalent on the patient-facing side.
   if (isServiceBooking || isBlockMode) {
     if (!parsed.data.blockDate || !parsed.data.blockId) {
       return { error: "Please choose a date and time block." };
     }
-    const block = getTimeBlockById(parsed.data.blockId);
-    if (!block) return { error: "Invalid time block." };
     const [y, m, d] = parsed.data.blockDate.split("-").map(Number);
-    baseDate = new Date(clinicMidnightForYMD(y, m, d).getTime() + toMinutes(block.startTime) * 60 * 1000);
+    const blockDayStart = clinicMidnightForYMD(y, m, d);
+    const block = (await getBlocksForDate(blockDayStart)).find((b) => b.id === parsed.data.blockId);
+    if (!block) return { error: "Invalid time block." };
+    baseDate = new Date(blockDayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
     durationMinutes = blockDurationMinutes(block);
+    blockCapacityPerSlot = specialty ? blockCapacity(block, specialty.capacityPerSlot) : undefined;
   } else {
     if (!parsed.data.scheduledAt) return { error: "Please choose a date and time." };
     baseDate = new Date(parsed.data.scheduledAt);
@@ -161,7 +169,7 @@ export async function createAppointment(
       // Shared-capacity specialties skip the per-doctor leave/hours checks
       // entirely, same as the patient-facing resourceCapacity path.
       const available = await isResourceSlotAvailable(
-        { specialtyName: specialty.name, capacityPerSlot: specialty.capacityPerSlot },
+        { specialtyName: specialty.name, capacityPerSlot: blockCapacityPerSlot ?? specialty.capacityPerSlot },
         occurrenceDate,
         durationMinutes
       );
@@ -179,7 +187,7 @@ export async function createAppointment(
           } else {
             const { available } = await isBlockSlotAvailable(
               specialty.name,
-              specialty.capacityPerSlot,
+              blockCapacityPerSlot ?? specialty.capacityPerSlot,
               occurrenceDate
             );
             if (!available) {
@@ -272,13 +280,13 @@ export async function submitAppointmentRequest(
   // doctor's own calendar, so the doctor-specific leave/hours/conflict checks
   // below are skipped in favor of a capacity check.
   resourceCapacity?: { specialtyName: string; capacityPerSlot: number } | null,
-  // Set for BLOCK_CAPACITY bookings, where durationMinutes is a fixed block
-  // length (120/180) rather than a multiple of APPOINTMENT_SLOT_MINUTES.
+  // Set for BLOCK_CAPACITY bookings, where durationMinutes is a block length
+  // (up to STANDARD_BLOCK_MINUTES, less for a trailing partial block) rather
+  // than a multiple of APPOINTMENT_SLOT_MINUTES.
   bookingContext?: { mode: "BLOCK_CAPACITY" } | null
 ): Promise<AppointmentFormState> {
   if (bookingContext?.mode === "BLOCK_CAPACITY") {
-    const validBlockDurations = TIME_BLOCKS.map(blockDurationMinutes);
-    if (!validBlockDurations.includes(durationMinutes)) {
+    if (!(Number.isInteger(durationMinutes) && durationMinutes > 0 && durationMinutes <= STANDARD_BLOCK_MINUTES)) {
       return { error: "Invalid appointment duration." };
     }
   } else if (

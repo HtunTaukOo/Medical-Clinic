@@ -8,12 +8,13 @@ import {
   isDayBookable,
   isResourceDayBookable,
   getBlockDaySlots,
+  getBlocksForDate,
   type DaySlot,
   type BlockAvailability,
 } from "@/lib/booking-slots";
 import { clinicMidnightForYMD, toMinutes } from "@/lib/clinic-hours";
 import { submitAppointmentRequest, type AppointmentFormState } from "@/actions/appointments";
-import { getTimeBlockById, blockDurationMinutes, TIME_BLOCKS } from "@/lib/time-blocks";
+import { blockDurationMinutes, blockCapacity } from "@/lib/time-blocks";
 import { isDoctorOnLeave, isDoctorAvailableForRange } from "@/lib/doctor-availability";
 
 async function loadDoctorForSlots(doctorId: string) {
@@ -100,7 +101,7 @@ export async function confirmBooking(
 }
 
 // The "book by service" counterpart to confirmBlockBooking below — same
-// fixed 5 daily blocks and pooled-capacity model, but there's no real doctor
+// day-generated blocks and pooled-capacity model, but there's no real doctor
 // to pick (a SERVICE_CAPACITY specialty like Lab Visit is one shared
 // resource), so the doctor of record is auto-assigned instead of chosen.
 export async function confirmResourceBooking(
@@ -121,7 +122,8 @@ export async function confirmResourceBooking(
     return { error: "This specialty isn't set up for service-based booking." };
   }
 
-  const block = getTimeBlockById(blockId);
+  const dayStart = clinicMidnightForYMD(year, month, day);
+  const block = (await getBlocksForDate(dayStart)).find((b) => b.id === blockId);
   if (!block) {
     return { error: "Invalid time block." };
   }
@@ -137,9 +139,7 @@ export async function confirmResourceBooking(
     return { error: "No staff are set up for this specialty yet. Please contact the clinic." };
   }
 
-  const scheduledAt = new Date(
-    clinicMidnightForYMD(year, month, day).getTime() + toMinutes(block.startTime) * 60 * 1000
-  );
+  const scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
 
   return submitAppointmentRequest(
     patientId,
@@ -148,12 +148,12 @@ export async function confirmResourceBooking(
     reason || undefined,
     blockDurationMinutes(block),
     clinicServiceId,
-    { specialtyName, capacityPerSlot: specialty.capacityPerSlot },
+    { specialtyName, capacityPerSlot: blockCapacity(block, specialty.capacityPerSlot) },
     { mode: "BLOCK_CAPACITY" }
   );
 }
 
-// BLOCK_CAPACITY counterpart: fixed daily blocks with pooled capacity across
+// BLOCK_CAPACITY counterpart: this day's generated blocks with pooled capacity across
 // every doctor with this specialty, no single doctor's hours involved yet
 // (the doctor is chosen after the block — see confirmBlockBooking below).
 export async function fetchBlockAvailability(
@@ -195,12 +195,11 @@ export async function fetchEligibleDoctorIds(
   blockId: string
 ): Promise<string[]> {
   await requireSession();
-  const block = getTimeBlockById(blockId);
+  const dayStart = clinicMidnightForYMD(year, month, day);
+  const block = (await getBlocksForDate(dayStart)).find((b) => b.id === blockId);
   if (!block) return [];
 
-  const scheduledAt = new Date(
-    clinicMidnightForYMD(year, month, day).getTime() + toMinutes(block.startTime) * 60 * 1000
-  );
+  const scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
   const durationMinutes = blockDurationMinutes(block);
 
   const doctors = await prisma.doctorProfile.findMany({
@@ -220,7 +219,7 @@ export async function fetchEligibleDoctorIds(
 
 // For a specific, already-chosen doctor (staff/doctor manual booking, where
 // the doctor is picked before the block, unlike the patient wizard): which
-// of the 5 fixed blocks can this doctor actually cover that day? Lets the
+// of this day's generated blocks can this doctor actually cover? Lets the
 // block picker gray out/flag blocks this doctor doesn't work, instead of
 // letting staff pick one that would silently fail at submit time.
 export async function fetchDoctorBlockEligibility(
@@ -238,9 +237,10 @@ export async function fetchDoctorBlockEligibility(
 
   const dayStart = clinicMidnightForYMD(year, month, day);
   const onLeave = await isDoctorOnLeave(doctor.id, dayStart);
+  const blocks = await getBlocksForDate(dayStart);
 
   const result: Record<string, boolean> = {};
-  for (const block of TIME_BLOCKS) {
+  for (const block of blocks) {
     const scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
     result[block.id] =
       !onLeave && (await isDoctorAvailableForRange(doctor, scheduledAt, blockDurationMinutes(block)));
@@ -271,7 +271,8 @@ export async function confirmBlockBooking(
     return { error: "This specialty isn't set up for block booking." };
   }
 
-  const block = getTimeBlockById(blockId);
+  const dayStart = clinicMidnightForYMD(year, month, day);
+  const block = (await getBlocksForDate(dayStart)).find((b) => b.id === blockId);
   if (!block) {
     return { error: "Invalid time block." };
   }
@@ -281,9 +282,7 @@ export async function confirmBlockBooking(
     return { error: "Please choose a doctor for this specialty." };
   }
 
-  const scheduledAt = new Date(
-    clinicMidnightForYMD(year, month, day).getTime() + toMinutes(block.startTime) * 60 * 1000
-  );
+  const scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
 
   if (await isDoctorOnLeave(doctor.id, scheduledAt)) {
     return { error: "This doctor is unavailable on the selected date. Please choose another doctor or day." };
@@ -301,7 +300,7 @@ export async function confirmBlockBooking(
     reason || undefined,
     blockDurationMinutes(block),
     clinicServiceId,
-    { specialtyName, capacityPerSlot: specialty.capacityPerSlot },
+    { specialtyName, capacityPerSlot: blockCapacity(block, specialty.capacityPerSlot) },
     { mode: "BLOCK_CAPACITY" }
   );
 }

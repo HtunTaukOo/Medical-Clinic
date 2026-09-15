@@ -11,7 +11,8 @@ import {
   clinicMidnightForYMD,
 } from "@/lib/clinic-hours";
 import { APPOINTMENT_SLOT_MINUTES } from "@/lib/scheduling";
-import { TIME_BLOCKS, blockContainingMinuteOfDay, formatTimeLabel } from "@/lib/time-blocks";
+import { blockContainingMinuteOfDay, formatTimeLabel } from "@/lib/time-blocks";
+import { getBlocksForDate } from "@/lib/booking-slots";
 import { getDoctorShiftsByWeekday, isWithinShiftRanges } from "@/lib/doctor-availability";
 import { DoctorLeaveManager } from "@/components/staff/doctor-leave-manager";
 import { RequestLeaveDialog } from "@/components/staff/request-leave-dialog";
@@ -118,26 +119,36 @@ export default async function SchedulePage({
     year: "numeric",
   })}`;
 
-  // BLOCK_CAPACITY doctors: 5 fixed daily blocks instead of a 30-min grid.
-  // Each cell holds every one of THIS doctor's own patients booked into that
-  // block (capacity is pooled across doctors, but this view is per-doctor) —
-  // an array per cell, not a single value, so multiple patients sharing one
+  // BLOCK_CAPACITY doctors: each weekday's own generated blocks instead of a
+  // 30-min grid — days can have different hours (e.g. a shorter Saturday),
+  // so row labels are the union of every distinct block start time across
+  // the week, and a day without a block at that time just renders an empty
+  // cell rather than forcing one uniform block list on every day. Each cell
+  // holds every one of THIS doctor's own patients booked into that block
+  // (capacity is pooled across doctors, but this view is per-doctor) — an
+  // array per cell, not a single value, so multiple patients sharing one
   // block all render instead of only the last one processed.
   if (isBlockMode) {
     type BlockOccupant = { id: string; patientName: string; reason: string | null };
-    const apptsByBlockCell = new Map<string, BlockOccupant[]>();
+
+    const dayBlocks = await Promise.all(
+      DAY_LABELS.map((_, offset) => getBlocksForDate(new Date(weekStart.getTime() + offset * ONE_DAY_MS)))
+    );
+    const rowStartTimes = Array.from(new Set(dayBlocks.flat().map((b) => b.startTime))).sort();
+
+    const apptsByCell = new Map<string, BlockOccupant[]>();
     for (const appt of weekAppointments) {
       const offsetDays = Math.floor((appt.scheduledAt.getTime() - weekStart.getTime()) / ONE_DAY_MS);
       if (offsetDays < 0 || offsetDays > 5) continue;
       const minutesOfDay = Math.round(
         (appt.scheduledAt.getTime() - (weekStart.getTime() + offsetDays * ONE_DAY_MS)) / 60000
       );
-      const block = blockContainingMinuteOfDay(minutesOfDay);
+      const block = blockContainingMinuteOfDay(dayBlocks[offsetDays], minutesOfDay);
       if (!block) continue;
-      const key = `${offsetDays}-${block.id}`;
-      const list = apptsByBlockCell.get(key) ?? [];
+      const key = `${offsetDays}-${block.startTime}`;
+      const list = apptsByCell.get(key) ?? [];
       list.push({ id: appt.id, patientName: appt.patient.name, reason: appt.reason });
-      apptsByBlockCell.set(key, list);
+      apptsByCell.set(key, list);
     }
 
     const bookedCount = weekAppointments.length;
@@ -147,11 +158,15 @@ export default async function SchedulePage({
     type BlockCell =
       | { type: "booked"; occupants: BlockOccupant[] }
       | { type: "available" }
-      | { type: "blocked" };
+      | { type: "blocked" }
+      | { type: "none" };
 
-    const blockGrid: BlockCell[][] = TIME_BLOCKS.map((block) =>
+    const blockGrid: BlockCell[][] = rowStartTimes.map((startTime) =>
       DAY_LABELS.map((_, dayOffset) => {
-        const occupants = apptsByBlockCell.get(`${dayOffset}-${block.id}`) ?? [];
+        const block = dayBlocks[dayOffset].find((b) => b.startTime === startTime);
+        if (!block) return { type: "none" };
+
+        const occupants = apptsByCell.get(`${dayOffset}-${startTime}`) ?? [];
         if (occupants.length > 0) return { type: "booked", occupants };
 
         const dayMidnight = weekStart.getTime() + dayOffset * ONE_DAY_MS;
@@ -266,10 +281,10 @@ export default async function SchedulePage({
                   })}
                 </div>
 
-                {TIME_BLOCKS.map((block, rowIndex) => (
-                  <div key={block.id} className="grid grid-cols-[110px_repeat(6,1fr)] gap-1">
+                {rowStartTimes.map((startTime, rowIndex) => (
+                  <div key={startTime} className="grid grid-cols-[110px_repeat(6,1fr)] gap-1">
                     <div className="flex items-start justify-end pr-2 pt-2 text-xs text-muted-foreground">
-                      {formatTimeLabel(block.startTime)} – {formatTimeLabel(block.endTime)}
+                      {formatTimeLabel(startTime)}
                     </div>
                     {blockGrid[rowIndex].map((cell, dayOffset) => {
                       const dayKey = weekKeyFor(new Date(weekStart.getTime() + dayOffset * ONE_DAY_MS));
@@ -309,6 +324,7 @@ export default async function SchedulePage({
                               Blocked
                             </div>
                           )}
+                          {cell.type === "none" && <div className="h-full" />}
                         </div>
                       );
                     })}

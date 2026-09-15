@@ -2,7 +2,17 @@ import { prisma } from "@/lib/prisma";
 import { getClinicHoursForDate, toMinutes, clinicMidnightForYMD, clinicDateParts } from "@/lib/clinic-hours";
 import { isDoctorOnLeave, isWorkingDay, getDoctorShiftsForDate } from "@/lib/doctor-availability";
 import { APPOINTMENT_SLOT_MINUTES, MAX_APPOINTMENT_SLOTS, MIN_BOOKING_LEAD_MINUTES, isBlockSlotAvailable } from "@/lib/scheduling";
-import { TIME_BLOCKS, type TimeBlockId } from "@/lib/time-blocks";
+import { generateTimeBlocks, blockCapacity, type TimeBlockDef } from "@/lib/time-blocks";
+
+// This day's blocks, generated from its own configured clinic hours ([]
+// when closed) — the one place BLOCK_CAPACITY/SERVICE_CAPACITY booking code
+// should go for "what blocks exist on this date," since different weekdays
+// can have different hours and therefore different blocks.
+export async function getBlocksForDate(date: Date): Promise<TimeBlockDef[]> {
+  const clinicHours = await getClinicHoursForDate(date);
+  if (!clinicHours.isOpen) return [];
+  return generateTimeBlocks(clinicHours.openTime, clinicHours.closeTime);
+}
 
 export type DoctorForSlots = {
   id: string;
@@ -109,7 +119,7 @@ export async function isResourceDayBookable(
 }
 
 export type BlockAvailability = {
-  blockId: TimeBlockId;
+  blockId: string;
   startTime: string;
   endTime: string;
   occupied: number;
@@ -118,10 +128,12 @@ export type BlockAvailability = {
 };
 
 // Every specialty-wide (SERVICE_CAPACITY or BLOCK_CAPACITY) booking flow
-// shares this: instead of a continuous 30-min grid, there are only the 5
-// fixed daily blocks (see time-blocks.ts), pooled capacity across whoever's
-// actually assigned (a real chosen doctor, or the one auto-assigned staff
-// member for a shared-capacity specialty like Lab Visit).
+// shares this: instead of a continuous 30-min grid, there are only this
+// day's generated blocks (see getBlocksForDate above), pooled capacity
+// across whoever's actually assigned (a real chosen doctor, or the one
+// auto-assigned staff member for a shared-capacity specialty like Lab
+// Visit). A trailing partial-duration block gets proportionally reduced
+// capacity (blockCapacity) rather than the specialty's full capacityPerSlot.
 export async function getBlockDaySlots(
   specialtyName: string,
   capacityPerSlot: number,
@@ -129,32 +141,21 @@ export async function getBlockDaySlots(
   month: number,
   day: number
 ): Promise<BlockAvailability[]> {
-  if (!(await isResourceDayBookable(year, month, day))) return [];
-
   const dayStart = clinicMidnightForYMD(year, month, day);
-  const clinicHours = await getClinicHoursForDate(dayStart);
-  const openMinutes = toMinutes(clinicHours.openTime);
-  const closeMinutes = toMinutes(clinicHours.closeTime);
+  const blocks = await getBlocksForDate(dayStart);
   const earliestBookable = Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000;
 
-  const blocksWithinHours = TIME_BLOCKS.filter(
-    (b) => toMinutes(b.startTime) >= openMinutes && toMinutes(b.endTime) <= closeMinutes
-  );
-
   return Promise.all(
-    blocksWithinHours.map(async (block) => {
+    blocks.map(async (block) => {
       const scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
-      const { available, occupied } = await isBlockSlotAvailable(
-        specialtyName,
-        capacityPerSlot,
-        scheduledAt
-      );
+      const capacity = blockCapacity(block, capacityPerSlot);
+      const { available, occupied } = await isBlockSlotAvailable(specialtyName, capacity, scheduledAt);
       return {
         blockId: block.id,
         startTime: block.startTime,
         endTime: block.endTime,
         occupied,
-        capacity: capacityPerSlot,
+        capacity,
         available: available && scheduledAt.getTime() > earliestBookable,
       };
     })
