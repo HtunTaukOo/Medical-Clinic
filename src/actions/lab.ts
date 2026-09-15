@@ -38,6 +38,42 @@ export async function createLabTest(
   return { success: true };
 }
 
+// LabOrderItem.labTestId has no onDelete rule (defaults to RESTRICT at the
+// DB level), so deleting a test with order history would otherwise throw a
+// raw FK-violation error — check first and give a real message, same as
+// deleteClinicService. A linked ClinicService (SetNull on delete) would
+// silently lose its price sync instead of erroring, so block that too and
+// point staff at unlinking/deleting the service first.
+/* eslint-disable @typescript-eslint/no-unused-vars -- signature must match useActionState's (state, formData) */
+export async function deleteLabTest(
+  labTestId: string,
+  _prevState: LabTestFormState,
+  _formData: FormData
+): Promise<LabTestFormState> {
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+  await requireRole(STAFF_ROLES);
+
+  const [orderItemCount, linkedService] = await Promise.all([
+    prisma.labOrderItem.count({ where: { labTestId } }),
+    prisma.clinicService.findUnique({ where: { labTestId } }),
+  ]);
+  if (orderItemCount > 0) {
+    return {
+      error: `Can't delete — ordered ${orderItemCount} time${orderItemCount === 1 ? "" : "s"} already. Existing lab orders need this record to keep their results.`,
+    };
+  }
+  if (linkedService) {
+    return {
+      error: `Can't delete — linked to the clinic service "${linkedService.name}". Unlink or delete that service first.`,
+    };
+  }
+
+  await prisma.labTest.delete({ where: { id: labTestId } });
+
+  revalidatePath("/staff/lab");
+  return { success: true };
+}
+
 const orderTestsSchema = z.object({
   testIds: z.array(z.string().min(1)).min(1),
 });

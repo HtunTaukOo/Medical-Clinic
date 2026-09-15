@@ -16,6 +16,7 @@ import {
 import { EmptyState } from "@/components/empty-state";
 import { collectSample } from "@/actions/lab";
 import { NewLabOrderForm } from "@/components/lab/new-lab-order-form";
+import { DeleteLabTestButton } from "@/components/lab/delete-lab-test-button";
 
 const STATUS_STYLES: Record<string, string> = {
   ORDERED: "bg-amber-100 text-amber-800",
@@ -198,17 +199,20 @@ export default async function LabPage({
               {tests.map((test) => (
                 <Card key={test.id}>
                   <CardContent className="grid gap-2">
-                    <div className="flex items-center gap-3">
-                      <div className="flex size-11 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                        <FlaskConical className="size-5" />
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                          <FlaskConical className="size-5" />
+                        </div>
+                        <div>
+                          <p className="font-semibold">{test.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {Number(test.price).toFixed(2)}
+                            {test.unit && ` — ${test.unit}`}
+                          </p>
+                        </div>
                       </div>
-                      <div>
-                        <p className="font-semibold">{test.name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {Number(test.price).toFixed(2)}
-                          {test.unit && ` — ${test.unit}`}
-                        </p>
-                      </div>
+                      <DeleteLabTestButton testId={test.id} name={test.name} />
                     </div>
                     {test.normalRange && (
                       <p className="text-sm text-muted-foreground">

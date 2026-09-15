@@ -16,7 +16,7 @@ export const TIME_BLOCKS: readonly TimeBlockDef[] = [
   { id: "block2", startTime: "10:00", endTime: "12:00" },
   { id: "block3", startTime: "13:00", endTime: "15:00" },
   { id: "block4", startTime: "15:00", endTime: "17:00" },
-  { id: "block5", startTime: "17:00", endTime: "20:00" },
+  { id: "block5", startTime: "18:00", endTime: "20:00" },
 ];
 
 function toMinutes(time: string) {
