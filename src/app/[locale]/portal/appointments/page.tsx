@@ -11,7 +11,13 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { PatientAppointmentCard } from "@/components/appointments/patient-appointment-card";
-import { appointmentProviderName, getBookByServiceSpecialtyNames } from "@/lib/appointment-provider";
+import {
+  appointmentProviderName,
+  getBookByServiceSpecialtyNames,
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentTime,
+} from "@/lib/appointment-provider";
 import { formatTimeLabel } from "@/lib/time-blocks";
 import { getBlocksForDate } from "@/lib/booking-slots";
 import { cn } from "@/lib/utils";
@@ -80,7 +86,7 @@ export default async function PortalAppointmentsPage({
   const year = yearParam ? Number(yearParam) : clinicToday.year;
   const month = monthParam ? Number(monthParam) : clinicToday.month;
 
-  const [appointments, bookByServiceNames] = await Promise.all([
+  const [appointments, bookByServiceNames, rangeBookingNames] = await Promise.all([
     patientId
       ? prisma.appointment.findMany({
           where: { patientId },
@@ -89,6 +95,7 @@ export default async function PortalAppointmentsPage({
         })
       : [],
     getBookByServiceSpecialtyNames(),
+    getRangeBookingSpecialtyNames(),
   ]);
 
   const appointmentsByTab: Record<AppointmentTab, typeof appointments> = {
@@ -246,7 +253,7 @@ export default async function PortalAppointmentsPage({
                   day: "numeric",
                   year: "numeric",
                 })}
-                timeLabel={formatClinicDateTime(appt.scheduledAt, {
+                timeLabel={formatAppointmentTime(appt, isRangeBookingAppointment(appt, rangeBookingNames), {
                   hour: "numeric",
                   minute: "2-digit",
                 })}
@@ -311,7 +318,7 @@ export default async function PortalAppointmentsPage({
                           className={`truncate rounded px-1 py-0.5 text-xs ${STATUS_STYLES[appt.status]}`}
                           title={`${appointmentProviderName(appt, bookByServiceNames)} — ${STATUS_LABELS[appt.status] ?? appt.status}`}
                         >
-                          {new Date(appt.scheduledAt).toLocaleTimeString([], {
+                          {formatAppointmentTime(appt, isRangeBookingAppointment(appt, rangeBookingNames), {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}{" "}

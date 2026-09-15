@@ -18,6 +18,11 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { EmptyState } from "@/components/empty-state";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Link } from "@/i18n/navigation";
+import {
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentDateTime,
+} from "@/lib/appointment-provider";
 import { initials, calculateAge } from "@/lib/format";
 import { AVATAR_COLORS } from "@/components/appointments/appointment-row";
 
@@ -51,6 +56,8 @@ export default async function DoctorPatientDetailPage({
   const session = await requirePageRole(["DOCTOR"]);
   const { id } = await params;
   const tAppt = await getTranslations("appointments");
+
+  const rangeBookingNames = await getRangeBookingSpecialtyNames();
 
   const patient = await prisma.patient.findUnique({
     where: { id },
@@ -400,7 +407,8 @@ export default async function DoctorPatientDetailPage({
                   className="flex items-center justify-between border-b pb-2 last:border-0 hover:bg-muted/50"
                 >
                   <span>
-                    {new Date(appt.scheduledAt).toLocaleString()} &mdash; {appt.doctor.user.name}
+                    {formatAppointmentDateTime(appt, isRangeBookingAppointment(appt, rangeBookingNames))}{" "}
+                    &mdash; {appt.doctor.user.name}
                   </span>
                   <Badge variant="outline">{appt.status}</Badge>
                 </Link>

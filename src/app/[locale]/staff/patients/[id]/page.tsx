@@ -22,6 +22,11 @@ import { Link } from "@/i18n/navigation";
 import { BackLink } from "@/components/back-link";
 import { initials, calculateAge } from "@/lib/format";
 import { AVATAR_COLORS } from "@/components/appointments/appointment-row";
+import {
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentDateTime,
+} from "@/lib/appointment-provider";
 
 const ALLERGY_SEVERITY_STYLES: Record<string, string> = {
   SEVERE: "bg-red-600 text-white",
@@ -54,6 +59,8 @@ export default async function PatientDetailPage({
   const { id } = await params;
   const tAppt = await getTranslations("appointments");
   const role = session.user.role;
+
+  const rangeBookingNames = await getRangeBookingSpecialtyNames();
 
   const patient = await prisma.patient.findUnique({
     where: { id },
@@ -370,7 +377,8 @@ export default async function PatientDetailPage({
                   className="flex items-center justify-between border-b pb-2 last:border-0 hover:bg-muted/50"
                 >
                   <span>
-                    {new Date(appt.scheduledAt).toLocaleString()} &mdash; {appt.doctor.user.name}
+                    {formatAppointmentDateTime(appt, isRangeBookingAppointment(appt, rangeBookingNames))}{" "}
+                    &mdash; {appt.doctor.user.name}
                   </span>
                   <Badge variant="outline">{appt.status}</Badge>
                 </Link>

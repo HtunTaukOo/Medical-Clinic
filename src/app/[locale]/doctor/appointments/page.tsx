@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { AppointmentRow, GENDER_LETTER } from "@/components/appointments/appointment-row";
+import { isDoctorRangeBooking, formatAppointmentTime } from "@/lib/appointment-provider";
 
 const STATUS_STYLES: Record<string, string> = {
   REQUESTED: "bg-amber-100 text-amber-800",
@@ -52,6 +53,7 @@ export default async function DoctorAppointmentsPage({
   const session = await requirePageRole(["DOCTOR"]);
   const t = await getTranslations("appointments");
   const doctorId = session.user.doctorId;
+  const isRangeBooking = doctorId ? await isDoctorRangeBooking(doctorId) : false;
 
   const { view: viewParam, year: yearParam, month: monthParam, tab: tabParam } =
     await searchParams;
@@ -223,7 +225,7 @@ export default async function DoctorAppointmentsPage({
                           className={`truncate rounded px-1 py-0.5 text-xs ${STATUS_STYLES[appt.status]}`}
                           title={`${appt.patient.name} — ${appt.status}`}
                         >
-                          {new Date(appt.scheduledAt).toLocaleTimeString([], {
+                          {formatAppointmentTime(appt, isRangeBooking, {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}{" "}
@@ -258,7 +260,7 @@ export default async function DoctorAppointmentsPage({
                 <AppointmentRow
                   key={appt.id}
                   href={`/doctor/appointments/${appt.id}`}
-                  time={appt.scheduledAt.toLocaleTimeString([], {
+                  time={formatAppointmentTime(appt, isRangeBooking, {
                     hour: "2-digit",
                     minute: "2-digit",
                   })}

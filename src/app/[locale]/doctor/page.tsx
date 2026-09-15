@@ -20,6 +20,7 @@ import { todayRange } from "@/lib/queue";
 import { clinicLocalMinutes, formatClinicDateTime } from "@/lib/clinic-hours";
 import { getVitalsAlertMessage } from "@/lib/clinical-alerts";
 import { AppointmentRow, AVATAR_COLORS, GENDER_LETTER } from "@/components/appointments/appointment-row";
+import { isDoctorRangeBooking, formatAppointmentTime } from "@/lib/appointment-provider";
 
 const LAB_RESULT_LABEL: Record<string, string> = {
   HIGH: "elevated",
@@ -36,6 +37,7 @@ export default async function DoctorDashboardPage() {
   const doctorId = session.user.doctorId;
 
   const { start: todayStart, end: todayEnd } = todayRange();
+  const isRangeBooking = doctorId ? await isDoctorRangeBooking(doctorId) : false;
 
   const [todaysAppointmentsFull, recentAbnormalLabResults] = doctorId
     ? await Promise.all([
@@ -286,7 +288,7 @@ export default async function DoctorDashboardPage() {
                   <AppointmentRow
                     key={appt.id}
                     href={`/doctor/appointments/${appt.id}`}
-                    time={formatClinicDateTime(appt.scheduledAt, {
+                    time={formatAppointmentTime(appt, isRangeBooking, {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}

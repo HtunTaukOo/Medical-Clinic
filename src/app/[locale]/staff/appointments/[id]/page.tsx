@@ -17,6 +17,11 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "@/i18n/navigation";
 import { BackLink } from "@/components/back-link";
+import {
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentDateTime,
+} from "@/lib/appointment-provider";
 
 export default async function AppointmentDetailPage({
   params,
@@ -28,21 +33,24 @@ export default async function AppointmentDetailPage({
   const t = await getTranslations("appointments");
   const tBilling = await getTranslations("billing");
 
-  const appointment = await prisma.appointment.findUnique({
-    where: { id },
-    include: {
-      patient: {
-        include: {
-          allergyRecords: { orderBy: { createdAt: "desc" } },
+  const [appointment, rangeBookingNames] = await Promise.all([
+    prisma.appointment.findUnique({
+      where: { id },
+      include: {
+        patient: {
+          include: {
+            allergyRecords: { orderBy: { createdAt: "desc" } },
+          },
         },
+        doctor: { include: { user: true } },
+        prescriptions: { include: { items: { include: { medicine: true } } } },
+        invoice: true,
+        labOrders: { include: { items: { include: { labTest: true } } } },
+        diagnoses: { orderBy: { createdAt: "desc" } },
       },
-      doctor: { include: { user: true } },
-      prescriptions: { include: { items: { include: { medicine: true } } } },
-      invoice: true,
-      labOrders: { include: { items: { include: { labTest: true } } } },
-      diagnoses: { orderBy: { createdAt: "desc" } },
-    },
-  });
+    }),
+    getRangeBookingSpecialtyNames(),
+  ]);
 
   if (!appointment) notFound();
 
@@ -54,8 +62,8 @@ export default async function AppointmentDetailPage({
         <div>
           <h1 className="text-2xl font-semibold">{appointment.patient.name}</h1>
           <p className="text-muted-foreground">
-            {new Date(appointment.scheduledAt).toLocaleString()} &mdash;{" "}
-            {appointment.doctor.user.name}
+            {formatAppointmentDateTime(appointment, isRangeBookingAppointment(appointment, rangeBookingNames))}{" "}
+            &mdash; {appointment.doctor.user.name}
           </p>
         </div>
         <Badge variant="outline">{appointment.status}</Badge>

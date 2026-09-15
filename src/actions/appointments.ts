@@ -37,6 +37,7 @@ import { notifyWaitlistOfOpening } from "@/actions/waitlist";
 import { logActivity } from "@/lib/audit";
 import { blockDurationMinutes, blockCapacity, STANDARD_BLOCK_MINUTES } from "@/lib/time-blocks";
 import { getBlocksForDate } from "@/lib/booking-slots";
+import { isSpecialtyRangeBooking, formatAppointmentDateTime, formatAppointmentTime } from "@/lib/appointment-provider";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
 const CAPACITY_CONFLICT_MESSAGE = "That slot just filled up. Please pick a different time, or join the waitlist.";
@@ -401,11 +402,13 @@ export async function submitAppointmentRequest(
     include: { patient: true, doctor: { include: { user: true } } },
   });
 
+  const isRangeBooking = await isSpecialtyRangeBooking(appointment.doctor.specialty);
+
   await notifyStaff(
-    `📅 New appointment request: ${appointment.patient.name} with ${appointment.doctor.user.name} at ${scheduledAt.toLocaleString()}.`
+    `📅 New appointment request: ${appointment.patient.name} with ${appointment.doctor.user.name} at ${formatAppointmentDateTime(appointment, isRangeBooking)}.`
   );
 
-  const requestSummary = `${appointment.patient.name} requested an appointment with ${appointment.doctor.user.name} on ${scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`;
+  const requestSummary = `${appointment.patient.name} requested an appointment with ${appointment.doctor.user.name} on ${scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${formatAppointmentTime(appointment, isRangeBooking)}.`;
 
   const staffRecipients = await prisma.user.findMany({
     where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
@@ -456,16 +459,17 @@ export async function confirmAppointment(appointmentId: string) {
     data: { status: "CONFIRMED" },
     include: { doctor: { include: { user: true } } },
   });
+  const isRangeBooking = await isSpecialtyRangeBooking(appointment.doctor.specialty);
   await notifyPatient(
     appointment.patientId,
-    `✅ Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} has been confirmed.\n\nReply CANCEL to cancel it.`
+    `✅ Your appointment with ${appointment.doctor.user.name} on ${formatAppointmentDateTime(appointment, isRangeBooking)} has been confirmed.\n\nReply CANCEL to cancel it.`
   );
   await createNotification({
     patientId: appointment.patientId,
     category: "APPOINTMENT",
     tone: "SUCCESS",
     title: "Appointment Confirmed",
-    body: `Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} has been confirmed.`,
+    body: `Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString(undefined, { month: "long", day: "numeric" })} at ${formatAppointmentTime(appointment, isRangeBooking)} has been confirmed.`,
     href: `/portal/appointments/${appointment.id}`,
     relatedId: `appt-confirm-${appointment.id}`,
   });
@@ -605,11 +609,12 @@ export async function rescheduleAppointment(
   });
 
   const reason = parsed.data.reason?.trim() || undefined;
-  const newTimeLabel = `${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
+  const isRangeBooking = await isSpecialtyRangeBooking(appointment.doctor.specialty);
+  const newTimeLabel = `${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${formatAppointmentTime(appointment, isRangeBooking)}`;
 
   await notifyPatient(
     appointment.patientId,
-    `🔄 Your appointment with ${appointment.doctor.user.name} has been rescheduled to ${appointment.scheduledAt.toLocaleString()}.${reason ? `\n\nReason: ${reason}` : ""}`
+    `🔄 Your appointment with ${appointment.doctor.user.name} has been rescheduled to ${formatAppointmentDateTime(appointment, isRangeBooking)}.${reason ? `\n\nReason: ${reason}` : ""}`
   );
   await createNotification({
     patientId: appointment.patientId,
@@ -851,12 +856,13 @@ export async function cancelAppointment(appointmentId: string) {
     data: { status: "CANCELLED" },
     include: { doctor: { include: { user: true } }, patient: true },
   });
+  const isRangeBooking = await isSpecialtyRangeBooking(appointment.doctor.specialty);
 
   if (cancelledByPatient) {
     await notifyStaff(
-      `❌ ${appointment.patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} via the patient portal.`
+      `❌ ${appointment.patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${formatAppointmentDateTime(appointment, isRangeBooking)} via the patient portal.`
     );
-    const cancelSummary = `${appointment.patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`;
+    const cancelSummary = `${appointment.patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${formatAppointmentTime(appointment, isRangeBooking)}.`;
     const staffRecipients = await prisma.user.findMany({
       where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
       select: { id: true },
@@ -885,11 +891,11 @@ export async function cancelAppointment(appointmentId: string) {
   } else {
     await notifyPatient(
       appointment.patientId,
-      `❌ Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} has been cancelled.`
+      `❌ Your appointment with ${appointment.doctor.user.name} on ${formatAppointmentDateTime(appointment, isRangeBooking)} has been cancelled.`
     );
 
     if (role === "DOCTOR") {
-      const cancelSummary = `Dr. ${appointment.doctor.user.name} cancelled the appointment with ${appointment.patient.name} on ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}.`;
+      const cancelSummary = `Dr. ${appointment.doctor.user.name} cancelled the appointment with ${appointment.patient.name} on ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${formatAppointmentTime(appointment, isRangeBooking)}.`;
       const staffRecipients = await prisma.user.findMany({
         where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
         select: { id: true },
@@ -904,7 +910,7 @@ export async function cancelAppointment(appointmentId: string) {
         relatedId: `appt-cancel-${appointment.id}`,
       });
     } else if (appointment.doctor.notifyAppointmentCancelled) {
-      const cancelSummary = `${appointment.patient.name}'s appointment on ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${appointment.scheduledAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} was cancelled by ${session.user.name ?? "staff"}.`;
+      const cancelSummary = `${appointment.patient.name}'s appointment on ${appointment.scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${formatAppointmentTime(appointment, isRangeBooking)} was cancelled by ${session.user.name ?? "staff"}.`;
       await notifyStaffUsers({
         userIds: [appointment.doctor.userId],
         category: "APPOINTMENT",

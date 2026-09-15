@@ -4,6 +4,11 @@ import { prisma } from "@/lib/prisma";
 import { sendTelegramMessage, notifyStaff, getStaffTelegramChatId } from "@/lib/telegram";
 import { isWithinSelfCheckInWindow, getQueuePosition } from "@/lib/queue";
 import { notifyWaitlistOfOpening } from "@/actions/waitlist";
+import {
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentDateTime,
+} from "@/lib/appointment-provider";
 
 type TelegramUpdate = {
   message?: {
@@ -203,8 +208,12 @@ async function handleCheckInCommand(chatId: string) {
   }
 
   if (eligible.length > 1) {
+    const rangeBookingNames = await getRangeBookingSpecialtyNames();
     const list = eligible
-      .map((a) => `• ${a.scheduledAt.toLocaleString()} with ${a.doctor.user.name}`)
+      .map(
+        (a) =>
+          `• ${formatAppointmentDateTime(a, isRangeBookingAppointment(a, rangeBookingNames))} with ${a.doctor.user.name}`
+      )
       .join("\n");
     await sendTelegramMessage(
       chatId,
@@ -258,9 +267,14 @@ async function handleCancelCommand(chatId: string) {
     return;
   }
 
+  const rangeBookingNames = await getRangeBookingSpecialtyNames();
+
   if (upcoming.length > 1) {
     const list = upcoming
-      .map((a) => `• ${a.scheduledAt.toLocaleString()} with ${a.doctor.user.name}`)
+      .map(
+        (a) =>
+          `• ${formatAppointmentDateTime(a, isRangeBookingAppointment(a, rangeBookingNames))} with ${a.doctor.user.name}`
+      )
       .join("\n");
     await sendTelegramMessage(
       chatId,
@@ -275,12 +289,16 @@ async function handleCancelCommand(chatId: string) {
     data: { status: "CANCELLED" },
   });
 
+  const appointmentDateTime = formatAppointmentDateTime(
+    appointment,
+    isRangeBookingAppointment(appointment, rangeBookingNames)
+  );
   await sendTelegramMessage(
     chatId,
-    `❌ Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} has been cancelled.`
+    `❌ Your appointment with ${appointment.doctor.user.name} on ${appointmentDateTime} has been cancelled.`
   );
   await notifyStaff(
-    `❌ ${patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} via Telegram.`
+    `❌ ${patient.name} cancelled their appointment with ${appointment.doctor.user.name} on ${appointmentDateTime} via Telegram.`
   );
   await notifyWaitlistOfOpening(appointment.doctorId, appointment.scheduledAt);
 

@@ -12,13 +12,18 @@ import {
 import { callWalkIn, cancelWalkIn } from "@/actions/walk-ins";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
+import {
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentTime,
+} from "@/lib/appointment-provider";
 
 type ColumnKey = "WAITING" | "CALLED" | "IN_CONSULTATION" | "COMPLETED" | "MISSED";
 
 type QueueCard = {
   key: string;
   queuedAt: number;
-  time: Date;
+  timeLabel: string;
   patientName: string;
   doctorName: string;
   specialty: string | null;
@@ -78,7 +83,7 @@ export default async function QueuePage() {
   const t = await getTranslations("appointments");
   const { start, end } = todayRange();
 
-  const [appointments, walkIns] = await Promise.all([
+  const [appointments, walkIns, rangeBookingNames] = await Promise.all([
     prisma.appointment.findMany({
       where: {
         scheduledAt: { gte: start, lt: end },
@@ -91,7 +96,19 @@ export default async function QueuePage() {
       include: { doctor: { include: { user: true } } },
       orderBy: { tokenNumber: "asc" },
     }),
+    getRangeBookingSpecialtyNames(),
   ]);
+
+  const apptTimeLabel = (appt: (typeof appointments)[number]) =>
+    formatAppointmentTime(appt, isRangeBookingAppointment(appt, rangeBookingNames), {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  const walkInTimeLabel = (createdAt: Date) =>
+    formatAppointmentTime({ scheduledAt: createdAt, durationMinutes: 0 }, false, {
+      hour: "2-digit",
+      minute: "2-digit",
+    });
 
   const confirmed = appointments.filter((a) => a.status === "CONFIRMED");
   const completed = appointments.filter((a) => a.status === "COMPLETED");
@@ -124,7 +141,7 @@ export default async function QueuePage() {
       (appt): QueueCard => ({
         key: `confirmed-${appt.id}`,
         queuedAt: appt.scheduledAt.getTime(),
-        time: appt.scheduledAt,
+        timeLabel: apptTimeLabel(appt),
         patientName: appt.patient.name,
         doctorName: appt.doctor.user.name,
         specialty: appt.doctor.specialty,
@@ -150,7 +167,7 @@ export default async function QueuePage() {
       (appt): QueueCard => ({
         key: `waiting-checkedin-${appt.id}`,
         queuedAt: (appt.checkedInAt ?? appt.scheduledAt).getTime(),
-        time: appt.scheduledAt,
+        timeLabel: apptTimeLabel(appt),
         patientName: appt.patient.name,
         doctorName: appt.doctor.user.name,
         specialty: appt.doctor.specialty,
@@ -162,7 +179,7 @@ export default async function QueuePage() {
       (walkIn): QueueCard => ({
         key: `walkin-waiting-${walkIn.id}`,
         queuedAt: walkIn.createdAt.getTime(),
-        time: walkIn.createdAt,
+        timeLabel: walkInTimeLabel(walkIn.createdAt),
         patientName: walkIn.name || t("anonymousWalkIn"),
         doctorName: walkIn.doctor?.user.name ?? "Any doctor",
         specialty: walkIn.doctor?.specialty ?? null,
@@ -188,7 +205,7 @@ export default async function QueuePage() {
       (walkIn): QueueCard => ({
         key: `walkin-called-${walkIn.id}`,
         queuedAt: (walkIn.calledAt ?? walkIn.createdAt).getTime(),
-        time: walkIn.createdAt,
+        timeLabel: walkInTimeLabel(walkIn.createdAt),
         patientName: walkIn.name || t("anonymousWalkIn"),
         doctorName: walkIn.doctor?.user.name ?? "Any doctor",
         specialty: walkIn.doctor?.specialty ?? null,
@@ -207,7 +224,7 @@ export default async function QueuePage() {
       (appt): QueueCard => ({
         key: `consult-${appt.id}`,
         queuedAt: (appt.checkedInAt ?? appt.scheduledAt).getTime(),
-        time: appt.scheduledAt,
+        timeLabel: apptTimeLabel(appt),
         patientName: appt.patient.name,
         doctorName: appt.doctor.user.name,
         specialty: appt.doctor.specialty,
@@ -223,7 +240,7 @@ export default async function QueuePage() {
       (appt): QueueCard => ({
         key: `completed-${appt.id}`,
         queuedAt: (appt.checkedInAt ?? appt.scheduledAt).getTime(),
-        time: appt.scheduledAt,
+        timeLabel: apptTimeLabel(appt),
         patientName: appt.patient.name,
         doctorName: appt.doctor.user.name,
         specialty: appt.doctor.specialty,
@@ -235,7 +252,7 @@ export default async function QueuePage() {
       (appt): QueueCard => ({
         key: `noshow-${appt.id}`,
         queuedAt: appt.scheduledAt.getTime(),
-        time: appt.scheduledAt,
+        timeLabel: apptTimeLabel(appt),
         patientName: appt.patient.name,
         doctorName: appt.doctor.user.name,
         specialty: appt.doctor.specialty,
@@ -314,7 +331,7 @@ export default async function QueuePage() {
                         #{String(card.queueNumber).padStart(2, "0")}
                       </span>
                       <span className="text-sm text-muted-foreground">
-                        {card.time.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {card.timeLabel}
                       </span>
                     </div>
                     <p className="font-semibold">{card.patientName}</p>

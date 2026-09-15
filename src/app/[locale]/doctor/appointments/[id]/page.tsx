@@ -29,6 +29,7 @@ import { CalendarPlus } from "lucide-react";
 import { BackLink } from "@/components/back-link";
 import { initials } from "@/lib/format";
 import { GENDER_LETTER, AVATAR_COLORS } from "@/components/appointments/appointment-row";
+import { formatAppointmentDateTime } from "@/lib/appointment-provider";
 
 const CONSULTATION_STATUS_LABEL: Record<string, string> = {
   REQUESTED: "Requested",
@@ -98,6 +99,7 @@ export default async function DoctorAppointmentDetailPage({
       })
     : null;
   const isBookByServiceVisit = specialtyRecord?.bookingMode === "SERVICE_CAPACITY";
+  const isRangeBooking = specialtyRecord ? specialtyRecord.bookingMode !== "DOCTOR_CALENDAR" : false;
 
   // Charting (vitals/diagnosis/prescribe) only opens up once the patient has
   // actually checked in — a merely CONFIRMED appointment shouldn't be
@@ -333,7 +335,7 @@ export default async function DoctorAppointmentDetailPage({
         <div>
           <h1 className="text-2xl font-semibold">{appointment.patient.name}</h1>
           <p className="text-muted-foreground">
-            {new Date(appointment.scheduledAt).toLocaleString()} &mdash;{" "}
+            {formatAppointmentDateTime(appointment, isRangeBooking)} &mdash;{" "}
             {appointment.doctor.user.name}
           </p>
         </div>

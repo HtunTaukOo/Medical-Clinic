@@ -38,6 +38,11 @@ import { SolidStatCard } from "@/components/solid-stat-card";
 import { checkInAppointment } from "@/actions/appointments";
 import { callWalkIn } from "@/actions/walk-ins";
 import { NewAnnouncementDialog } from "@/components/staff/new-announcement-dialog";
+import {
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentTime,
+} from "@/lib/appointment-provider";
 
 function Num({ children }: { children: ReactNode }) {
   return <span className="font-semibold text-primary">{children}</span>;
@@ -108,6 +113,7 @@ export default async function StaffDashboardPage() {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const rangeBookingNames = await getRangeBookingSpecialtyNames();
   const mondayOffsetDays = (clinicWeekday(now) + 6) % 7;
   const weekStart = new Date(clinicMidnight(now).getTime() - mondayOffsetDays * 86400000);
   const weekEnd = new Date(weekStart.getTime() + 7 * 86400000);
@@ -701,7 +707,7 @@ export default async function StaffDashboardPage() {
                       {todaysAppointmentsAll.map((appt) => (
                         <TableRow key={appt.id}>
                           <TableCell>
-                            {appt.scheduledAt.toLocaleTimeString([], {
+                            {formatAppointmentTime(appt, isRangeBookingAppointment(appt, rangeBookingNames), {
                               hour: "2-digit",
                               minute: "2-digit",
                             })}

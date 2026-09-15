@@ -31,7 +31,13 @@ import { ClinicLogo } from "@/components/clinic-logo";
 import { getDisplayFirstName, initials } from "@/lib/format";
 import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
 import { checkInAppointment, cancelAppointment } from "@/actions/appointments";
-import { appointmentProviderName, getBookByServiceSpecialtyNames } from "@/lib/appointment-provider";
+import {
+  appointmentProviderName,
+  getBookByServiceSpecialtyNames,
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentTime,
+} from "@/lib/appointment-provider";
 
 const CATEGORY_STYLES: Record<string, { bg: string; badge: string; text: string }> = {
   Cardiology: { bg: "bg-blue-500", badge: "bg-blue-600", text: "text-blue-600" },
@@ -80,6 +86,7 @@ export default async function PortalDashboardPage() {
     featuredMedicines,
     announcements,
     bookByServiceNames,
+    rangeBookingNames,
   ] = await Promise.all([
     getClinicSettings(),
     getClinicHoursForDate(now),
@@ -133,6 +140,7 @@ export default async function PortalDashboardPage() {
       take: 3,
     }),
     getBookByServiceSpecialtyNames(),
+    getRangeBookingSpecialtyNames(),
   ]);
 
   const activePrescriptions = prescriptions.filter((rx) => {
@@ -388,7 +396,7 @@ export default async function PortalDashboardPage() {
                               year: "numeric",
                             })}
                             <br />
-                            {formatClinicDateTime(appt.scheduledAt, {
+                            {formatAppointmentTime(appt, isRangeBookingAppointment(appt, rangeBookingNames), {
                               hour: "numeric",
                               minute: "2-digit",
                             })}

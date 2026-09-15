@@ -5,7 +5,13 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { cancelAppointment, checkInAppointment } from "@/actions/appointments";
 import { getQueuePosition, isWithinSelfCheckInWindow } from "@/lib/queue";
-import { appointmentProviderName, getBookByServiceSpecialtyNames } from "@/lib/appointment-provider";
+import {
+  appointmentProviderName,
+  getBookByServiceSpecialtyNames,
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentDateTime,
+} from "@/lib/appointment-provider";
 import { BackLink } from "@/components/back-link";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
@@ -34,7 +40,7 @@ export default async function PortalAppointmentDetailPage({
     NO_SHOW: td("statusNoShow"),
   };
 
-  const [appointment, bookByServiceNames] = await Promise.all([
+  const [appointment, bookByServiceNames, rangeBookingNames] = await Promise.all([
     prisma.appointment.findUnique({
       where: { id },
       include: {
@@ -45,6 +51,7 @@ export default async function PortalAppointmentDetailPage({
       },
     }),
     getBookByServiceSpecialtyNames(),
+    getRangeBookingSpecialtyNames(),
   ]);
 
   if (!appointment || !patientId || appointment.patientId !== patientId) {
@@ -70,7 +77,7 @@ export default async function PortalAppointmentDetailPage({
         <div>
           <h1 className="text-2xl font-semibold">{providerName}</h1>
           <p className="text-muted-foreground">
-            {new Date(appointment.scheduledAt).toLocaleString()}
+            {formatAppointmentDateTime(appointment, isRangeBookingAppointment(appointment, rangeBookingNames))}
           </p>
         </div>
         <Badge variant="outline">{STATUS_LABELS[appointment.status] ?? appointment.status}</Badge>

@@ -28,6 +28,11 @@ import { SearchInput } from "@/components/search-input";
 import { InventoryFilterSelect } from "@/components/inventory/inventory-filter-select";
 import { DateFilterInput } from "@/components/appointments/date-filter-input";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
+import {
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentTime,
+} from "@/lib/appointment-provider";
 
 const STATUS_STYLES: Record<string, string> = {
   REQUESTED: "bg-blue-100 text-blue-800",
@@ -96,13 +101,16 @@ export default async function AppointmentsPage({
   const year = yearParam ? Number(yearParam) : clinicToday.year;
   const month = monthParam ? Number(monthParam) : clinicToday.month;
 
-  const appointments = await prisma.appointment.findMany({
-    orderBy: { scheduledAt: "desc" },
-    include: {
-      patient: true,
-      doctor: { include: { user: true } },
-    },
-  });
+  const [appointments, rangeBookingNames] = await Promise.all([
+    prisma.appointment.findMany({
+      orderBy: { scheduledAt: "desc" },
+      include: {
+        patient: true,
+        doctor: { include: { user: true } },
+      },
+    }),
+    getRangeBookingSpecialtyNames(),
+  ]);
 
   const specialties = [...new Set(appointments.map((a) => a.doctor.specialty).filter(Boolean))] as string[];
 
@@ -280,7 +288,7 @@ export default async function AppointmentsPage({
                           className={`truncate rounded px-1 py-0.5 text-xs ${STATUS_STYLES[appt.status]}`}
                           title={`${appt.patient.name} — ${appt.doctor.user.name}`}
                         >
-                          {new Date(appt.scheduledAt).toLocaleTimeString([], {
+                          {formatAppointmentTime(appt, isRangeBookingAppointment(appt, rangeBookingNames), {
                             hour: "2-digit",
                             minute: "2-digit",
                           })}{" "}
@@ -346,7 +354,10 @@ export default async function AppointmentsPage({
                         })}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {appt.scheduledAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                        {formatAppointmentTime(appt, isRangeBookingAppointment(appt, rangeBookingNames), {
+                          hour: "2-digit",
+                          minute: "2-digit",
+                        })}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
                         {appt.reason || "Consultation"}

@@ -4,6 +4,11 @@ import { notifyPatient } from "@/lib/telegram";
 import { createNotification } from "@/lib/notifications";
 import { notifyWaitlistOfOpening } from "@/actions/waitlist";
 import { clinicMidnight } from "@/lib/clinic-hours";
+import {
+  getRangeBookingSpecialtyNames,
+  isRangeBookingAppointment,
+  formatAppointmentDateTime,
+} from "@/lib/appointment-provider";
 
 // Appointments left CONFIRMED past their day were never checked in — the
 // patient didn't show. Appointments still REQUESTED past their day were
@@ -21,6 +26,7 @@ export async function GET(req: Request) {
   }
 
   const todayStart = clinicMidnight(new Date());
+  const rangeBookingNames = await getRangeBookingSpecialtyNames();
 
   const confirmed = await prisma.appointment.findMany({
     where: { status: "CONFIRMED", scheduledAt: { lt: todayStart } },
@@ -36,7 +42,7 @@ export async function GET(req: Request) {
     await notifyWaitlistOfOpening(appointment.doctorId, appointment.scheduledAt);
     await notifyPatient(
       appointment.patientId,
-      `Your appointment with ${appointment.doctor.user.name} on ${appointment.scheduledAt.toLocaleString()} was marked as a no-show since you weren't checked in.`
+      `Your appointment with ${appointment.doctor.user.name} on ${formatAppointmentDateTime(appointment, isRangeBookingAppointment(appointment, rangeBookingNames))} was marked as a no-show since you weren't checked in.`
     );
     await createNotification({
       patientId: appointment.patientId,
@@ -62,7 +68,7 @@ export async function GET(req: Request) {
     });
     await notifyPatient(
       appointment.patientId,
-      `Your appointment request with ${appointment.doctor.user.name} for ${appointment.scheduledAt.toLocaleString()} expired without confirmation and has been cancelled.`
+      `Your appointment request with ${appointment.doctor.user.name} for ${formatAppointmentDateTime(appointment, isRangeBookingAppointment(appointment, rangeBookingNames))} expired without confirmation and has been cancelled.`
     );
     await createNotification({
       patientId: appointment.patientId,
