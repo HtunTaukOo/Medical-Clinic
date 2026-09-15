@@ -10,10 +10,13 @@
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { revalidatePath } from "next/cache";
+import { randomBytes } from "crypto";
+import bcrypt from "bcryptjs";
 import { LAB_TEST_IMPORT_DATA } from "@/lib/lab-test-import-data";
 
 const SPECIALTY_NAME = "Lab Visit";
 const DURATION_MINUTES = 15;
+const LAB_PROVIDER_EMAIL = "labdoctor@nca.clinic";
 
 export type LabImportResult = { lines: string[] };
 
@@ -90,4 +93,72 @@ export async function runLabImport(): Promise<LabImportResult> {
   revalidatePath("/staff/lab");
   revalidatePath("/staff/clinic-services");
   return { lines };
+}
+
+// "Lab Visit" is a SERVICE_CAPACITY specialty — booking it auto-assigns
+// whichever DoctorProfile has specialty="Lab Visit" as the Appointment.
+// doctorId FK placeholder (patients never see this name; the UI shows the
+// service name instead — see src/lib/appointment-provider.ts). Local dev
+// gets this from prisma/seed.ts, but seed data was never run against
+// production, so the placeholder — and therefore Lab Visit booking itself —
+// is currently missing there entirely.
+export async function checkLabVisitProvider(): Promise<LabImportResult> {
+  await requireRole(["ADMIN"]);
+  const lines: string[] = [];
+
+  const specialty = await prisma.specialty.findFirst({ where: { name: SPECIALTY_NAME } });
+  lines.push(
+    `Specialty "${SPECIALTY_NAME}": ${specialty ? (specialty.active ? "found, active" : "found but INACTIVE") : "NOT FOUND"}`
+  );
+
+  const provider = await prisma.doctorProfile.findFirst({ where: { specialty: SPECIALTY_NAME } });
+  if (provider) {
+    lines.push(`Placeholder provider already exists — Lab Visit booking should already work.`);
+  } else {
+    lines.push(
+      `No DoctorProfile has specialty="${SPECIALTY_NAME}" — Lab Visit booking is currently BROKEN (both the patient wizard and staff manual booking auto-assign via this lookup and will fail with "No staff are set up for this specialty yet").`
+    );
+  }
+  return { lines };
+}
+
+export async function createLabVisitProvider(): Promise<LabImportResult> {
+  await requireRole(["ADMIN"]);
+
+  const existing = await prisma.doctorProfile.findFirst({ where: { specialty: SPECIALTY_NAME } });
+  if (existing) {
+    return { lines: [`Already exists — nothing to do.`] };
+  }
+
+  // Random, never-surfaced password — nobody is meant to log into this
+  // account (it's pure FK plumbing), so it must not use the local seed's
+  // well-known "password123".
+  const passwordHash = await bcrypt.hash(randomBytes(32).toString("hex"), 10);
+
+  const user = await prisma.user.upsert({
+    where: { email: LAB_PROVIDER_EMAIL },
+    update: {},
+    create: {
+      email: LAB_PROVIDER_EMAIL,
+      passwordHash,
+      name: "Lab Visit Scheduling",
+      role: "DOCTOR",
+      doctorProfile: {
+        create: {
+          specialty: SPECIALTY_NAME,
+          consultationFee: 0,
+          workingDays: [1, 2, 3, 4, 5, 6],
+          shifts: {
+            create: [1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, startTime: "08:00", endTime: "17:00" })),
+          },
+          experienceYears: 5,
+          qualifications: "MBBS, Dip.Clin.Path",
+        },
+      },
+    },
+  });
+
+  revalidatePath("/staff/doctors");
+  revalidatePath("/staff/users");
+  return { lines: [`Created placeholder provider "${user.name}" (${user.email}) for "${SPECIALTY_NAME}".`] };
 }
