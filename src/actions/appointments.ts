@@ -1094,9 +1094,41 @@ export async function updateConsultation(
     },
   });
 
+  // Completing the consultation only finishes the clinical side — staff
+  // still need to do the separate front-desk checkout (see
+  // completeAppointmentCheckout) before the patient can book again, so let
+  // them know there's now one waiting.
+  if (complete) {
+    const patient = await prisma.patient.findUnique({
+      where: { id: appointment.patientId },
+      select: { name: true },
+    });
+    const doctorName = session.user.name ?? "The doctor";
+    const notifyBody = `${doctorName} finished the consultation with ${patient?.name ?? "a patient"}. Please complete checkout at the front desk.`;
+
+    await notifyStaff(`✅ ${notifyBody}`);
+
+    const staffRecipients = await prisma.user.findMany({
+      where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
+      select: { id: true },
+    });
+    await notifyStaffUsers({
+      userIds: staffRecipients.map((u) => u.id),
+      category: "APPOINTMENT",
+      tone: "INFO",
+      title: "Consultation Completed — Checkout Needed",
+      body: notifyBody,
+      href: `/staff/appointments/${appointmentId}`,
+      relatedId: `consult-complete-${appointmentId}`,
+    });
+  }
+
   revalidatePath(`/doctor/appointments/${appointmentId}`);
   revalidatePath("/doctor/appointments");
   revalidatePath("/doctor/consultations");
   revalidatePath("/doctor");
+  revalidatePath("/staff/appointments");
+  revalidatePath(`/staff/appointments/${appointmentId}`);
+  revalidatePath("/staff/notifications");
   return { success: true };
 }

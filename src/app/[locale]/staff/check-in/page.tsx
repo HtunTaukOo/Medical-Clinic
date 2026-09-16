@@ -85,7 +85,14 @@ export default async function PatientCheckInPage({
             ) : (
               <div className="grid gap-2">
                 {matches.map((patient) => {
-                  const todaysAppointment = patient.appointments[0];
+                  // Only an unresolved appointment (not yet completed,
+                  // cancelled, or a no-show) should block a fresh walk-in
+                  // registration — a COMPLETED/CANCELLED/NO_SHOW visit today
+                  // shouldn't hide the option, same definition of "active"
+                  // used by registerAndCheckIn's own server-side check.
+                  const todaysAppointment = patient.appointments.find((a) =>
+                    ["REQUESTED", "CONFIRMED", "CHECKED_IN"].includes(a.status)
+                  );
                   const age = calculateAge(patient.dob);
                   return (
                     <div
