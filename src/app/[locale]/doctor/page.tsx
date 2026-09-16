@@ -32,14 +32,20 @@ function Num({ children }: { children: ReactNode }) {
   return <span className="font-semibold text-primary">{children}</span>;
 }
 
-export default async function DoctorDashboardPage() {
+export default async function DoctorDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ schedule?: string }>;
+}) {
   const session = await requirePageRole(["DOCTOR"]);
   const doctorId = session.user.doctorId;
+  const { schedule: scheduleParam } = await searchParams;
+  const scheduleTab: "today" | "upcoming" = scheduleParam === "upcoming" ? "upcoming" : "today";
 
   const { start: todayStart, end: todayEnd } = todayRange();
   const isRangeBooking = doctorId ? await isDoctorRangeBooking(doctorId) : false;
 
-  const [todaysAppointmentsFull, recentAbnormalLabResults] = doctorId
+  const [todaysAppointmentsFull, recentAbnormalLabResults, upcomingAppointmentsFull] = doctorId
     ? await Promise.all([
         prisma.appointment.findMany({
           where: {
@@ -66,8 +72,21 @@ export default async function DoctorDashboardPage() {
           orderBy: { resultEnteredAt: "desc" },
           take: 3,
         }),
+        // Same "upcoming" definition as /doctor/appointments's Upcoming tab —
+        // future days beyond today, still REQUESTED/CONFIRMED (not yet
+        // resolved either way).
+        prisma.appointment.findMany({
+          where: {
+            doctorId,
+            scheduledAt: { gte: todayEnd },
+            status: { in: ["REQUESTED", "CONFIRMED"] },
+          },
+          orderBy: { scheduledAt: "asc" },
+          take: 10,
+          include: { patient: true },
+        }),
       ])
-    : [[], []];
+    : [[], [], []];
 
   const checkedInToday = todaysAppointmentsFull
     .filter((appt) => appt.status === "CHECKED_IN")
@@ -248,42 +267,93 @@ export default async function DoctorDashboardPage() {
 
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <CardHeader className="flex items-center justify-between">
-            <CardTitle>Today&apos;s Schedule</CardTitle>
-            <Link href="/doctor/appointments" className="text-sm underline">
-              View all
-            </Link>
+          <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle>{scheduleTab === "today" ? "Today's Schedule" : "Upcoming Schedule"}</CardTitle>
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
+                <Link
+                  href="/doctor?schedule=today"
+                  className={
+                    scheduleTab === "today"
+                      ? "rounded-md bg-card px-3 py-1 text-sm font-medium text-primary shadow-sm"
+                      : "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                  }
+                >
+                  Today
+                </Link>
+                <Link
+                  href="/doctor?schedule=upcoming"
+                  className={
+                    scheduleTab === "upcoming"
+                      ? "rounded-md bg-card px-3 py-1 text-sm font-medium text-primary shadow-sm"
+                      : "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                  }
+                >
+                  Upcoming
+                </Link>
+              </div>
+              <Link href="/doctor/appointments" className="text-sm underline">
+                View all
+              </Link>
+            </div>
           </CardHeader>
           <CardContent className="grid gap-2">
-            {todaysAppointmentsFull.length === 0 ? (
-              <EmptyState icon={CalendarDays} message="No appointments scheduled today." />
+            {scheduleTab === "today" ? (
+              todaysAppointmentsFull.length === 0 ? (
+                <EmptyState icon={CalendarDays} message="No appointments scheduled today." />
+              ) : (
+                todaysAppointmentsFull.map((appt, index) => {
+                  const isInProgress = inProgressAppt?.id === appt.id;
+                  const isWaiting = waitingAppts.some((a) => a.id === appt.id);
+                  const isUrgent = redAlerts.some((a) => a.appointmentId === appt.id);
+                  const age = calculateAge(appt.patient.dob);
+                  const genderLetter = appt.patient.gender ? GENDER_LETTER[appt.patient.gender] : null;
+                  const statusLabel =
+                    appt.status === "COMPLETED"
+                      ? "Completed"
+                      : isInProgress
+                        ? "In Progress"
+                        : isWaiting
+                          ? "Waiting"
+                          : appt.status === "NO_SHOW"
+                            ? "No-show"
+                            : "Scheduled";
+                  const statusClass =
+                    appt.status === "COMPLETED"
+                      ? "bg-indigo-100 text-indigo-700"
+                      : isInProgress
+                        ? "bg-blue-100 text-blue-700"
+                        : isWaiting
+                          ? "bg-amber-100 text-amber-700"
+                          : appt.status === "NO_SHOW"
+                            ? "bg-rose-100 text-rose-700"
+                            : "bg-slate-100 text-slate-700";
+                  return (
+                    <AppointmentRow
+                      key={appt.id}
+                      href={`/doctor/appointments/${appt.id}`}
+                      time={formatAppointmentTime(appt, isRangeBooking, {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                      avatarIndex={index}
+                      patientName={appt.patient.name}
+                      age={age}
+                      genderLetter={genderLetter}
+                      reason={appt.reason ?? ""}
+                      isUrgent={isUrgent}
+                      statusLabel={statusLabel}
+                      statusClassName={statusClass}
+                    />
+                  );
+                })
+              )
+            ) : upcomingAppointmentsFull.length === 0 ? (
+              <EmptyState icon={CalendarDays} message="No upcoming appointments." />
             ) : (
-              todaysAppointmentsFull.map((appt, index) => {
-                const isInProgress = inProgressAppt?.id === appt.id;
-                const isWaiting = waitingAppts.some((a) => a.id === appt.id);
-                const isUrgent = redAlerts.some((a) => a.appointmentId === appt.id);
+              upcomingAppointmentsFull.map((appt, index) => {
                 const age = calculateAge(appt.patient.dob);
                 const genderLetter = appt.patient.gender ? GENDER_LETTER[appt.patient.gender] : null;
-                const statusLabel =
-                  appt.status === "COMPLETED"
-                    ? "Completed"
-                    : isInProgress
-                      ? "In Progress"
-                      : isWaiting
-                        ? "Waiting"
-                        : appt.status === "NO_SHOW"
-                          ? "No-show"
-                          : "Scheduled";
-                const statusClass =
-                  appt.status === "COMPLETED"
-                    ? "bg-indigo-100 text-indigo-700"
-                    : isInProgress
-                      ? "bg-blue-100 text-blue-700"
-                      : isWaiting
-                        ? "bg-amber-100 text-amber-700"
-                        : appt.status === "NO_SHOW"
-                          ? "bg-rose-100 text-rose-700"
-                          : "bg-slate-100 text-slate-700";
                 return (
                   <AppointmentRow
                     key={appt.id}
@@ -292,14 +362,22 @@ export default async function DoctorDashboardPage() {
                       hour: "2-digit",
                       minute: "2-digit",
                     })}
+                    dateLabel={appt.scheduledAt.toLocaleDateString(undefined, {
+                      month: "short",
+                      day: "numeric",
+                    })}
                     avatarIndex={index}
                     patientName={appt.patient.name}
                     age={age}
                     genderLetter={genderLetter}
                     reason={appt.reason ?? ""}
-                    isUrgent={isUrgent}
-                    statusLabel={statusLabel}
-                    statusClassName={statusClass}
+                    isUrgent={false}
+                    statusLabel={appt.status === "CONFIRMED" ? "Confirmed" : "Requested"}
+                    statusClassName={
+                      appt.status === "CONFIRMED"
+                        ? "bg-blue-100 text-blue-700"
+                        : "bg-slate-100 text-slate-700"
+                    }
                   />
                 );
               })

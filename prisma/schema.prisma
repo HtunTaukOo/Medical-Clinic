@@ -296,6 +296,17 @@ model Appointment {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  // A doctor completing the consultation (status -> COMPLETED) only means
+  // the clinical visit is done — it does NOT mean the patient has checked
+  // out at the front desk. A separate, staff-only completion step closes
+  // that loop (e.g. payment settled, nothing left pending), and a patient
+  // can't book their next appointment until it happens — otherwise someone
+  // could finish with the doctor, book a new visit online, and leave
+  // without staff ever resolving the current one.
+  staffCompletedAt     DateTime?
+  staffCompletedById   String?
+  staffCompletedByName String?
+
   clinicServiceId String?
   clinicService   ClinicService? @relation(fields: [clinicServiceId], references: [id], onDelete: SetNull)
 

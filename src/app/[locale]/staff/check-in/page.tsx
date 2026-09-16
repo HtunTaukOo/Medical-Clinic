@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { SearchInput } from "@/components/search-input";
 import { RegisterWalkInForm } from "@/components/check-in/register-walk-in-form";
+import { UserActionDialog } from "@/components/staff/user-action-dialog";
+import { Button } from "@/components/ui/button";
 
 export default async function PatientCheckInPage({
   searchParams,
@@ -47,6 +49,13 @@ export default async function PatientCheckInPage({
 
   const serviceSpecialtyNames = new Set(bookByServiceSpecialties.map((s) => s.name));
   const realDoctors = doctors.filter((d) => !d.specialty || !serviceSpecialtyNames.has(d.specialty));
+
+  const walkInFormShared = {
+    doctors: realDoctors.map((d) => ({ id: d.id, name: d.user.name, specialty: d.specialty })),
+    bookByServiceSpecialties: bookByServiceSpecialties.map((s) => s.name),
+    blockCapacitySpecialties: blockCapacitySpecialties.map((s) => s.name),
+    clinicServices: labServices.map((s) => ({ id: s.id, name: s.name, specialty: s.specialty })),
+  };
 
   return (
     <div className="grid gap-6">
@@ -97,7 +106,19 @@ export default async function PatientCheckInPage({
                         </p>
                       </div>
                       {!todaysAppointment ? (
-                        <Badge variant="outline">No appointment today</Badge>
+                        <UserActionDialog
+                          title={`Register Walk-in — ${patient.name}`}
+                          trigger={
+                            <Button size="sm" variant="outline">
+                              Register as Walk-in
+                            </Button>
+                          }
+                        >
+                          <RegisterWalkInForm
+                            {...walkInFormShared}
+                            existingPatient={{ id: patient.id, name: patient.name }}
+                          />
+                        </UserActionDialog>
                       ) : todaysAppointment.status === "CONFIRMED" ? (
                         <form action={checkInAppointment.bind(null, todaysAppointment.id)}>
                           <button
@@ -128,16 +149,7 @@ export default async function PatientCheckInPage({
             </p>
           </CardHeader>
           <CardContent>
-            <RegisterWalkInForm
-              doctors={realDoctors.map((d) => ({ id: d.id, name: d.user.name, specialty: d.specialty }))}
-              bookByServiceSpecialties={bookByServiceSpecialties.map((s) => s.name)}
-              blockCapacitySpecialties={blockCapacitySpecialties.map((s) => s.name)}
-              clinicServices={labServices.map((s) => ({
-                id: s.id,
-                name: s.name,
-                specialty: s.specialty,
-              }))}
-            />
+            <RegisterWalkInForm {...walkInFormShared} />
           </CardContent>
         </Card>
       </div>

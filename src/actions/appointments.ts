@@ -304,6 +304,30 @@ export async function submitAppointmentRequest(
     };
   }
 
+  // A visit isn't fully done until BOTH the doctor completes the
+  // consultation (status -> COMPLETED, never automatic) AND staff completes
+  // checkout at the front desk (staffCompletedAt) — two separate people
+  // signing off, specifically so a patient can't check in, get seen, leave
+  // without settling up, and just book a fresh appointment instead of
+  // resolving the one already in progress. Staff/doctor manual booking
+  // (createAppointment) doesn't go through this function, so this only
+  // blocks the patient's own self-service booking, not staff acting on
+  // their behalf.
+  const unresolvedVisit = await prisma.appointment.findFirst({
+    where: {
+      patientId,
+      OR: [{ status: "CHECKED_IN" }, { status: "COMPLETED", staffCompletedAt: null }],
+    },
+  });
+  if (unresolvedVisit) {
+    return {
+      error:
+        unresolvedVisit.status === "CHECKED_IN"
+          ? "You have a checked-in visit that hasn't been completed yet. Please finish that appointment before booking another one, or ask the front desk for help."
+          : "Your last visit hasn't been checked out at the front desk yet. Please see the front desk before booking another appointment.",
+    };
+  }
+
   const scheduledEnd = new Date(scheduledAt.getTime() + durationMinutes * 60 * 1000);
   const dayStart = clinicMidnight(scheduledAt);
 
@@ -951,11 +975,61 @@ export async function completeAppointment(appointmentId: string) {
   revalidatePath("/doctor/consultations");
 }
 
+export type CompleteCheckoutState = { error?: string };
+
+// Second, staff-only completion step, separate from the doctor's own
+// Complete (which only finishes the clinical consultation, status ->
+// COMPLETED). Until staff also completes checkout here, the patient is
+// blocked from booking their next appointment (see the staffCompletedAt
+// check in submitAppointmentRequest below) — closes the gap where someone
+// could finish with the doctor and leave without settling up front desk.
+/* eslint-disable @typescript-eslint/no-unused-vars -- signature must match useActionState's (state, formData) */
+export async function completeAppointmentCheckout(
+  appointmentId: string,
+  _prevState: CompleteCheckoutState,
+  _formData: FormData
+): Promise<CompleteCheckoutState> {
+  /* eslint-enable @typescript-eslint/no-unused-vars */
+  const session = await requireRole(["ADMIN", "STAFF"]);
+
+  const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId } });
+  if (!appointment) return { error: "Appointment not found." };
+  if (appointment.status !== "COMPLETED") {
+    return { error: "The doctor hasn't completed this consultation yet." };
+  }
+  if (appointment.staffCompletedAt) {
+    return { error: "This appointment is already checked out." };
+  }
+
+  await prisma.appointment.update({
+    where: { id: appointmentId },
+    data: {
+      staffCompletedAt: new Date(),
+      staffCompletedById: session.user.id,
+      staffCompletedByName: session.user.name ?? session.user.email ?? "Staff",
+    },
+  });
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: "Completed appointment checkout",
+    target: `Appointment ${appointmentId}`,
+  });
+
+  revalidatePath("/staff/appointments");
+  revalidatePath(`/staff/appointments/${appointmentId}`);
+  revalidatePath("/staff/queue");
+  return {};
+}
+
 const consultationSchema = z.object({
   bpSystolic: z.coerce.number().int().positive().optional(),
   bpDiastolic: z.coerce.number().int().positive().optional(),
   heartRateBpm: z.coerce.number().int().positive().optional(),
   temperatureC: z.coerce.number().positive().optional(),
+  respiratoryRate: z.coerce.number().int().positive().optional(),
   spo2Percent: z.coerce.number().int().min(0).max(100).optional(),
   weightKg: z.coerce.number().positive().optional(),
   heightCm: z.coerce.number().positive().optional(),
@@ -986,6 +1060,7 @@ export async function updateConsultation(
     bpDiastolic: formData.get("bpDiastolic") || undefined,
     heartRateBpm: formData.get("heartRateBpm") || undefined,
     temperatureC: formData.get("temperatureC") || undefined,
+    respiratoryRate: formData.get("respiratoryRate") || undefined,
     spo2Percent: formData.get("spo2Percent") || undefined,
     weightKg: formData.get("weightKg") || undefined,
     heightCm: formData.get("heightCm") || undefined,
@@ -1006,6 +1081,7 @@ export async function updateConsultation(
       bpDiastolic: parsed.data.bpDiastolic ?? null,
       heartRateBpm: parsed.data.heartRateBpm ?? null,
       temperatureC: parsed.data.temperatureC ?? null,
+      respiratoryRate: parsed.data.respiratoryRate ?? null,
       spo2Percent: parsed.data.spo2Percent ?? null,
       weightKg: parsed.data.weightKg ?? null,
       heightCm: parsed.data.heightCm ?? null,

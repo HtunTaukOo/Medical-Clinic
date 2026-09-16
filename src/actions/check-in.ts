@@ -14,7 +14,11 @@ import { generateTimeBlocks, blockContainingMinuteOfDay, nearestBlock, blockDura
 import { isBlockSlotAvailable } from "@/lib/scheduling";
 
 const registerSchema = z.object({
-  name: z.string().min(1),
+  // Set when registering a walk-in for an already-registered patient (found
+  // via search on /staff/check-in) — skips creating a new Patient row.
+  // Otherwise name is required and a new patient is created, same as before.
+  patientId: z.string().optional(),
+  name: z.string().optional(),
   phone: z.string().optional(),
   dob: z.string().optional(),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
@@ -35,7 +39,8 @@ export async function registerAndCheckIn(
   const session = await requireRole(STAFF_ROLES);
 
   const parsed = registerSchema.safeParse({
-    name: formData.get("name"),
+    patientId: formData.get("patientId") || undefined,
+    name: formData.get("name") || undefined,
     phone: formData.get("phone") || undefined,
     dob: formData.get("dob") || undefined,
     gender: formData.get("gender") || undefined,
@@ -48,7 +53,27 @@ export async function registerAndCheckIn(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  const { name, phone, dob, gender, clinicServiceId, reason } = parsed.data;
+  const { patientId, name, phone, dob, gender, clinicServiceId, reason } = parsed.data;
+  if (!patientId && !name) {
+    return { error: "Enter the patient's name." };
+  }
+
+  let existingPatient: Awaited<ReturnType<typeof prisma.patient.findUnique>> = null;
+  if (patientId) {
+    existingPatient = await prisma.patient.findUnique({ where: { id: patientId } });
+    if (!existingPatient) return { error: "Patient not found." };
+
+    const activeApptToday = await prisma.appointment.findFirst({
+      where: {
+        patientId,
+        status: { in: ["REQUESTED", "CONFIRMED", "CHECKED_IN"] },
+        scheduledAt: { gte: clinicMidnight(new Date()), lt: new Date(clinicMidnight(new Date()).getTime() + 24 * 60 * 60 * 1000) },
+      },
+    });
+    if (activeApptToday) {
+      return { error: "This patient already has an active appointment today. Check them in from there instead." };
+    }
+  }
 
   let doctorId: string;
   let doctor: Awaited<ReturnType<typeof prisma.doctorProfile.findUniqueOrThrow>>;
@@ -118,15 +143,17 @@ export async function registerAndCheckIn(
   }
 
   const { appointment } = await prisma.$transaction(async (tx) => {
-    const patient = await tx.patient.create({
-      data: {
-        name,
-        phone,
-        gender,
-        dob: dob ? new Date(dob) : undefined,
-        patientCode: await generatePatientCode(tx),
-      },
-    });
+    const patient =
+      existingPatient ??
+      (await tx.patient.create({
+        data: {
+          name: name!,
+          phone,
+          gender,
+          dob: dob ? new Date(dob) : undefined,
+          patientCode: await generatePatientCode(tx),
+        },
+      }));
 
     const appointment = await tx.appointment.create({
       data: {

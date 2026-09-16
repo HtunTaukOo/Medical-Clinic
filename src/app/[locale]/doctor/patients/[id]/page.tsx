@@ -25,6 +25,9 @@ import {
 } from "@/lib/appointment-provider";
 import { initials, calculateAge } from "@/lib/format";
 import { AVATAR_COLORS } from "@/components/appointments/appointment-row";
+import { VITALS_RANGE_OPTIONS, isVitalsRangeKey, vitalsRangeCutoff, type VitalsRangeKey } from "@/lib/vitals";
+import { VitalsRangeFilter } from "@/components/patients/vitals-range-filter";
+import { VitalsTrendChart, type VitalsTrendSeries } from "@/components/patients/vitals-trend-chart";
 
 const ALLERGY_SEVERITY_STYLES: Record<string, string> = {
   SEVERE: "bg-red-600 text-white",
@@ -50,11 +53,15 @@ const DOCTOR_TABS = [
 
 export default async function DoctorPatientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ vitalsRange?: string }>;
 }) {
   const session = await requirePageRole(["DOCTOR"]);
   const { id } = await params;
+  const { vitalsRange: vitalsRangeParam } = await searchParams;
+  const vitalsRange: VitalsRangeKey = isVitalsRangeKey(vitalsRangeParam) ? vitalsRangeParam : "6m";
   const tAppt = await getTranslations("appointments");
 
   const rangeBookingNames = await getRangeBookingSpecialtyNames();
@@ -94,6 +101,9 @@ export default async function DoctorPatientDetailPage({
 
   const age = calculateAge(patient.dob);
   const genderLabel = patient.gender ? GENDER_LABELS[patient.gender] : null;
+  // On-file profile BMI (patient's own general stats, e.g. from registration
+  // or their own portal settings) — shown in the header. Distinct from
+  // visitBmi below, which is what the "Vitals (Last Visit)" card shows.
   const bmi =
     patient.heightCm && patient.weightKg
       ? patient.weightKg / (patient.heightCm / 100) ** 2
@@ -101,6 +111,14 @@ export default async function DoctorPatientDetailPage({
   const activeConditions = patient.diagnoses.filter((d) => d.status === "ACTIVE");
   const lastCompletedVisit =
     patient.appointments.find((a) => a.status === "COMPLETED") ?? null;
+  // Weight/height/BMI as recorded at that specific visit (Appointment.
+  // weightKg/heightCm) — this is what the consultation form actually lets a
+  // doctor fill in, so it's what "Vitals (Last Visit)" should show, rather
+  // than the patient's separate, possibly-stale on-file profile stats.
+  const visitBmi =
+    lastCompletedVisit?.heightCm && lastCompletedVisit?.weightKg
+      ? lastCompletedVisit.weightKg / (lastCompletedVisit.heightCm / 100) ** 2
+      : null;
   const checkedInAppointment =
     patient.appointments.find(
       (a) => a.status === "CHECKED_IN" && a.doctorId === session.user.doctorId
@@ -113,6 +131,129 @@ export default async function DoctorPatientDetailPage({
     (a) => a.doctorId === session.user.doctorId && (a.status === "CONFIRMED" || a.status === "REQUESTED")
   );
   const now = new Date();
+
+  // Every completed visit with at least one vital recorded, within the
+  // selected lookback range, oldest first — so a doctor can see the trend at
+  // a glance instead of just the single most recent reading.
+  const vitalsCutoff = vitalsRangeCutoff(vitalsRange, now);
+  const vitalsHistory = patient.appointments
+    .filter(
+      (a) =>
+        a.status === "COMPLETED" &&
+        (!vitalsCutoff || a.scheduledAt >= vitalsCutoff) &&
+        (a.bpSystolic != null ||
+          a.bpDiastolic != null ||
+          a.heartRateBpm != null ||
+          a.temperatureC != null ||
+          a.respiratoryRate != null ||
+          a.spo2Percent != null ||
+          a.weightKg != null ||
+          a.heightCm != null)
+    )
+    .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
+
+  const vitalsChartSeries: { title: string; series: VitalsTrendSeries[] }[] = [
+    {
+      title: "Blood Pressure (mmHg)",
+      series: [
+        {
+          label: "Systolic",
+          unit: "",
+          colorClassName: "text-rose-500",
+          points: vitalsHistory
+            .filter((a) => a.bpSystolic != null)
+            .map((a) => ({ date: a.scheduledAt, value: a.bpSystolic! })),
+        },
+        {
+          label: "Diastolic",
+          unit: "",
+          colorClassName: "text-blue-500",
+          points: vitalsHistory
+            .filter((a) => a.bpDiastolic != null)
+            .map((a) => ({ date: a.scheduledAt, value: a.bpDiastolic! })),
+        },
+      ],
+    },
+    {
+      title: "Pulse (bpm)",
+      series: [
+        {
+          label: "Pulse",
+          unit: " bpm",
+          colorClassName: "text-purple-500",
+          points: vitalsHistory
+            .filter((a) => a.heartRateBpm != null)
+            .map((a) => ({ date: a.scheduledAt, value: a.heartRateBpm! })),
+        },
+      ],
+    },
+    {
+      title: "Temperature (°C)",
+      series: [
+        {
+          label: "Temp",
+          unit: "°C",
+          colorClassName: "text-amber-500",
+          points: vitalsHistory
+            .filter((a) => a.temperatureC != null)
+            .map((a) => ({ date: a.scheduledAt, value: Number(a.temperatureC) })),
+        },
+      ],
+    },
+    {
+      title: "Respiratory Rate (/min)",
+      series: [
+        {
+          label: "RR",
+          unit: "/min",
+          colorClassName: "text-teal-500",
+          points: vitalsHistory
+            .filter((a) => a.respiratoryRate != null)
+            .map((a) => ({ date: a.scheduledAt, value: a.respiratoryRate! })),
+        },
+      ],
+    },
+    {
+      title: "SpO2 (%)",
+      series: [
+        {
+          label: "SpO2",
+          unit: "%",
+          colorClassName: "text-sky-500",
+          points: vitalsHistory
+            .filter((a) => a.spo2Percent != null)
+            .map((a) => ({ date: a.scheduledAt, value: a.spo2Percent! })),
+        },
+      ],
+    },
+    {
+      title: "Weight (kg)",
+      series: [
+        {
+          label: "Weight",
+          unit: " kg",
+          colorClassName: "text-emerald-500",
+          points: vitalsHistory
+            .filter((a) => a.weightKg != null)
+            .map((a) => ({ date: a.scheduledAt, value: a.weightKg! })),
+        },
+      ],
+    },
+    {
+      title: "Height (cm)",
+      series: [
+        {
+          label: "Height",
+          unit: " cm",
+          colorClassName: "text-indigo-500",
+          points: vitalsHistory
+            .filter((a) => a.heightCm != null)
+            .map((a) => ({ date: a.scheduledAt, value: a.heightCm! })),
+        },
+      ],
+    },
+  ];
+
   const upcomingPending = pendingAppointments.filter((a) => a.scheduledAt.getTime() >= now.getTime());
   const nextPendingAppointment =
     upcomingPending.length > 0
@@ -144,7 +285,7 @@ export default async function DoctorPatientDetailPage({
 
   return (
     <div className="grid gap-6">
-      <BackLink href="/doctor/patients" label="All Patients" />
+      <BackLink href="/doctor/patients" />
 
       <Card>
         <CardContent className="flex flex-wrap items-start justify-between gap-4">
@@ -335,15 +476,15 @@ export default async function DoctorPatientDetailPage({
                     },
                     {
                       label: "Weight",
-                      value: patient.weightKg ? `${patient.weightKg} kg` : "—",
+                      value: lastCompletedVisit.weightKg ? `${lastCompletedVisit.weightKg} kg` : "—",
                     },
                     {
                       label: "Height",
-                      value: patient.heightCm ? `${patient.heightCm} cm` : "—",
+                      value: lastCompletedVisit.heightCm ? `${lastCompletedVisit.heightCm} cm` : "—",
                     },
                     {
                       label: "BMI",
-                      value: bmi != null ? bmi.toFixed(1) : "—",
+                      value: visitBmi != null ? visitBmi.toFixed(1) : "—",
                     },
                   ].map((stat) => (
                     <div key={stat.label} className="rounded-lg bg-muted p-3 text-center">
@@ -352,6 +493,29 @@ export default async function DoctorPatientDetailPage({
                       </p>
                       <p className="mt-1 font-semibold">{stat.value}</p>
                     </div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <Card id="vitals-history">
+            <CardHeader className="flex flex-wrap items-center justify-between gap-2">
+              <CardTitle className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
+                Vitals History
+              </CardTitle>
+              <VitalsRangeFilter defaultRange={vitalsRange} />
+            </CardHeader>
+            <CardContent>
+              {vitalsHistory.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                  No vitals recorded in this range —{" "}
+                  {VITALS_RANGE_OPTIONS.find((o) => o.value === vitalsRange)?.label.toLowerCase()}.
+                </p>
+              ) : (
+                <div className="grid gap-6 sm:grid-cols-2">
+                  {vitalsChartSeries.map((chart) => (
+                    <VitalsTrendChart key={chart.title} title={chart.title} series={chart.series} />
                   ))}
                 </div>
               )}

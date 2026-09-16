@@ -132,7 +132,7 @@ export default async function PatientDetailPage({
 
   return (
     <div className="grid gap-6">
-      <BackLink href="/staff/patients" label="All Patients" />
+      <BackLink href="/staff/patients" />
 
       <Card>
         <CardContent className="flex flex-wrap items-start justify-between gap-4">

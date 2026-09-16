@@ -28,6 +28,7 @@ import { SearchInput } from "@/components/search-input";
 import { InventoryFilterSelect } from "@/components/inventory/inventory-filter-select";
 import { DateFilterInput } from "@/components/appointments/date-filter-input";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
+import { CompleteCheckoutButton } from "@/components/appointments/complete-checkout-button";
 import {
   getRangeBookingSpecialtyNames,
   isRangeBookingAppointment,
@@ -38,7 +39,7 @@ const STATUS_STYLES: Record<string, string> = {
   REQUESTED: "bg-blue-100 text-blue-800",
   CONFIRMED: "bg-blue-100 text-blue-800",
   CHECKED_IN: "bg-purple-100 text-purple-800",
-  COMPLETED: "bg-muted text-muted-foreground",
+  COMPLETED: "bg-emerald-100 text-emerald-800",
   CANCELLED: "bg-rose-100 text-rose-800 line-through",
   NO_SHOW: "bg-orange-100 text-orange-800",
 };
@@ -369,6 +370,12 @@ export default async function AppointmentsPage({
                       </TableCell>
                       <TableCell>
                         <div className="flex flex-wrap items-center gap-3">
+                          <Link
+                            href={`/staff/appointments/${appt.id}`}
+                            className="font-medium text-primary underline underline-offset-2"
+                          >
+                            View
+                          </Link>
                           {appt.status === "REQUESTED" && (
                             <>
                               <form action={confirmAppointment.bind(null, appt.id)}>
@@ -453,9 +460,13 @@ export default async function AppointmentsPage({
                               </form>
                             </>
                           )}
-                          {(appt.status === "COMPLETED" ||
-                            appt.status === "CANCELLED" ||
-                            appt.status === "NO_SHOW") && (
+                          {appt.status === "COMPLETED" &&
+                            (appt.staffCompletedAt ? (
+                              <span className="text-emerald-600">Checked out</span>
+                            ) : (
+                              <CompleteCheckoutButton appointmentId={appt.id} />
+                            ))}
+                          {(appt.status === "CANCELLED" || appt.status === "NO_SHOW") && (
                             <span className="text-muted-foreground">—</span>
                           )}
                         </div>

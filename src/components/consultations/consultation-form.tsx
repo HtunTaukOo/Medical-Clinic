@@ -15,6 +15,7 @@ type Defaults = {
   bpDiastolic: number | null;
   heartRateBpm: number | null;
   temperatureC: number | null;
+  respiratoryRate: number | null;
   spo2Percent: number | null;
   weightKg: number | null;
   heightCm: number | null;
@@ -58,7 +59,7 @@ export function ConsultationForm({
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="grid gap-1.5">
             <Label htmlFor="c-bp" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Blood Pressure
+              Blood Pressure (mmHg)
             </Label>
             <div className="flex items-center gap-1">
               <Input
@@ -81,7 +82,7 @@ export function ConsultationForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="c-temp" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Temperature
+              Temperature (°C)
             </Label>
             <Input
               id="c-temp"
@@ -95,7 +96,7 @@ export function ConsultationForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="c-pulse" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Pulse Rate
+              Pulse Rate (bpm)
             </Label>
             <Input
               id="c-pulse"
@@ -107,8 +108,21 @@ export function ConsultationForm({
             />
           </div>
           <div className="grid gap-1.5">
+            <Label htmlFor="c-rr" className="text-xs tracking-wide text-muted-foreground uppercase">
+              Respiratory Rate (breaths/min)
+            </Label>
+            <Input
+              id="c-rr"
+              name="respiratoryRate"
+              type="number"
+              placeholder="e.g. 16"
+              defaultValue={defaultValues.respiratoryRate ?? ""}
+              form={CONSULTATION_FORM_ID}
+            />
+          </div>
+          <div className="grid gap-1.5">
             <Label htmlFor="c-spo2" className="text-xs tracking-wide text-muted-foreground uppercase">
-              SpO<sub>2</sub>
+              SpO<sub>2</sub> (%)
             </Label>
             <Input
               id="c-spo2"
@@ -121,7 +135,7 @@ export function ConsultationForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="c-weight" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Weight
+              Weight (kg)
             </Label>
             <Input
               id="c-weight"
@@ -135,7 +149,7 @@ export function ConsultationForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="c-height" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Height
+              Height (cm)
             </Label>
             <Input
               id="c-height"

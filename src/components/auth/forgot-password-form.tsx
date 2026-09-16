@@ -34,7 +34,7 @@ export function ForgotPasswordForm() {
       </Button>
       <p className="text-sm text-muted-foreground">
         <Link href="/login" className="underline">
-          Back to login
+          Back
         </Link>
       </p>
     </form>

@@ -26,7 +26,7 @@ const STATUS_STYLES: Record<string, string> = {
   REQUESTED: "bg-amber-100 text-amber-800",
   CONFIRMED: "bg-blue-100 text-blue-800",
   CHECKED_IN: "bg-emerald-100 text-emerald-800",
-  COMPLETED: "bg-muted text-muted-foreground",
+  COMPLETED: "bg-emerald-100 text-emerald-800",
   CANCELLED: "bg-rose-100 text-rose-800 line-through",
   NO_SHOW: "bg-orange-100 text-orange-800",
 };

@@ -10,6 +10,7 @@ import {
   markNoShow,
 } from "@/actions/appointments";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
+import { CompleteCheckoutButton } from "@/components/appointments/complete-checkout-button";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
 import { AllergyList } from "@/components/allergies/allergy-list";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -161,6 +162,32 @@ export default async function AppointmentDetailPage({
                     {tBilling("newInvoice")}
                   </Link>
                 </Button>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+      {(session.user.role === "ADMIN" || session.user.role === "STAFF") &&
+        appointment.status === "COMPLETED" && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Front Desk Checkout</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {appointment.staffCompletedAt ? (
+                <p className="text-sm text-emerald-600">
+                  Checked out by {appointment.staffCompletedByName ?? "staff"} on{" "}
+                  {appointment.staffCompletedAt.toLocaleString()}.
+                </p>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-sm text-muted-foreground">
+                    The doctor has finished this consultation. Complete checkout here once
+                    everything (payment, etc.) is settled — the patient can&apos;t book another
+                    appointment until this is done.
+                  </p>
+                  <CompleteCheckoutButton appointmentId={appointment.id} />
+                </div>
               )}
             </CardContent>
           </Card>

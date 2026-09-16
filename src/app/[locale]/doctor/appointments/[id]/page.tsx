@@ -198,6 +198,7 @@ export default async function DoctorAppointmentDetailPage({
                 bpDiastolic: appointment.bpDiastolic,
                 heartRateBpm: appointment.heartRateBpm,
                 temperatureC: appointment.temperatureC ? Number(appointment.temperatureC) : null,
+                respiratoryRate: appointment.respiratoryRate,
                 spo2Percent: appointment.spo2Percent,
                 weightKg: appointment.weightKg,
                 heightCm: appointment.heightCm,

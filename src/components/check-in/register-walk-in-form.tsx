@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useState } from "react";
+import { useActionState, useId, useState } from "react";
 import { registerAndCheckIn, type RegisterAndCheckInState } from "@/actions/check-in";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,16 +19,26 @@ export function RegisterWalkInForm({
   bookByServiceSpecialties,
   blockCapacitySpecialties,
   clinicServices,
+  existingPatient,
 }: {
   doctors: { id: string; name: string; specialty: string | null }[];
   bookByServiceSpecialties: string[];
   blockCapacitySpecialties: string[];
   clinicServices: { id: string; name: string; specialty: string | null }[];
+  // Set when registering a walk-in visit for an already-registered patient
+  // (found via search on /staff/check-in) — skips the name/phone/dob/gender
+  // fields entirely and submits their existing patientId instead.
+  existingPatient?: { id: string; name: string };
 }) {
   const [state, formAction, pending] = useActionState<RegisterAndCheckInState, FormData>(
     registerAndCheckIn,
     {}
   );
+  // Two instances of this form can be mounted at once (the static "new
+  // patient" panel plus a per-search-result dialog) — hardcoded ids would
+  // collide (invalid HTML, broken label associations), so every id is
+  // scoped to this instance.
+  const uid = useId();
   const [doctorId, setDoctorId] = useState("");
   const [bookingKind, setBookingKind] = useState<"doctor" | "service">("doctor");
   const [clinicServiceId, setClinicServiceId] = useState("");
@@ -46,41 +56,54 @@ export function RegisterWalkInForm({
 
   return (
     <form action={formAction} className="grid gap-4">
-      <div className="grid gap-2">
-        <Label htmlFor="name">Full Name</Label>
-        <Input id="name" name="name" placeholder="e.g. Ko Tun Aung" required />
-      </div>
+      {existingPatient ? (
+        <>
+          <input type="hidden" name="patientId" value={existingPatient.id} />
+          <p className="rounded-lg border border-dashed bg-muted/40 p-3 text-sm">
+            Registering a walk-in visit for <span className="font-medium">{existingPatient.name}</span>.
+          </p>
+        </>
+      ) : (
+        <div className="grid gap-2">
+          <Label htmlFor={`${uid}-name`}>Full Name</Label>
+          <Input id={`${uid}-name`} name="name" placeholder="e.g. Ko Tun Aung" required />
+        </div>
+      )}
+
+      {!existingPatient && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <div className="grid gap-2">
+            <Label htmlFor={`${uid}-phone`}>Phone Number</Label>
+            <Input id={`${uid}-phone`} name="phone" placeholder="09 420000000" />
+          </div>
+          <div className="grid gap-2">
+            <Label htmlFor={`${uid}-dob`}>Date of Birth</Label>
+            <Input id={`${uid}-dob`} name="dob" type="date" />
+          </div>
+        </div>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="phone">Phone Number</Label>
-          <Input id="phone" name="phone" placeholder="09 420000000" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="dob">Date of Birth</Label>
-          <Input id="dob" name="dob" type="date" />
-        </div>
-      </div>
-
-      <div className="grid gap-4 sm:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="gender">Gender</Label>
-          <Select name="gender">
-            <SelectTrigger id="gender" className="w-full">
-              <SelectValue placeholder="Select gender" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="MALE">Male</SelectItem>
-              <SelectItem value="FEMALE">Female</SelectItem>
-              <SelectItem value="OTHER">Other</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {!existingPatient && (
+          <div className="grid gap-2">
+            <Label htmlFor={`${uid}-gender`}>Gender</Label>
+            <Select name="gender">
+              <SelectTrigger id={`${uid}-gender`} className="w-full">
+                <SelectValue placeholder="Select gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="MALE">Male</SelectItem>
+                <SelectItem value="FEMALE">Female</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+        )}
         {!isServiceBooking && (
           <div className="grid gap-2">
-            <Label htmlFor="doctorId">Preferred Doctor</Label>
+            <Label htmlFor={`${uid}-doctorId`}>Preferred Doctor</Label>
             <Select name="doctorId" required value={doctorId} onValueChange={setDoctorId}>
-              <SelectTrigger id="doctorId" className="w-full">
+              <SelectTrigger id={`${uid}-doctorId`} className="w-full">
                 <SelectValue placeholder="Select doctor" />
               </SelectTrigger>
               <SelectContent>
@@ -134,14 +157,14 @@ export function RegisterWalkInForm({
       {isServiceBooking && (
         <>
           <div className="grid gap-2">
-            <Label htmlFor="clinicServiceId">Lab Test / Service</Label>
+            <Label htmlFor={`${uid}-clinicServiceId`}>Lab Test / Service</Label>
             <Select
               name="clinicServiceId"
               required
               value={clinicServiceId}
               onValueChange={setClinicServiceId}
             >
-              <SelectTrigger id="clinicServiceId" className="w-full">
+              <SelectTrigger id={`${uid}-clinicServiceId`} className="w-full">
                 <SelectValue placeholder="Select the test or service" />
               </SelectTrigger>
               <SelectContent>
@@ -158,9 +181,9 @@ export function RegisterWalkInForm({
       )}
 
       <div className="grid gap-2">
-        <Label htmlFor="reason">Reason for Visit</Label>
+        <Label htmlFor={`${uid}-reason`}>Reason for Visit</Label>
         <Textarea
-          id="reason"
+          id={`${uid}-reason`}
           name="reason"
           placeholder="Brief description of symptoms or visit reason..."
           rows={3}
@@ -170,7 +193,7 @@ export function RegisterWalkInForm({
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="w-full" size="lg">
-        Register & Check In
+        {existingPatient ? "Register Walk-in" : "Register & Check In"}
       </Button>
     </form>
   );
