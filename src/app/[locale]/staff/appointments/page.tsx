@@ -192,12 +192,20 @@ export default async function AppointmentsPage({
             Manage patient appointments, confirmations, and check-ins.
           </p>
         </div>
-        <Button asChild>
-          <Link href="/staff/appointments/new">
-            <Plus className="size-4" />
-            {t("new")}
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/staff/appointments/schedule">
+              <CalendarDays className="size-4" />
+              Schedule
+            </Link>
+          </Button>
+          <Button asChild>
+            <Link href="/staff/appointments/new">
+              <Plus className="size-4" />
+              {t("new")}
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center gap-2">

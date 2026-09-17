@@ -42,6 +42,10 @@ import { isSpecialtyRangeBooking, formatAppointmentDateTime, formatAppointmentTi
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
 const CAPACITY_CONFLICT_MESSAGE = "That slot just filled up. Please pick a different time, or join the waitlist.";
 
+function formatKyat(value: number) {
+  return `K ${Math.round(value).toLocaleString()}`;
+}
+
 const bookingSchema = z.object({
   patientId: z.string().min(1),
   // Either doctorId (a real doctor, DOCTOR_CALENDAR/BLOCK_CAPACITY) or
@@ -226,6 +230,7 @@ export async function createAppointment(
 
   revalidatePath("/staff/appointments");
   revalidatePath("/doctor/appointments");
+  revalidatePath("/doctor/schedule");
 
   if (createdCount === 0) {
     return { error: "None of the requested weekly occurrences could be booked (conflicts or leave days)." };
@@ -818,6 +823,36 @@ export async function checkInAppointment(appointmentId: string) {
   revalidatePath("/portal");
 }
 
+// Explicit "the doctor is actually with this patient now" signal, distinct
+// from check-in (arrived, waiting) — see consultationStartedAt on the
+// Appointment model. Lets the queue board show a genuine "Waiting" state
+// instead of guessing from check-in order.
+export async function startConsultation(appointmentId: string) {
+  const session = await requireRole(["DOCTOR"]);
+
+  const appointment = await prisma.appointment.findUnique({ where: { id: appointmentId } });
+  if (!appointment || appointment.doctorId !== session.user.doctorId) {
+    throw new UnauthorizedError("Not your appointment");
+  }
+  if (appointment.status !== "CHECKED_IN") {
+    throw new Error("This patient hasn't checked in yet.");
+  }
+
+  if (!appointment.consultationStartedAt) {
+    await prisma.appointment.update({
+      where: { id: appointmentId },
+      data: { consultationStartedAt: new Date() },
+    });
+  }
+
+  revalidatePath("/staff/queue");
+  revalidatePath("/staff");
+  revalidatePath("/doctor");
+  revalidatePath("/doctor/appointments");
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
+  revalidatePath("/doctor/consultations");
+}
+
 export async function markNoShow(appointmentId: string) {
   const session = await requireRole(["ADMIN", "DOCTOR", "STAFF"]);
   const appointment = await prisma.appointment.findUnique({
@@ -1121,6 +1156,52 @@ export async function updateConsultation(
       href: `/staff/appointments/${appointmentId}`,
       relatedId: `consult-complete-${appointmentId}`,
     });
+
+    // Auto-generate the visit's invoice from the doctor's consultation fee —
+    // unless one already exists (e.g. the doctor prescribed something first,
+    // which bundles the fee into that invoice already; see createPrescription).
+    // Sent to the patient now so they know what's owed before they even reach
+    // the front desk, rather than only finding out at checkout.
+    let invoice = await prisma.invoice.findUnique({ where: { appointmentId } });
+    if (!invoice) {
+      const doctor = await prisma.doctorProfile.findUnique({
+        where: { id: appointment.doctorId },
+        select: { consultationFee: true },
+      });
+      const consultationFee = doctor ? Number(doctor.consultationFee) : 0;
+      if (consultationFee > 0) {
+        invoice = await prisma.invoice.create({
+          data: {
+            patientId: appointment.patientId,
+            appointmentId,
+            total: consultationFee,
+            items: {
+              create: [
+                { description: `Consultation — ${doctorName}`, quantity: 1, unitPrice: consultationFee },
+              ],
+            },
+          },
+        });
+      }
+    }
+
+    if (invoice) {
+      const invoiceBody = `Your invoice for today's consultation with ${doctorName} is ready — ${formatKyat(Number(invoice.total))}.`;
+      await notifyPatient(appointment.patientId, `🧾 ${invoiceBody}`);
+      await createNotification({
+        patientId: appointment.patientId,
+        category: "BILLING",
+        tone: "INFO",
+        title: "Invoice Ready",
+        body: invoiceBody,
+        href: `/portal/invoices/${invoice.id}`,
+        relatedId: `invoice-${invoice.id}`,
+      });
+      revalidatePath("/staff/billing");
+      revalidatePath("/portal/invoices");
+      revalidatePath("/portal/notifications");
+      revalidatePath("/portal");
+    }
   }
 
   revalidatePath(`/doctor/appointments/${appointmentId}`);

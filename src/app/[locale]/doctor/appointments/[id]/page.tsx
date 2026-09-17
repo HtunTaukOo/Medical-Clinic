@@ -7,6 +7,7 @@ import {
   cancelAppointment,
   completeAppointment,
   markNoShow,
+  startConsultation,
 } from "@/actions/appointments";
 import { createPrescription } from "@/actions/prescriptions";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
@@ -101,14 +102,17 @@ export default async function DoctorAppointmentDetailPage({
   const isBookByServiceVisit = specialtyRecord?.bookingMode === "SERVICE_CAPACITY";
   const isRangeBooking = specialtyRecord ? specialtyRecord.bookingMode !== "DOCTOR_CALENDAR" : false;
 
-  // Charting (vitals/diagnosis/prescribe) only opens up once the patient has
-  // actually checked in — a merely CONFIRMED appointment shouldn't be
-  // writable yet, since the patient hasn't arrived. COMPLETED stays writable
-  // so a doctor can still review/amend notes after the visit.
+  // Charting (vitals/diagnosis/prescribe) only opens up once the doctor has
+  // explicitly started the consultation — being CHECKED_IN only means the
+  // patient has arrived and is waiting, not that the doctor is with them yet
+  // (see consultationStartedAt). COMPLETED stays writable so a doctor can
+  // still review/amend notes after the visit.
+  const isCheckedIn = appointment.status === "CHECKED_IN";
+  const needsStart = !isBookByServiceVisit && isCheckedIn && !appointment.consultationStartedAt;
   const canWriteNote =
     !isBookByServiceVisit &&
-    (appointment.status === "CHECKED_IN" || appointment.status === "COMPLETED");
-  const backHref = canWriteNote ? "/doctor/consultations" : "/doctor/appointments";
+    (appointment.status === "COMPLETED" || (isCheckedIn && !!appointment.consultationStartedAt));
+  const backHref = canWriteNote || needsStart ? "/doctor/consultations" : "/doctor/appointments";
   const isSameDayAsVisit = dateKey(appointment.scheduledAt) === dateKey(new Date());
   const canPrescribe = canWriteNote && isSameDayAsVisit;
 
@@ -120,6 +124,56 @@ export default async function DoctorAppointmentDetailPage({
     : [];
 
   const boundCreatePrescription = createPrescription.bind(null, appointment.id);
+
+  if (needsStart) {
+    const age = calculateAge(appointment.patient.dob);
+    const genderLetter = appointment.patient.gender ? GENDER_LETTER[appointment.patient.gender] : null;
+    return (
+      <div className="grid gap-6">
+        <BackLink href={backHref} />
+        <div className="flex items-center gap-3">
+          <Avatar className="size-9">
+            <AvatarFallback className={AVATAR_COLORS[0]}>
+              {initials(appointment.patient.name)}
+            </AvatarFallback>
+          </Avatar>
+          <div>
+            <div className="flex items-center gap-2">
+              <Link
+                href={`/doctor/patients/${appointment.patientId}`}
+                className="font-semibold hover:underline"
+              >
+                {appointment.patient.name}
+              </Link>
+              <Badge variant="outline" className="bg-amber-100 text-amber-700">
+                Checked In — Waiting
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              {[age != null ? `${age}yo` : null, genderLetter, appointment.patient.bloodType]
+                .filter(Boolean)
+                .join(" · ")}
+              {appointment.reason ? ` · ${appointment.reason}` : ""}
+            </p>
+          </div>
+        </div>
+
+        <Card>
+          <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
+            <p className="text-muted-foreground">
+              {appointment.patient.name} has checked in and is waiting. Charting, prescriptions, and
+              lab orders unlock once you start the consultation.
+            </p>
+            <form action={startConsultation.bind(null, appointment.id)}>
+              <Button type="submit" size="lg">
+                Start Consultation
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (canWriteNote) {
     const age = calculateAge(appointment.patient.dob);
@@ -151,7 +205,12 @@ export default async function DoctorAppointmentDetailPage({
             </Avatar>
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-semibold">{appointment.patient.name}</span>
+                <Link
+                  href={`/doctor/patients/${appointment.patientId}`}
+                  className="font-semibold hover:underline"
+                >
+                  {appointment.patient.name}
+                </Link>
                 <Badge variant="outline" className={CONSULTATION_STATUS_CLASS[appointment.status]}>
                   {CONSULTATION_STATUS_LABEL[appointment.status]}
                 </Badge>
@@ -286,7 +345,7 @@ export default async function DoctorAppointmentDetailPage({
 
             {canPrescribe && (
               <ConsultationQuickActions
-                followUpHref={`/doctor/appointments/new?patientId=${appointment.patientId}`}
+                followUpHref={`/doctor/schedule?patientId=${appointment.patientId}`}
                 prescribeSlot={
                   <PrescriptionForm
                     action={boundCreatePrescription}
@@ -334,7 +393,12 @@ export default async function DoctorAppointmentDetailPage({
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{appointment.patient.name}</h1>
+          <Link
+            href={`/doctor/patients/${appointment.patientId}`}
+            className="text-2xl font-semibold hover:underline"
+          >
+            {appointment.patient.name}
+          </Link>
           <p className="text-muted-foreground">
             {formatAppointmentDateTime(appointment, isRangeBooking)} &mdash;{" "}
             {appointment.doctor.user.name}
@@ -398,7 +462,7 @@ export default async function DoctorAppointmentDetailPage({
           </>
         )}
         <Button asChild size="sm" variant="outline">
-          <Link href={`/doctor/appointments/new?patientId=${appointment.patientId}`}>
+          <Link href={`/doctor/schedule?patientId=${appointment.patientId}`}>
             <CalendarPlus className="size-4" />
             Book Follow-up
           </Link>

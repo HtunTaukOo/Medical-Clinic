@@ -91,8 +91,11 @@ export default async function DoctorDashboardPage({
   const checkedInToday = todaysAppointmentsFull
     .filter((appt) => appt.status === "CHECKED_IN")
     .sort((a, b) => (a.checkedInAt?.getTime() ?? 0) - (b.checkedInAt?.getTime() ?? 0));
-  const inProgressAppt = checkedInToday[0] ?? null;
-  const waitingAppts = checkedInToday.slice(1);
+  // "In progress" means the doctor has actually started the consultation
+  // (see consultationStartedAt) — merely being checked in just means the
+  // patient has arrived and is waiting, not that anyone is seeing them yet.
+  const inProgressAppt = checkedInToday.find((appt) => appt.consultationStartedAt != null) ?? null;
+  const waitingAppts = checkedInToday.filter((appt) => appt.id !== inProgressAppt?.id);
   const completedAppts = todaysAppointmentsFull.filter((appt) => appt.status === "COMPLETED");
 
   type RedAlert = {

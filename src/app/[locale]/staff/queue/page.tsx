@@ -116,25 +116,13 @@ export default async function QueuePage() {
   const waitingWalkIns = walkIns.filter((w) => w.status === "WAITING");
   const calledWalkIns = walkIns.filter((w) => w.status === "CALLED");
 
-  // "In consultation" isn't a stored status — it's the earliest checked-in
-  // patient per doctor, computed at render time. Once that appointment is
-  // completed, the next-earliest checked-in patient for that doctor becomes
-  // "in consultation" automatically on the next load, with no extra state.
-  const checkedInByDoctor = new Map<string, typeof appointments>();
-  for (const appt of appointments.filter((a) => a.status === "CHECKED_IN")) {
-    const list = checkedInByDoctor.get(appt.doctorId) ?? [];
-    list.push(appt);
-    checkedInByDoctor.set(appt.doctorId, list);
-  }
-  const inConsultation: typeof appointments = [];
-  const stillCheckedIn: typeof appointments = [];
-  for (const list of checkedInByDoctor.values()) {
-    const sorted = [...list].sort(
-      (a, b) => (a.checkedInAt?.getTime() ?? 0) - (b.checkedInAt?.getTime() ?? 0)
-    );
-    inConsultation.push(sorted[0]);
-    stillCheckedIn.push(...sorted.slice(1));
-  }
+  // "In consultation" means the doctor has explicitly started (see
+  // consultationStartedAt) — just being checked in only means the patient
+  // has arrived and is waiting, which stays in the Waiting column until the
+  // doctor actually opens the consultation.
+  const checkedIn = appointments.filter((a) => a.status === "CHECKED_IN");
+  const inConsultation = checkedIn.filter((a) => a.consultationStartedAt != null);
+  const stillCheckedIn = checkedIn.filter((a) => a.consultationStartedAt == null);
 
   const cards: QueueCard[] = [
     ...confirmed.map(

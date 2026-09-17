@@ -25,9 +25,16 @@ import {
 } from "@/lib/appointment-provider";
 import { initials, calculateAge } from "@/lib/format";
 import { AVATAR_COLORS } from "@/components/appointments/appointment-row";
-import { VITALS_RANGE_OPTIONS, isVitalsRangeKey, vitalsRangeCutoff, type VitalsRangeKey } from "@/lib/vitals";
+import {
+  VITALS_RANGE_OPTIONS,
+  isVitalsRangeKey,
+  vitalsRangeCutoff,
+  filterVitalsHistory,
+  buildVitalsChartSeries,
+  type VitalsRangeKey,
+} from "@/lib/vitals";
 import { VitalsRangeFilter } from "@/components/patients/vitals-range-filter";
-import { VitalsTrendChart, type VitalsTrendSeries } from "@/components/patients/vitals-trend-chart";
+import { VitalsTrendChart } from "@/components/patients/vitals-trend-chart";
 
 const ALLERGY_SEVERITY_STYLES: Record<string, string> = {
   SEVERE: "bg-red-600 text-white",
@@ -136,123 +143,20 @@ export default async function DoctorPatientDetailPage({
   // selected lookback range, oldest first — so a doctor can see the trend at
   // a glance instead of just the single most recent reading.
   const vitalsCutoff = vitalsRangeCutoff(vitalsRange, now);
-  const vitalsHistory = patient.appointments
-    .filter(
-      (a) =>
-        a.status === "COMPLETED" &&
-        (!vitalsCutoff || a.scheduledAt >= vitalsCutoff) &&
-        (a.bpSystolic != null ||
-          a.bpDiastolic != null ||
-          a.heartRateBpm != null ||
-          a.temperatureC != null ||
-          a.respiratoryRate != null ||
-          a.spo2Percent != null ||
-          a.weightKg != null ||
-          a.heightCm != null)
-    )
-    .sort((a, b) => a.scheduledAt.getTime() - b.scheduledAt.getTime());
-
-  const vitalsChartSeries: { title: string; series: VitalsTrendSeries[] }[] = [
-    {
-      title: "Blood Pressure (mmHg)",
-      series: [
-        {
-          label: "Systolic",
-          unit: "",
-          colorClassName: "text-rose-500",
-          points: vitalsHistory
-            .filter((a) => a.bpSystolic != null)
-            .map((a) => ({ date: a.scheduledAt, value: a.bpSystolic! })),
-        },
-        {
-          label: "Diastolic",
-          unit: "",
-          colorClassName: "text-blue-500",
-          points: vitalsHistory
-            .filter((a) => a.bpDiastolic != null)
-            .map((a) => ({ date: a.scheduledAt, value: a.bpDiastolic! })),
-        },
-      ],
-    },
-    {
-      title: "Pulse (bpm)",
-      series: [
-        {
-          label: "Pulse",
-          unit: " bpm",
-          colorClassName: "text-purple-500",
-          points: vitalsHistory
-            .filter((a) => a.heartRateBpm != null)
-            .map((a) => ({ date: a.scheduledAt, value: a.heartRateBpm! })),
-        },
-      ],
-    },
-    {
-      title: "Temperature (°C)",
-      series: [
-        {
-          label: "Temp",
-          unit: "°C",
-          colorClassName: "text-amber-500",
-          points: vitalsHistory
-            .filter((a) => a.temperatureC != null)
-            .map((a) => ({ date: a.scheduledAt, value: Number(a.temperatureC) })),
-        },
-      ],
-    },
-    {
-      title: "Respiratory Rate (/min)",
-      series: [
-        {
-          label: "RR",
-          unit: "/min",
-          colorClassName: "text-teal-500",
-          points: vitalsHistory
-            .filter((a) => a.respiratoryRate != null)
-            .map((a) => ({ date: a.scheduledAt, value: a.respiratoryRate! })),
-        },
-      ],
-    },
-    {
-      title: "SpO2 (%)",
-      series: [
-        {
-          label: "SpO2",
-          unit: "%",
-          colorClassName: "text-sky-500",
-          points: vitalsHistory
-            .filter((a) => a.spo2Percent != null)
-            .map((a) => ({ date: a.scheduledAt, value: a.spo2Percent! })),
-        },
-      ],
-    },
-    {
-      title: "Weight (kg)",
-      series: [
-        {
-          label: "Weight",
-          unit: " kg",
-          colorClassName: "text-emerald-500",
-          points: vitalsHistory
-            .filter((a) => a.weightKg != null)
-            .map((a) => ({ date: a.scheduledAt, value: a.weightKg! })),
-        },
-      ],
-    },
-    {
-      title: "Height (cm)",
-      series: [
-        {
-          label: "Height",
-          unit: " cm",
-          colorClassName: "text-indigo-500",
-          points: vitalsHistory
-            .filter((a) => a.heightCm != null)
-            .map((a) => ({ date: a.scheduledAt, value: a.heightCm! })),
-        },
-      ],
-    },
-  ];
+  const vitalsSource = patient.appointments.map((a) => ({
+    scheduledAt: a.scheduledAt,
+    status: a.status,
+    bpSystolic: a.bpSystolic,
+    bpDiastolic: a.bpDiastolic,
+    heartRateBpm: a.heartRateBpm,
+    temperatureC: a.temperatureC != null ? Number(a.temperatureC) : null,
+    respiratoryRate: a.respiratoryRate,
+    spo2Percent: a.spo2Percent,
+    weightKg: a.weightKg,
+    heightCm: a.heightCm,
+  }));
+  const vitalsHistory = filterVitalsHistory(vitalsSource, vitalsCutoff);
+  const vitalsChartSeries = buildVitalsChartSeries(vitalsHistory);
 
   const upcomingPending = pendingAppointments.filter((a) => a.scheduledAt.getTime() >= now.getTime());
   const nextPendingAppointment =

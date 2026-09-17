@@ -74,6 +74,7 @@ export async function createAnnouncement(
     tone: "INFO",
     title: parsed.data.title,
     body: parsed.data.body,
+    href: "/doctor/announcements",
     relatedId: `announcement-${announcement.id}`,
   });
   await Promise.all(
@@ -81,6 +82,7 @@ export async function createAnnouncement(
   );
 
   revalidatePath("/staff/announcements");
+  revalidatePath("/doctor/announcements");
   revalidatePath("/portal");
   revalidatePath("/portal/notifications");
   return { success: true };
@@ -98,5 +100,6 @@ export async function toggleAnnouncementActive(announcementId: string) {
   });
 
   revalidatePath("/staff/announcements");
+  revalidatePath("/doctor/announcements");
   revalidatePath("/portal");
 }

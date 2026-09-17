@@ -9,9 +9,17 @@ import { redirect } from "@/i18n/navigation";
 import { generatePatientCode } from "@/lib/patients";
 import { logActivity } from "@/lib/audit";
 import { createLabOrderForLinkedService } from "@/actions/appointments";
-import { getClinicHoursForDate, clinicLocalMinutes, clinicMidnight, toMinutes } from "@/lib/clinic-hours";
+import { getClinicHoursForDate, clinicLocalMinutes, clinicMidnight, clinicWeekday, toMinutes, formatTime } from "@/lib/clinic-hours";
 import { generateTimeBlocks, blockContainingMinuteOfDay, nearestBlock, blockDurationMinutes, blockCapacity } from "@/lib/time-blocks";
 import { isBlockSlotAvailable } from "@/lib/scheduling";
+import {
+  isDoctorOnLeave,
+  isWorkingDay,
+  getDoctorShiftsForDate,
+  isWithinShiftRanges,
+  formatShiftRanges,
+  WEEKDAY_LABELS,
+} from "@/lib/doctor-availability";
 
 const registerSchema = z.object({
   // Set when registering a walk-in for an already-registered patient (found
@@ -111,6 +119,14 @@ export async function registerAndCheckIn(
 
   const now = new Date();
 
+  // Whichever doctor ends up on this walk-in (directly picked, or
+  // auto-assigned for a shared-capacity service) must actually be around
+  // today — same leave check every other booking path already applies
+  // (see isDoctorOnLeave usage in createAppointment/submitAppointmentRequest).
+  if (await isDoctorOnLeave(doctorId, now)) {
+    return { error: "This doctor is on leave today and can't accept walk-ins. Please choose another doctor." };
+  }
+
   // A block-mode (or shared-capacity service, e.g. Lab Visit) walk-in is
   // always "right now" — resolve whichever of today's generated blocks
   // contains the current clinic-local time (clamped to the nearest one if
@@ -138,6 +154,21 @@ export async function registerAndCheckIn(
     if (!available) {
       return {
         error: `This time block is at capacity (${capacity} patients). Please try again shortly.`,
+      };
+    }
+  } else {
+    // A directly-picked doctor (the common case — no shared time-block
+    // capacity involved) must actually be working right now, same as a
+    // staff-booked appointment would require.
+    if (!isWorkingDay(doctor.workingDays, now)) {
+      return {
+        error: `This doctor doesn't see patients on ${WEEKDAY_LABELS[clinicWeekday(now)]}s. Please choose another doctor.`,
+      };
+    }
+    const shifts = await getDoctorShiftsForDate(doctorId, now);
+    if (!isWithinShiftRanges(now, shifts)) {
+      return {
+        error: `This doctor is only available ${formatShiftRanges(shifts, formatTime)} today. Please choose another doctor.`,
       };
     }
   }

@@ -112,8 +112,12 @@ export default async function DoctorAppointmentsPage({
   const checkedInToday = appointments
     .filter((a) => matchesTab(a, "today") && a.status === "CHECKED_IN")
     .sort((a, b) => (a.checkedInAt?.getTime() ?? 0) - (b.checkedInAt?.getTime() ?? 0));
-  const inProgressApptId = checkedInToday[0]?.id ?? null;
-  const waitingApptIds = new Set(checkedInToday.slice(1).map((a) => a.id));
+  // "In progress" means the doctor has actually started the consultation
+  // (see consultationStartedAt), not merely that the patient checked in.
+  const inProgressApptId = checkedInToday.find((a) => a.consultationStartedAt != null)?.id ?? null;
+  const waitingApptIds = new Set(
+    checkedInToday.filter((a) => a.id !== inProgressApptId).map((a) => a.id)
+  );
 
   const visibleAppointments = appointments
     .filter((a) => matchesTab(a, tab))

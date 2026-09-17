@@ -1,4 +1,4 @@
-import { Bell, CalendarClock, FlaskConical, Pill, Megaphone, Stethoscope } from "lucide-react";
+import { Bell, CalendarClock, FlaskConical, Pill, Megaphone, Stethoscope, Receipt } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
@@ -26,6 +26,7 @@ export default async function PortalNotificationsPage() {
     PRESCRIPTION: { label: t("categoryPrescriptions"), icon: Pill, badgeClass: "bg-orange-100 text-orange-700" },
     DIAGNOSIS: { label: t("categoryDiagnoses"), icon: Stethoscope, badgeClass: "bg-rose-100 text-rose-700" },
     ANNOUNCEMENT: { label: t("categoryAnnouncements"), icon: Megaphone, badgeClass: "bg-purple-100 text-purple-700" },
+    BILLING: { label: t("categoryBilling"), icon: Receipt, badgeClass: "bg-teal-100 text-teal-700" },
   };
 
   function cardMeta(category: NotificationCategory) {
@@ -93,6 +94,9 @@ export default async function PortalNotificationsPage() {
           <TabsTrigger value="ANNOUNCEMENT" className={PILL_TAB_TRIGGER}>
             {t("tabAnnouncements")}
           </TabsTrigger>
+          <TabsTrigger value="BILLING" className={PILL_TAB_TRIGGER}>
+            {t("tabBilling")}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="all" className="mt-4 grid gap-3">
@@ -111,7 +115,7 @@ export default async function PortalNotificationsPage() {
           )}
         </TabsContent>
 
-        {(["APPOINTMENT", "LAB_RESULT", "PRESCRIPTION", "DIAGNOSIS", "ANNOUNCEMENT"] as const).map((category) => (
+        {(["APPOINTMENT", "LAB_RESULT", "PRESCRIPTION", "DIAGNOSIS", "ANNOUNCEMENT", "BILLING"] as const).map((category) => (
           <TabsContent key={category} value={category} className="mt-4 grid gap-3">
             {byCategory(category).length === 0 ? (
               <EmptyState icon={CATEGORY_META[category].icon} message={t("nothingHere")} />

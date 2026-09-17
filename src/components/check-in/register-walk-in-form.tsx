@@ -110,6 +110,7 @@ export function RegisterWalkInForm({
                 {doctors.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {d.name}
+                    {d.specialty ? ` (${d.specialty})` : ""}
                   </SelectItem>
                 ))}
               </SelectContent>

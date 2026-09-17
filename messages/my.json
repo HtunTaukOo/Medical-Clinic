@@ -532,6 +532,7 @@
       "categoryPrescriptions": "ဆေးညွှန်းများ",
       "categoryDiagnoses": "ရောဂါအမည်များ",
       "categoryAnnouncements": "ကြေညာချက်များ",
+      "categoryBilling": "ငွေတောင်းခံလွှာများ",
       "title": "အသိပေးချက်များ",
       "unreadCount": "{count} ခု မဖတ်ရသေး",
       "unreadSuffix": "အသိပေးချက်များ",
@@ -542,6 +543,7 @@
       "tabPrescriptions": "ဆေးညွှန်းများ",
       "tabDiagnoses": "ရောဂါအမည်များ",
       "tabAnnouncements": "ကြေညာချက်များ",
+      "tabBilling": "ငွေတောင်းခံလွှာများ",
       "noNotifications": "လောလောဆယ် အသိပေးချက်မရှိပါ။",
       "nothingHere": "ဤနေရာတွင် မည်သည့်အရာမျှ မရှိသေးပါ။"
     },

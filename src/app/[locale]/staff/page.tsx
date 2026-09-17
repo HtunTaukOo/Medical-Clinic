@@ -364,12 +364,12 @@ export default async function StaffDashboardPage() {
       })
     ),
     ...checkedInAppointmentsToday.map(
-      (appt, index): QueueRow => ({
+      (appt): QueueRow => ({
         key: `checkedin-${appt.id}`,
         patientName: appt.patient.name,
         doctorName: appt.doctor.user.name,
-        statusLabel: index === 0 ? "In Consultation" : "Waiting",
-        priority: index === 0 ? 1 : 3,
+        statusLabel: appt.consultationStartedAt ? "In Consultation" : "Waiting",
+        priority: appt.consultationStartedAt ? 1 : 3,
         sortKey: (appt.checkedInAt ?? appt.scheduledAt).getTime(),
         action: <span className="text-muted-foreground">—</span>,
       })

@@ -4,6 +4,7 @@ import { requirePageRole } from "@/lib/authz";
 import { createAppointment } from "@/actions/appointments";
 import { AppointmentForm } from "@/components/appointments/appointment-form";
 import { BackLink } from "@/components/back-link";
+import { Link } from "@/i18n/navigation";
 
 export default async function NewAppointmentPage({
   searchParams,
@@ -37,7 +38,15 @@ export default async function NewAppointmentPage({
   return (
     <div className="grid gap-4">
       <BackLink href="/staff/appointments" />
-      <h1 className="text-2xl font-semibold">{t("new")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h1 className="text-2xl font-semibold">{t("new")}</h1>
+        <Link
+          href={`/staff/appointments/schedule${patientId ? `?patientId=${patientId}` : ""}`}
+          className="text-sm text-primary underline underline-offset-2"
+        >
+          Or pick a time from a doctor&apos;s schedule calendar
+        </Link>
+      </div>
       <AppointmentForm
         action={createAppointment}
         patients={patients.map((p) => ({ id: p.id, name: p.name }))}

@@ -532,6 +532,7 @@
       "categoryPrescriptions": "Prescriptions",
       "categoryDiagnoses": "Diagnoses",
       "categoryAnnouncements": "Announcements",
+      "categoryBilling": "Billing",
       "title": "Notifications",
       "unreadCount": "{count} unread",
       "unreadSuffix": "notifications",
@@ -542,6 +543,7 @@
       "tabPrescriptions": "Prescriptions",
       "tabDiagnoses": "Diagnoses",
       "tabAnnouncements": "Announcements",
+      "tabBilling": "Billing",
       "noNotifications": "No notifications right now.",
       "nothingHere": "Nothing here yet."
     },

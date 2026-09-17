@@ -296,6 +296,14 @@ model Appointment {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  // Checking in only means the patient has arrived and is waiting — it does
+  // NOT mean the doctor is actually with them yet. Without a separate signal
+  // for that, the queue board has to guess (e.g. "earliest checked-in per
+  // doctor"), which wrongly shows someone as "In Consultation" the instant
+  // they're checked in, even before the doctor opens their chart. This is
+  // set once, explicitly, when the doctor starts the consultation.
+  consultationStartedAt DateTime?
+
   // A doctor completing the consultation (status -> COMPLETED) only means
   // the clinical visit is done — it does NOT mean the patient has checked
   // out at the front desk. A separate, staff-only completion step closes
@@ -552,6 +560,7 @@ enum NotificationCategory {
   PRESCRIPTION
   DIAGNOSIS
   ANNOUNCEMENT
+  BILLING
 }
 
 enum NotificationTone {
