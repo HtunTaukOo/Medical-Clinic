@@ -48,6 +48,7 @@ export default async function AppointmentDetailPage({
         invoice: true,
         labOrders: { include: { items: { include: { labTest: true } } } },
         diagnoses: { orderBy: { createdAt: "desc" } },
+        clinicService: { select: { name: true, specialty: true, labTestId: true } },
       },
     }),
     getRangeBookingSpecialtyNames(),
@@ -87,6 +88,25 @@ export default async function AppointmentDetailPage({
             <CardTitle>{t("reason")}</CardTitle>
           </CardHeader>
           <CardContent>{appointment.reason}</CardContent>
+        </Card>
+      )}
+
+      {appointment.clinicService?.specialty === "Lab Visit" &&
+        !appointment.clinicService.labTestId &&
+        appointment.labOrders.length === 0 && (
+        <Card className="border-primary/40 bg-primary/5">
+          <CardHeader>
+            <CardTitle>Lab Visit — {appointment.clinicService.name}</CardTitle>
+          </CardHeader>
+          <CardContent className="grid gap-3">
+            <p className="text-sm text-muted-foreground">
+              Patient booked this category, not a specific test. Talk to the patient about their reason for
+              visiting, then create the lab order for the actual test(s) needed.
+            </p>
+            <Button asChild className="w-fit">
+              <Link href="/staff/lab?tab=new">Create Lab Order</Link>
+            </Button>
+          </CardContent>
         </Card>
       )}
 

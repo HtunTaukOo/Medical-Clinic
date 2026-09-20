@@ -75,6 +75,7 @@ export async function createClinicService(
   });
 
   revalidatePath("/staff/clinic-services");
+  revalidatePath("/portal/book");
   return { success: true };
 }
 
@@ -110,6 +111,7 @@ export async function updateClinicService(
   });
 
   revalidatePath("/staff/clinic-services");
+  revalidatePath("/portal/book");
   return { success: true };
 }
 

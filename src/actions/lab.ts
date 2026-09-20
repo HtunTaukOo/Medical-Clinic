@@ -6,15 +6,27 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, UnauthorizedError, STAFF_ROLES } from "@/lib/authz";
 import { notifyStaff, notifyPatient, notifyDoctor } from "@/lib/telegram";
 import { createNotification, notifyStaffUsers } from "@/lib/notifications";
+import { LAB_TEST_CATEGORIES } from "@/lib/lab-categories";
 
 const labTestSchema = z.object({
   name: z.string().min(1),
   unit: z.string().optional(),
   normalRange: z.string().optional(),
   price: z.coerce.number().nonnegative(),
+  category: z.enum(LAB_TEST_CATEGORIES),
 });
 
 export type LabTestFormState = { error?: string; success?: boolean };
+
+function parseLabTestForm(formData: FormData) {
+  return labTestSchema.safeParse({
+    name: formData.get("name"),
+    unit: formData.get("unit") || undefined,
+    normalRange: formData.get("normalRange") || undefined,
+    price: formData.get("price"),
+    category: formData.get("category") || undefined,
+  });
+}
 
 export async function createLabTest(
   _prevState: LabTestFormState,
@@ -22,17 +34,35 @@ export async function createLabTest(
 ): Promise<LabTestFormState> {
   await requireRole(STAFF_ROLES);
 
-  const parsed = labTestSchema.safeParse({
-    name: formData.get("name"),
-    unit: formData.get("unit") || undefined,
-    normalRange: formData.get("normalRange") || undefined,
-    price: formData.get("price"),
-  });
+  const parsed = parseLabTestForm(formData);
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
   await prisma.labTest.create({ data: parsed.data });
+
+  revalidatePath("/staff/lab");
+  return { success: true };
+}
+
+// Lets staff re-link a test to a different category (e.g. fixing a bad
+// auto-categorization, or categorizing a newly added test) — see
+// src/lib/lab-categories.ts for the fixed category list this validates
+// against. Name/unit/normalRange/price stay editable too since this is the
+// only edit path LabTest has.
+export async function updateLabTest(
+  labTestId: string,
+  _prevState: LabTestFormState,
+  formData: FormData
+): Promise<LabTestFormState> {
+  await requireRole(STAFF_ROLES);
+
+  const parsed = parseLabTestForm(formData);
+  if (!parsed.success) {
+    return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
+  }
+
+  await prisma.labTest.update({ where: { id: labTestId }, data: parsed.data });
 
   revalidatePath("/staff/lab");
   return { success: true };

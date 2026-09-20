@@ -437,11 +437,24 @@ export async function submitAppointmentRequest(
 
   const isRangeBooking = await isSpecialtyRangeBooking(appointment.doctor.specialty);
 
+  // A clinic-service-linked booking is currently always a "Lab Visit"
+  // category (e.g. "Heart Health") — the doctor shown is just a placeholder
+  // scheduling account nobody actually reads, so the generic "with {doctor}"
+  // phrasing tells staff nothing useful. Name the actual category instead,
+  // so staff know at a glance this needs a lab order created (see the
+  // "Create Lab Order" prompt on the appointment detail page).
+  const isLabVisit = !!clinicService;
+  const staffTitle = isLabVisit ? "New Lab Visit Request" : "New Appointment Request";
+
   await notifyStaff(
-    `📅 New appointment request: ${appointment.patient.name} with ${appointment.doctor.user.name} at ${formatAppointmentDateTime(appointment, isRangeBooking)}.`
+    isLabVisit
+      ? `🧪 New Lab Visit request: ${appointment.patient.name} booked ${clinicService!.name} at ${formatAppointmentDateTime(appointment, isRangeBooking)}.`
+      : `📅 New appointment request: ${appointment.patient.name} with ${appointment.doctor.user.name} at ${formatAppointmentDateTime(appointment, isRangeBooking)}.`
   );
 
-  const requestSummary = `${appointment.patient.name} requested an appointment with ${appointment.doctor.user.name} on ${scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${formatAppointmentTime(appointment, isRangeBooking)}.`;
+  const requestSummary = isLabVisit
+    ? `${appointment.patient.name} booked a Lab Visit for ${clinicService!.name} on ${scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${formatAppointmentTime(appointment, isRangeBooking)}.`
+    : `${appointment.patient.name} requested an appointment with ${appointment.doctor.user.name} on ${scheduledAt.toLocaleDateString(undefined, { month: "long", day: "numeric" })} at ${formatAppointmentTime(appointment, isRangeBooking)}.`;
 
   const staffRecipients = await prisma.user.findMany({
     where: { role: { in: ["ADMIN", "STAFF"] }, active: true, notifyNewAppointments: true },
@@ -451,7 +464,7 @@ export async function submitAppointmentRequest(
     userIds: staffRecipients.map((u) => u.id),
     category: "APPOINTMENT",
     tone: "INFO",
-    title: "New Appointment Request",
+    title: staffTitle,
     body: requestSummary,
     href: `/staff/appointments/${appointment.id}`,
     relatedId: `appt-request-${appointment.id}`,

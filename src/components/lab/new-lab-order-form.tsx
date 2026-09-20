@@ -15,12 +15,20 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categories";
 
 function formatKyat(value: number) {
   return `K ${Math.round(value).toLocaleString()}`;
 }
 
-type Test = { id: string; name: string; unit: string | null; normalRange: string | null; price: number };
+type Test = {
+  id: string;
+  name: string;
+  unit: string | null;
+  normalRange: string | null;
+  price: number;
+  category: (typeof LAB_TEST_CATEGORIES)[number];
+};
 
 export function NewLabOrderForm({
   patients,
@@ -164,6 +172,9 @@ export function NewLabOrderForm({
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Select Tests</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Grouped by the area that matches the patient&apos;s reason for visiting.
+            </p>
           </CardHeader>
           <CardContent>
             {tests.length === 0 ? (
@@ -171,31 +182,44 @@ export function NewLabOrderForm({
                 No lab tests in the catalog yet.
               </p>
             ) : (
-              <div className="grid gap-2 sm:grid-cols-2">
-                {tests.map((test) => (
-                  <label
-                    key={test.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border p-3 hover:bg-muted/50"
-                  >
-                    <div className="flex items-center gap-3">
-                      <input
-                        type="checkbox"
-                        checked={selectedTestIds.includes(test.id)}
-                        onChange={() => toggleTest(test.id)}
-                        className="size-4"
-                      />
-                      <div>
-                        <p className="text-sm font-medium">{test.name}</p>
-                        {test.normalRange && (
-                          <p className="text-xs text-muted-foreground">
-                            Normal: {test.normalRange}
-                          </p>
-                        )}
+              <div className="grid gap-5">
+                {LAB_TEST_CATEGORIES.map((category) => {
+                  const testsInCategory = tests.filter((t) => t.category === category);
+                  if (testsInCategory.length === 0) return null;
+                  return (
+                    <div key={category} className="grid gap-2">
+                      <h3 className="text-sm font-semibold text-foreground">
+                        {LAB_TEST_CATEGORY_LABELS[category]}
+                      </h3>
+                      <div className="grid gap-2 sm:grid-cols-2">
+                        {testsInCategory.map((test) => (
+                          <label
+                            key={test.id}
+                            className="flex items-center justify-between gap-3 rounded-lg border p-3 hover:bg-muted/50"
+                          >
+                            <div className="flex items-center gap-3">
+                              <input
+                                type="checkbox"
+                                checked={selectedTestIds.includes(test.id)}
+                                onChange={() => toggleTest(test.id)}
+                                className="size-4"
+                              />
+                              <div>
+                                <p className="text-sm font-medium">{test.name}</p>
+                                {test.normalRange && (
+                                  <p className="text-xs text-muted-foreground">
+                                    Normal: {test.normalRange}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            <span className="text-sm font-medium">{formatKyat(test.price)}</span>
+                          </label>
+                        ))}
                       </div>
                     </div>
-                    <span className="text-sm font-medium">{formatKyat(test.price)}</span>
-                  </label>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>

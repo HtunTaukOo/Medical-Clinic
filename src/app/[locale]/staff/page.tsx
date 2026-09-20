@@ -105,9 +105,15 @@ const QUEUE_STATUS_CLASS: Record<string, string> = {
   Waiting: "bg-amber-100 text-amber-700",
 };
 
-export default async function StaffDashboardPage() {
+export default async function StaffDashboardPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ schedule?: string }>;
+}) {
   const session = await auth();
   const role = session?.user.role;
+  const { schedule: scheduleParam } = await searchParams;
+  const scheduleTab: "today" | "upcoming" = scheduleParam === "upcoming" ? "upcoming" : "today";
 
   const { start: todayStart, end: todayEnd } = todayRange();
   const now = new Date();
@@ -128,6 +134,7 @@ export default async function StaffDashboardPage() {
     calledWalkInsToday,
     completedAppointmentsToday,
     todaysAppointmentsAll,
+    upcomingAppointments,
     todayPayments,
     todayRefunds,
     pendingClaims,
@@ -197,6 +204,14 @@ export default async function StaffDashboardPage() {
     role === "STAFF"
       ? prisma.appointment.findMany({
           where: { scheduledAt: { gte: todayStart, lt: todayEnd } },
+          include: { patient: true, doctor: { include: { user: true } } },
+          orderBy: { scheduledAt: "asc" },
+          take: 6,
+        })
+      : Promise.resolve([]),
+    role === "STAFF"
+      ? prisma.appointment.findMany({
+          where: { status: { in: ["REQUESTED", "CONFIRMED"] }, scheduledAt: { gte: todayEnd } },
           include: { patient: true, doctor: { include: { user: true } } },
           orderBy: { scheduledAt: "asc" },
           take: 6,
@@ -684,19 +699,87 @@ export default async function StaffDashboardPage() {
 
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
-              <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle>Today&apos;s Appointments</CardTitle>
-                <Link href="/staff/appointments" className="text-sm underline">
-                  View All
-                </Link>
+              <CardHeader className="flex flex-wrap items-center justify-between gap-2 space-y-0">
+                <CardTitle>{scheduleTab === "today" ? "Today's Appointments" : "Upcoming Appointments"}</CardTitle>
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
+                    <Link
+                      href="/staff?schedule=today"
+                      className={
+                        scheduleTab === "today"
+                          ? "rounded-md bg-card px-3 py-1 text-sm font-medium text-primary shadow-sm"
+                          : "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                      }
+                    >
+                      Today
+                    </Link>
+                    <Link
+                      href="/staff?schedule=upcoming"
+                      className={
+                        scheduleTab === "upcoming"
+                          ? "rounded-md bg-card px-3 py-1 text-sm font-medium text-primary shadow-sm"
+                          : "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground"
+                      }
+                    >
+                      Upcoming
+                    </Link>
+                  </div>
+                  <Link href="/staff/appointments" className="text-sm underline">
+                    View All
+                  </Link>
+                </div>
               </CardHeader>
               <CardContent>
-                {todaysAppointmentsAll.length === 0 ? (
-                  <EmptyState icon={Clock} message="No appointments scheduled today." />
+                {scheduleTab === "today" ? (
+                  todaysAppointmentsAll.length === 0 ? (
+                    <EmptyState icon={Clock} message="No appointments scheduled today." />
+                  ) : (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Time</TableHead>
+                          <TableHead>Patient</TableHead>
+                          <TableHead>Doctor</TableHead>
+                          <TableHead>Status</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {todaysAppointmentsAll.map((appt) => (
+                          <TableRow key={appt.id}>
+                            <TableCell>
+                              {formatAppointmentTime(appt, isRangeBookingAppointment(appt, rangeBookingNames), {
+                                hour: "2-digit",
+                                minute: "2-digit",
+                              })}
+                            </TableCell>
+                            <TableCell>
+                              <Link
+                                href={`/staff/patients/${appt.patientId}`}
+                                className="underline underline-offset-2"
+                              >
+                                {appt.patient.name}
+                              </Link>
+                            </TableCell>
+                            <TableCell className="text-muted-foreground">
+                              {appt.doctor.user.name}
+                            </TableCell>
+                            <TableCell>
+                              <Badge variant="outline" className={APPT_STATUS_CLASS[appt.status]}>
+                                {APPT_STATUS_LABEL[appt.status]}
+                              </Badge>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  )
+                ) : upcomingAppointments.length === 0 ? (
+                  <EmptyState icon={CalendarDays} message="No upcoming appointments booked yet." />
                 ) : (
                   <Table>
                     <TableHeader>
                       <TableRow>
+                        <TableHead>Date</TableHead>
                         <TableHead>Time</TableHead>
                         <TableHead>Patient</TableHead>
                         <TableHead>Doctor</TableHead>
@@ -704,9 +787,12 @@ export default async function StaffDashboardPage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {todaysAppointmentsAll.map((appt) => (
+                      {upcomingAppointments.map((appt) => (
                         <TableRow key={appt.id}>
-                          <TableCell>
+                          <TableCell className="whitespace-nowrap text-muted-foreground">
+                            {appt.scheduledAt.toLocaleDateString(undefined, { month: "short", day: "numeric" })}
+                          </TableCell>
+                          <TableCell className="whitespace-nowrap">
                             {formatAppointmentTime(appt, isRangeBookingAppointment(appt, rangeBookingNames), {
                               hour: "2-digit",
                               minute: "2-digit",

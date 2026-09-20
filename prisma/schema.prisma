@@ -875,14 +875,32 @@ model StaffPermission {
   updatedByName String?
 }
 
+// Patient-friendly grouping so the booking wizard doesn't dump ~90 clinical
+// lab-slip abbreviations (e.g. "ANA titer", "Trop I") on a patient as one
+// flat list — see src/lib/lab-categories.ts for display order/labels.
+enum LabTestCategory {
+  BLOOD_HEALTH
+  DIABETES
+  HEART_HEALTH
+  LIVER_HEALTH
+  KIDNEY_ELECTROLYTES
+  THYROID_HORMONE
+  INFECTION_SCREENING
+  IMMUNE_AUTOIMMUNE
+  URINE_STOOL
+  WOMENS_HEALTH
+  GENERAL_HEALTH
+}
+
 model LabTest {
-  id          String   @id @default(cuid())
+  id          String          @id @default(cuid())
   name        String
   unit        String?
   normalRange String?
-  price       Decimal  @db.Decimal(10, 2)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  price       Decimal         @db.Decimal(10, 2)
+  category    LabTestCategory @default(GENERAL_HEALTH)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
 
   orderItems    LabOrderItem[]
   clinicService ClinicService?
@@ -981,7 +999,12 @@ model ClinicService {
 
   // When set, booking this service is booking that lab test — keeps the
   // patient-facing booking/billing catalog and the clinical lab-order
-  // catalog from drifting apart (see LabTest).
+  // catalog from drifting apart (see LabTest). The 11 "Lab Visit" services
+  // are category-level (named after a LabTestCategory, e.g. "Heart
+  // Health") and leave this null — a patient books the category, not a
+  // specific test; staff pick the actual LabTest(s) afterwards based on the
+  // patient's reason for the visit (see src/components/lab/new-lab-order-
+  // form.tsx).
   labTestId String?  @unique
   labTest   LabTest? @relation(fields: [labTestId], references: [id], onDelete: SetNull)
 

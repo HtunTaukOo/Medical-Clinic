@@ -17,6 +17,7 @@ import { EmptyState } from "@/components/empty-state";
 import { collectSample } from "@/actions/lab";
 import { NewLabOrderForm } from "@/components/lab/new-lab-order-form";
 import { DeleteLabTestButton } from "@/components/lab/delete-lab-test-button";
+import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categories";
 
 const STATUS_STYLES: Record<string, string> = {
   ORDERED: "bg-amber-100 text-amber-800",
@@ -108,6 +109,7 @@ export default async function LabPage({
             unit: t.unit,
             normalRange: t.normalRange,
             price: Number(t.price),
+            category: t.category,
           }))}
         />
       )}
@@ -195,33 +197,57 @@ export default async function LabPage({
           {tests.length === 0 ? (
             <EmptyState icon={FlaskConical} message="No lab tests in the catalog yet." />
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {tests.map((test) => (
-                <Card key={test.id}>
-                  <CardContent className="grid gap-2">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-                          <FlaskConical className="size-5" />
-                        </div>
-                        <div>
-                          <p className="font-semibold">{test.name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {Number(test.price).toFixed(2)}
-                            {test.unit && ` — ${test.unit}`}
-                          </p>
-                        </div>
-                      </div>
-                      <DeleteLabTestButton testId={test.id} name={test.name} />
+            <div className="grid gap-6">
+              {LAB_TEST_CATEGORIES.map((category) => {
+                const testsInCategory = tests.filter((t) => t.category === category);
+                if (testsInCategory.length === 0) return null;
+                return (
+                  <div key={category} className="grid gap-3">
+                    <h3 className="text-sm font-semibold text-foreground">
+                      {LAB_TEST_CATEGORY_LABELS[category]}{" "}
+                      <span className="font-normal text-muted-foreground">
+                        ({testsInCategory.length})
+                      </span>
+                    </h3>
+                    <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+                      {testsInCategory.map((test) => (
+                        <Card key={test.id}>
+                          <CardContent className="grid gap-2">
+                            <div className="flex items-start justify-between gap-3">
+                              <div className="flex items-center gap-3">
+                                <div className="flex size-11 shrink-0 items-center justify-center rounded-2xl bg-primary/10 text-primary">
+                                  <FlaskConical className="size-5" />
+                                </div>
+                                <div>
+                                  <p className="font-semibold">{test.name}</p>
+                                  <p className="text-sm text-muted-foreground">
+                                    {Number(test.price).toFixed(2)}
+                                    {test.unit && ` — ${test.unit}`}
+                                  </p>
+                                </div>
+                              </div>
+                              <div className="grid justify-items-end gap-1">
+                                <Link
+                                  href={`/staff/lab-tests/${test.id}/edit`}
+                                  className="text-sm font-medium text-primary underline underline-offset-2"
+                                >
+                                  Edit
+                                </Link>
+                                <DeleteLabTestButton testId={test.id} name={test.name} />
+                              </div>
+                            </div>
+                            {test.normalRange && (
+                              <p className="text-sm text-muted-foreground">
+                                Normal range: {test.normalRange}
+                              </p>
+                            )}
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
-                    {test.normalRange && (
-                      <p className="text-sm text-muted-foreground">
-                        Normal range: {test.normalRange}
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              ))}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
