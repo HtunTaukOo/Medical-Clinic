@@ -54,7 +54,7 @@ export function ConsultationForm({
       <form id={CONSULTATION_FORM_ID} action={formAction} className="hidden" aria-hidden />
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
-      <section>
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
         <SectionHeading number={1} title="Vital Signs" />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="grid gap-1.5">
@@ -164,7 +164,7 @@ export function ConsultationForm({
         </div>
       </section>
 
-      <section>
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
         <SectionHeading number={2} title="Chief Complaint" />
         <Textarea
           name="chiefComplaint"
@@ -175,12 +175,12 @@ export function ConsultationForm({
         />
       </section>
 
-      <section>
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
         <SectionHeading number={3} title="Symptoms" />
         <SymptomPicker formId={CONSULTATION_FORM_ID} defaultValues={defaultValues.symptoms} />
       </section>
 
-      <section>
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
         <SectionHeading number={4} title="Physical Examination" />
         <Textarea
           name="physicalExam"
@@ -193,7 +193,7 @@ export function ConsultationForm({
 
       {diagnosisSlot}
 
-      <section>
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
         <SectionHeading number={6} title="Clinical Notes" />
         <Textarea
           name="clinicalNotes"
@@ -204,7 +204,7 @@ export function ConsultationForm({
         />
       </section>
 
-      <section>
+      <section className="rounded-xl border bg-card p-5 shadow-sm">
         <SectionHeading number={7} title="Treatment Plan" />
         <Textarea
           name="treatmentPlan"

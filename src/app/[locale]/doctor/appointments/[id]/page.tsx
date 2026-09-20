@@ -268,7 +268,7 @@ export default async function DoctorAppointmentDetailPage({
                 treatmentPlan: appointment.treatmentPlan,
               }}
               diagnosisSlot={
-                <section>
+                <section className="rounded-xl border bg-card p-5 shadow-sm">
                   <div className="mb-3 flex items-center gap-2">
                     <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                       5

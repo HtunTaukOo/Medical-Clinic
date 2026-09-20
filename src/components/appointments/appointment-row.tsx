@@ -49,7 +49,7 @@ export function AppointmentRow({
     <Link
       href={href}
       className={cn(
-        "flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border p-3 hover:bg-muted/50",
+        "flex flex-wrap items-center justify-between gap-3 rounded-lg border-l-4 border bg-card p-3 shadow-sm hover:bg-muted/50",
         isUrgent
           ? "border-l-red-500 border-red-200 bg-red-50 dark:bg-red-950/20"
           : "border-l-transparent"

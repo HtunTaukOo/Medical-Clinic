@@ -42,8 +42,8 @@ export function ConsultationQuickActions({
           </Link>
         </Button>
       </div>
-      {open === "prescribe" && <div className="rounded-xl border p-4">{prescribeSlot}</div>}
-      {open === "lab" && <div className="rounded-xl border p-4">{labSlot}</div>}
+      {open === "prescribe" && <div className="rounded-xl border bg-card p-4 shadow-sm">{prescribeSlot}</div>}
+      {open === "lab" && <div className="rounded-xl border bg-card p-4 shadow-sm">{labSlot}</div>}
     </div>
   );
 }
