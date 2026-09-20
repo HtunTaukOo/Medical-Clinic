@@ -1,8 +1,8 @@
 import { prisma } from "@/lib/prisma";
 import { getClinicHoursForDate, toMinutes, clinicMidnightForYMD, clinicDateParts } from "@/lib/clinic-hours";
-import { isDoctorOnLeave, isWorkingDay, getDoctorShiftsForDate } from "@/lib/doctor-availability";
+import { isDoctorOnLeave, isWorkingDay, isDoctorAvailableForRange, getDoctorShiftsForDate } from "@/lib/doctor-availability";
 import { APPOINTMENT_SLOT_MINUTES, MAX_APPOINTMENT_SLOTS, MIN_BOOKING_LEAD_MINUTES, isBlockSlotAvailable } from "@/lib/scheduling";
-import { generateTimeBlocks, blockCapacity, type TimeBlockDef } from "@/lib/time-blocks";
+import { generateTimeBlocks, blockCapacity, blockDurationMinutes, type TimeBlockDef } from "@/lib/time-blocks";
 
 // This day's blocks, generated from its own configured clinic hours ([]
 // when closed) — the one place BLOCK_CAPACITY/SERVICE_CAPACITY booking code
@@ -134,6 +134,13 @@ export type BlockAvailability = {
 // auto-assigned staff member for a shared-capacity specialty like Lab
 // Visit). A trailing partial-duration block gets proportionally reduced
 // capacity (blockCapacity) rather than the specialty's full capacityPerSlot.
+//
+// Pooled capacity alone isn't enough to call a block "available" — a block
+// with room left but zero doctors of this specialty actually working it
+// (all on leave, or their shift doesn't cover it) would otherwise show as
+// bookable, only for the later doctor-picking step to come up empty. So
+// each block also needs at least one doctor who's genuinely eligible for it
+// (same leave/shift check fetchEligibleDoctorIds does per-block).
 export async function getBlockDaySlots(
   specialtyName: string,
   capacityPerSlot: number,
@@ -144,19 +151,32 @@ export async function getBlockDaySlots(
   const dayStart = clinicMidnightForYMD(year, month, day);
   const blocks = await getBlocksForDate(dayStart);
   const earliestBookable = Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000;
+  const doctors = await prisma.doctorProfile.findMany({
+    where: { specialty: specialtyName },
+    select: { id: true, workingDays: true },
+  });
 
   return Promise.all(
     blocks.map(async (block) => {
       const scheduledAt = new Date(dayStart.getTime() + toMinutes(block.startTime) * 60 * 1000);
       const capacity = blockCapacity(block, capacityPerSlot);
-      const { available, occupied } = await isBlockSlotAvailable(specialtyName, capacity, scheduledAt);
+      const [{ available, occupied }, eligibility] = await Promise.all([
+        isBlockSlotAvailable(specialtyName, capacity, scheduledAt),
+        Promise.all(
+          doctors.map(async (doctor) => {
+            if (await isDoctorOnLeave(doctor.id, scheduledAt)) return false;
+            return isDoctorAvailableForRange(doctor, scheduledAt, blockDurationMinutes(block));
+          })
+        ),
+      ]);
+      const hasEligibleDoctor = eligibility.some(Boolean);
       return {
         blockId: block.id,
         startTime: block.startTime,
         endTime: block.endTime,
         occupied,
         capacity,
-        available: available && scheduledAt.getTime() > earliestBookable,
+        available: available && hasEligibleDoctor && scheduledAt.getTime() > earliestBookable,
       };
     })
   );
