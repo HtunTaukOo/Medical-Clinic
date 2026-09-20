@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import { Trash2, AlertTriangle, PillBottle } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import { recordPayment, removeInvoiceItem, voidPayment } from "@/actions/billing";
 import { markClaimPaid } from "@/actions/insurance-claims";
 import { PaymentForm } from "@/components/billing/payment-form";
@@ -28,7 +28,7 @@ export default async function InvoiceDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requirePageRole(["ADMIN", "STAFF"]);
+  const session = await requireStaffPermissionPage("VIEW_BILLING");
   const { id } = await params;
   const t = await getTranslations("billing");
 

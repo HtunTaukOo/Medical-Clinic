@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
 import { BackLink } from "@/components/back-link";
 import { DoctorWeekSchedule } from "@/components/appointments/doctor-week-schedule";
@@ -11,7 +11,7 @@ export default async function StaffAppointmentSchedulePage({
 }: {
   searchParams: Promise<{ doctorId?: string; week?: string; patientId?: string }>;
 }) {
-  await requirePageRole(["ADMIN", "STAFF"]);
+  await requireStaffPermissionPage("CREATE_APPOINTMENTS");
   const { doctorId, week, patientId } = await searchParams;
 
   if (!doctorId) {

@@ -1,6 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import { createAppointment } from "@/actions/appointments";
 import { AppointmentForm } from "@/components/appointments/appointment-form";
 import { BackLink } from "@/components/back-link";
@@ -11,7 +11,7 @@ export default async function NewAppointmentPage({
 }: {
   searchParams: Promise<{ patientId?: string }>;
 }) {
-  await requirePageRole(["ADMIN", "STAFF"]);
+  await requireStaffPermissionPage("CREATE_APPOINTMENTS");
   const t = await getTranslations("appointments");
   const { patientId } = await searchParams;
 

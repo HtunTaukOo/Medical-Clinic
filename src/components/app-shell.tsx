@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { AppSidebar, type SidebarNavItem } from "@/components/app-sidebar";
 import { SignOutButton } from "@/components/sign-out-button";
+import { getClinicSettings } from "@/lib/clinic-hours";
 import { cn } from "@/lib/utils";
 import {
   SidebarInset,
@@ -29,6 +30,7 @@ export async function AppShell({
   hideSectionLabels?: boolean;
   children: ReactNode;
 }) {
+  const settings = await getClinicSettings();
   return (
     <SidebarProvider>
       <div className={sidebarDark ? "sidebar-dark contents" : "contents"}>
@@ -39,6 +41,7 @@ export async function AppShell({
           signOutSlot={<SignOutButton locale={locale} />}
           hideSectionLabels={hideSectionLabels}
           sidebarDark={sidebarDark}
+          hasLogo={!!settings.logoData}
         />
       </div>
       <SidebarInset className="bg-transparent">

@@ -185,7 +185,10 @@ export default async function PortalDashboardPage() {
         />
         <div className="relative flex flex-col justify-between gap-6 sm:flex-row sm:items-center">
           <div className="flex items-center gap-4">
-            <ClinicLogo className="size-16 shrink-0 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.25)]" />
+            <ClinicLogo
+              hasLogo={!!settings.logoData}
+              className="size-16 shrink-0 rounded-xl shadow-[0_2px_10px_rgba(0,0,0,0.25)]"
+            />
             <div className="grid gap-2">
               <Badge
                 className={

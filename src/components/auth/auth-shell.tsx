@@ -2,12 +2,14 @@ import type { ReactNode } from "react";
 import { ShieldCheck, CalendarCheck, Stethoscope } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { ClinicLogo } from "@/components/clinic-logo";
+import { getClinicSettings } from "@/lib/clinic-hours";
 
 const FEATURE_ICONS = [ShieldCheck, CalendarCheck, Stethoscope] as const;
 
 export async function AuthShell({ children }: { children: ReactNode }) {
   const t = await getTranslations("app");
   const tAuth = await getTranslations("auth");
+  const settings = await getClinicSettings();
   const features = [
     tAuth("featureRecords"),
     tAuth("featureAppointments"),
@@ -35,7 +37,7 @@ export async function AuthShell({ children }: { children: ReactNode }) {
             className="pointer-events-none absolute -bottom-28 -left-16 size-64 rounded-full bg-black/10 blur-2xl"
           />
           <div className="relative flex items-center gap-2.5">
-            <ClinicLogo className="size-12 shrink-0 rounded-lg" />
+            <ClinicLogo hasLogo={!!settings.logoData} className="size-12 shrink-0 rounded-lg" />
             <span className="text-lg font-semibold">{t("shortName")}</span>
           </div>
           <div className="relative grid gap-6">

@@ -3,7 +3,7 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole, requireSession, UnauthorizedError } from "@/lib/authz";
+import { requireRole, requireSession, requireStaffPermission, UnauthorizedError } from "@/lib/authz";
 import {
   findConflictingAppointment,
   isResourceSlotAvailable,
@@ -38,6 +38,7 @@ import { logActivity } from "@/lib/audit";
 import { blockDurationMinutes, blockCapacity, STANDARD_BLOCK_MINUTES } from "@/lib/time-blocks";
 import { getBlocksForDate } from "@/lib/booking-slots";
 import { isSpecialtyRangeBooking, formatAppointmentDateTime, formatAppointmentTime } from "@/lib/appointment-provider";
+import { isStaffPermissionEnabled } from "@/lib/permissions";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
 const CAPACITY_CONFLICT_MESSAGE = "That slot just filled up. Please pick a different time, or join the waitlist.";
@@ -74,7 +75,10 @@ export async function createAppointment(
   _prevState: AppointmentFormState,
   formData: FormData
 ): Promise<AppointmentFormState> {
-  await requireRole(["ADMIN", "STAFF", "DOCTOR"]);
+  const creatorSession = await requireRole(["ADMIN", "STAFF", "DOCTOR"]);
+  if (creatorSession.user.role === "STAFF") {
+    await requireStaffPermission("CREATE_APPOINTMENTS");
+  }
 
   const parsed = bookingSchema.safeParse({
     patientId: formData.get("patientId"),
@@ -479,10 +483,14 @@ async function assertCanManage(appointmentId: string) {
       throw new UnauthorizedError("Not your appointment");
     }
   }
+  return session;
 }
 
 export async function confirmAppointment(appointmentId: string) {
-  await assertCanManage(appointmentId);
+  const manageSession = await assertCanManage(appointmentId);
+  if (manageSession.user.role === "STAFF") {
+    await requireStaffPermission("CONFIRM_RESCHEDULE_APPOINTMENTS");
+  }
   const appointment = await prisma.appointment.update({
     where: { id: appointmentId },
     data: { status: "CONFIRMED" },
@@ -531,7 +539,14 @@ export async function rescheduleAppointment(
 
   let actorIsPatient = false;
   if (role === "ADMIN" || role === "STAFF") {
-    // staff can reschedule any appointment, no restriction
+    // staff can reschedule any appointment, no restriction — unless an
+    // admin has turned this off for the Staff role (Settings > Roles &
+    // Permissions), in which case fail gracefully rather than throwing,
+    // since a legitimate staff member (not tampering) can hit this if their
+    // access changes while the reschedule dialog is already open.
+    if (role === "STAFF" && !(await isStaffPermissionEnabled("CONFIRM_RESCHEDULE_APPOINTMENTS"))) {
+      return { error: "You don't have permission to reschedule appointments." };
+    }
   } else if (role === "DOCTOR") {
     if (existing.doctorId !== session.user.doctorId) {
       throw new UnauthorizedError("Not your appointment");
@@ -887,7 +902,9 @@ export async function cancelAppointment(appointmentId: string) {
   let cancelledByPatient = false;
 
   if (role === "ADMIN" || role === "STAFF") {
-    // staff can cancel any appointment, no restriction
+    if (role === "STAFF" && !(await isStaffPermissionEnabled("CANCEL_APPOINTMENTS"))) {
+      throw new UnauthorizedError("Not allowed to cancel appointments");
+    }
   } else if (role === "DOCTOR") {
     const appointment = await prisma.appointment.findUnique({
       where: { id: appointmentId },

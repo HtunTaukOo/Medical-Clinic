@@ -3,8 +3,9 @@ import { redirect } from "@/i18n/navigation";
 import { STAFF_ROLES, homeForRole } from "@/lib/authz";
 import { AppShell, type NavItem } from "@/components/app-shell";
 import { getUnreadStaffNotificationCount } from "@/lib/notifications";
+import { getStaffPermissions, type StaffPermissionKey } from "@/lib/permissions";
 
-const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
+const ALL_NAV_ITEMS: (NavItem & { roles: string[]; staffPermission?: StaffPermissionKey })[] = [
   { href: "/staff", labelKey: "dashboard", roles: STAFF_ROLES, group: "sectionOverview" },
   {
     href: "/staff/check-in",
@@ -73,7 +74,13 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[] })[] = [
     roles: ["ADMIN", "STAFF"],
     group: "sectionAdmin",
   },
-  { href: "/staff/reports", labelKey: "reports", roles: ["ADMIN"], group: "sectionAdmin" },
+  {
+    href: "/staff/reports",
+    labelKey: "reports",
+    roles: ["ADMIN"],
+    group: "sectionAdmin",
+    staffPermission: "VIEW_REPORTS",
+  },
   {
     href: "/staff/activity-log",
     labelKey: "activityLog",
@@ -121,7 +128,18 @@ export default async function StaffLayout({
 
   const role = session.user.role;
   const unreadNotifications = await getUnreadStaffNotificationCount(session.user.id);
-  const navItems = ALL_NAV_ITEMS.filter((item) => item.roles.includes(role)).map((item) =>
+  // A staff member also sees nav items for whichever admin-editable
+  // permissions (Settings > Roles & Permissions) they've been granted, on
+  // top of the fixed role-based set above.
+  const grantedStaffPermissions =
+    role === "STAFF"
+      ? new Set((await getStaffPermissions()).filter((p) => p.enabled).map((p) => p.key))
+      : new Set<StaffPermissionKey>();
+  const navItems = ALL_NAV_ITEMS.filter(
+    (item) =>
+      item.roles.includes(role) ||
+      (item.staffPermission && grantedStaffPermissions.has(item.staffPermission))
+  ).map((item) =>
     item.labelKey === "notifications" && unreadNotifications > 0
       ? { ...item, badge: unreadNotifications }
       : item

@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import {
   confirmAppointment,
   checkInAppointment,
@@ -29,7 +29,7 @@ export default async function AppointmentDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requirePageRole(["ADMIN", "STAFF"]);
+  const session = await requireStaffPermissionPage("VIEW_APPOINTMENTS");
   const { id } = await params;
   const t = await getTranslations("appointments");
   const tBilling = await getTranslations("billing");

@@ -3,9 +3,10 @@
 import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireRole, STAFF_ROLES } from "@/lib/authz";
+import { requireRole, requireStaffPermission, STAFF_ROLES } from "@/lib/authz";
 import { logActivity } from "@/lib/audit";
 import { notifyStaffUsers } from "@/lib/notifications";
+import { isStaffPermissionEnabled } from "@/lib/permissions";
 
 const itemsSchema = z
   .array(
@@ -26,7 +27,10 @@ export async function createInvoice(
   _prevState: InvoiceFormState,
   formData: FormData
 ): Promise<InvoiceFormState> {
-  await requireRole(STAFF_ROLES);
+  const session = await requireRole(STAFF_ROLES);
+  if (session.user.role === "STAFF" && !(await isStaffPermissionEnabled("MANAGE_BILLING"))) {
+    return { error: "You don't have permission to manage billing." };
+  }
 
   const patientId = formData.get("patientId");
   if (typeof patientId !== "string" || !patientId) {
@@ -116,6 +120,9 @@ export async function addInvoiceItem(
   formData: FormData
 ): Promise<InvoiceItemFormState> {
   const session = await requireRole(STAFF_ROLES);
+  if (session.user.role === "STAFF" && !(await isStaffPermissionEnabled("MANAGE_BILLING"))) {
+    return { error: "You don't have permission to manage billing." };
+  }
 
   const invoice = await prisma.invoice.findUniqueOrThrow({ where: { id: invoiceId } });
   if (invoice.pharmacySaleId) {
@@ -152,7 +159,7 @@ export async function addInvoiceItem(
 }
 
 export async function removeInvoiceItem(invoiceId: string, itemId: string) {
-  const session = await requireRole(STAFF_ROLES);
+  const session = await requireStaffPermission("MANAGE_BILLING");
 
   const invoice = await prisma.invoice.findUniqueOrThrow({
     where: { id: invoiceId },
@@ -295,7 +302,10 @@ export async function recordPayment(
   _prevState: PaymentFormState,
   formData: FormData
 ): Promise<PaymentFormState> {
-  await requireRole(STAFF_ROLES);
+  const session = await requireRole(STAFF_ROLES);
+  if (session.user.role === "STAFF" && !(await isStaffPermissionEnabled("MANAGE_BILLING"))) {
+    return { error: "You don't have permission to manage billing." };
+  }
 
   const parsed = paymentSchema.safeParse({
     amount: formData.get("amount"),

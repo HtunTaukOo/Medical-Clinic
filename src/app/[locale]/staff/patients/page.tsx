@@ -1,7 +1,7 @@
 import { Users, AlertTriangle, ChevronRight } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +16,7 @@ export default async function PatientsPage({
 }: {
   searchParams: Promise<{ q?: string }>;
 }) {
-  await requirePageRole(["ADMIN", "STAFF"]);
+  await requireStaffPermissionPage("VIEW_PATIENTS");
   const t = await getTranslations("patients");
   const { q } = await searchParams;
 

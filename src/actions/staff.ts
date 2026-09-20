@@ -11,6 +11,7 @@ import { STAFF_TITLES } from "@/lib/staff-titles";
 import { getActiveSpecialties } from "@/lib/specialties-data";
 import { notifyDoctor, notifyStaff } from "@/lib/telegram";
 import { notifyStaffUsers } from "@/lib/notifications";
+import { isStaffPermissionKey, STAFF_PERMISSION_LABELS } from "@/lib/permissions";
 import type { DoctorLeaveStatus } from "@prisma/client";
 
 async function assertCanManageDoctorLeave(doctorId: string) {
@@ -755,4 +756,27 @@ export async function updateStaffNotificationSetting(field: StaffPreferenceField
   });
 
   revalidatePath("/staff/profile");
+}
+
+export async function setStaffPermission(key: string, enabled: boolean) {
+  const session = await requireRole(["ADMIN"]);
+  if (!isStaffPermissionKey(key)) {
+    throw new UnauthorizedError("Unknown permission");
+  }
+
+  await prisma.staffPermission.upsert({
+    where: { key },
+    update: { enabled, updatedById: session.user.id, updatedByName: session.user.name ?? "Admin" },
+    create: { key, enabled, updatedById: session.user.id, updatedByName: session.user.name ?? "Admin" },
+  });
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: `${enabled ? "Enabled" : "Disabled"} staff permission: ${STAFF_PERMISSION_LABELS[key]}`,
+    target: "Roles & Permissions",
+  });
+
+  revalidatePath("/staff/settings");
 }

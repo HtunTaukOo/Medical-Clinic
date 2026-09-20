@@ -1,7 +1,7 @@
 import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import { BackLink } from "@/components/back-link";
 import { InvoiceForm } from "@/components/billing/invoice-form";
 
@@ -10,7 +10,7 @@ export default async function NewInvoicePage({
 }: {
   searchParams: Promise<{ appointmentId?: string }>;
 }) {
-  await requirePageRole(["ADMIN", "STAFF"]);
+  await requireStaffPermissionPage("MANAGE_BILLING");
   const t = await getTranslations("billing");
   const { appointmentId } = await searchParams;
 

@@ -1,10 +1,16 @@
-import { getTranslations } from "next-intl/server";
-import { requirePageRole } from "@/lib/authz";
+import { getTranslations, getLocale } from "next-intl/server";
+import { requirePageRole, homeForRole } from "@/lib/authz";
+import { redirect } from "@/i18n/navigation";
+import { isStaffPermissionEnabled } from "@/lib/permissions";
 import { createPatient } from "@/actions/patients";
 import { PatientForm } from "@/components/patients/patient-form";
 
 export default async function NewPatientPage() {
-  await requirePageRole(["ADMIN", "DOCTOR", "STAFF"]);
+  const session = await requirePageRole(["ADMIN", "DOCTOR", "STAFF"]);
+  if (session.user.role === "STAFF" && !(await isStaffPermissionEnabled("EDIT_PATIENTS"))) {
+    const locale = await getLocale();
+    redirect({ href: homeForRole(session.user.role), locale });
+  }
   const t = await getTranslations("patients");
 
   return (

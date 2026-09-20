@@ -24,52 +24,24 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
+import { StaffPermissionToggle } from "@/components/staff/staff-permission-toggle";
+import { getStaffPermissions, STAFF_PERMISSION_KEYS, STAFF_PERMISSION_LABELS } from "@/lib/permissions";
 
 const PILL_TAB_LIST = "!h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
 const PILL_TAB_TRIGGER =
   "!h-auto flex-none grow-0 rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-foreground shadow-none data-active:border-transparent data-active:bg-primary data-active:text-primary-foreground";
 
-type PermissionRow = {
-  permission: string;
-  doctor: boolean;
-  patient: boolean;
-  staff: boolean;
-  admin: boolean;
-};
-
-// A read-only reference — access control is hardcoded in code
-// (requirePageRole/requireRole), not stored or editable here.
-const PERMISSIONS: PermissionRow[] = [
-  { permission: "View Appointments", doctor: true, patient: true, staff: true, admin: true },
-  { permission: "Create Appointments", doctor: false, patient: true, staff: true, admin: true },
-  { permission: "Confirm / Reschedule Appointments", doctor: false, patient: false, staff: true, admin: true },
-  { permission: "Cancel Appointments", doctor: false, patient: true, staff: true, admin: true },
-  { permission: "View Patients", doctor: true, patient: false, staff: true, admin: true },
-  { permission: "Edit Patients", doctor: true, patient: false, staff: true, admin: true },
-  { permission: "View Billing", doctor: false, patient: true, staff: true, admin: true },
-  { permission: "Manage Billing", doctor: false, patient: false, staff: true, admin: true },
-  { permission: "View Reports", doctor: false, patient: false, staff: false, admin: true },
-  { permission: "Manage Users", doctor: false, patient: false, staff: false, admin: true },
-  { permission: "System Settings", doctor: false, patient: false, staff: false, admin: true },
-];
-
-function PermissionCheck({ checked }: { checked: boolean }) {
-  return (
-    <div className="flex justify-center">
-      <input type="checkbox" checked={checked} disabled className="size-4 accent-primary" />
-    </div>
-  );
-}
-
 export default async function ClinicSettingsPage() {
   await requirePageRole(["ADMIN"]);
 
-  const [settings, weeklyHours, auditLog, specialties] = await Promise.all([
+  const [settings, weeklyHours, auditLog, specialties, staffPermissions] = await Promise.all([
     getClinicSettings(),
     getClinicWeeklyHours(),
     prisma.activityLog.findMany({ orderBy: { createdAt: "desc" }, take: 20 }),
     getAllSpecialties(),
+    getStaffPermissions(),
   ]);
+  const staffPermissionByKey = new Map(staffPermissions.map((p) => [p.key, p.enabled]));
 
   return (
     <div className="grid gap-4">
@@ -95,7 +67,7 @@ export default async function ClinicSettingsPage() {
             Specialties
           </TabsTrigger>
           <TabsTrigger value="permissions" className={PILL_TAB_TRIGGER}>
-            Roles & Permissions
+            Staff Permission
           </TabsTrigger>
           <TabsTrigger value="audit" className={PILL_TAB_TRIGGER}>
             Audit Log
@@ -233,36 +205,28 @@ export default async function ClinicSettingsPage() {
           <Card>
             <CardContent>
               <div className="mb-4">
-                <p className="text-lg font-semibold">Roles & Permissions</p>
+                <p className="text-lg font-semibold">Staff Permission</p>
                 <p className="text-sm text-muted-foreground">
-                  Reference only — permissions are fixed in code and can&apos;t be changed here.
+                  What the Staff role can do. Toggling one takes effect immediately for every staff
+                  account — Admin always has full access regardless of these.
                 </p>
               </div>
               <Table>
                 <TableHeader>
                   <TableRow>
                     <TableHead>Permission</TableHead>
-                    <TableHead className="text-center">Doctor</TableHead>
-                    <TableHead className="text-center">Patient</TableHead>
-                    <TableHead className="text-center">Staff</TableHead>
-                    <TableHead className="text-center">Admin</TableHead>
+                    <TableHead className="text-center">Enabled</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {PERMISSIONS.map((row) => (
-                    <TableRow key={row.permission}>
-                      <TableCell className="font-medium">{row.permission}</TableCell>
+                  {STAFF_PERMISSION_KEYS.map((key) => (
+                    <TableRow key={key}>
+                      <TableCell className="font-medium">{STAFF_PERMISSION_LABELS[key]}</TableCell>
                       <TableCell>
-                        <PermissionCheck checked={row.doctor} />
-                      </TableCell>
-                      <TableCell>
-                        <PermissionCheck checked={row.patient} />
-                      </TableCell>
-                      <TableCell>
-                        <PermissionCheck checked={row.staff} />
-                      </TableCell>
-                      <TableCell>
-                        <PermissionCheck checked={row.admin} />
+                        <StaffPermissionToggle
+                          permKey={key}
+                          defaultEnabled={staffPermissionByKey.get(key) ?? true}
+                        />
                       </TableCell>
                     </TableRow>
                   ))}

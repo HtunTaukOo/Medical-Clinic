@@ -107,6 +107,7 @@ export function AppSidebar({
   signOutSlot,
   hideSectionLabels,
   sidebarDark,
+  hasLogo,
 }: {
   navItems: SidebarNavItem[];
   hideSectionLabels?: boolean;
@@ -114,6 +115,7 @@ export function AppSidebar({
   roleLabel: string;
   signOutSlot: React.ReactNode;
   sidebarDark?: boolean;
+  hasLogo?: boolean;
 }) {
   const t = useTranslations("nav");
   const tApp = useTranslations("app");
@@ -134,7 +136,10 @@ export function AppSidebar({
     <Sidebar collapsible="icon" className={sidebarDark ? "sidebar-dark" : undefined}>
       <SidebarHeader className="gap-3 px-3 py-4 group-data-[collapsible=icon]:px-2">
         <div className="flex items-center gap-2 px-1 group-data-[collapsible=icon]:px-0">
-          <ClinicLogo className="size-10 shrink-0 rounded-lg shadow-[0_0_0_1px_rgba(21,101,192,0.12),0_6px_18px_-4px_rgba(21,101,192,0.45)] group-data-[collapsible=icon]:size-8" />
+          <ClinicLogo
+            hasLogo={hasLogo}
+            className="size-10 shrink-0 rounded-lg shadow-[0_0_0_1px_rgba(21,101,192,0.12),0_6px_18px_-4px_rgba(21,101,192,0.45)] group-data-[collapsible=icon]:size-8"
+          />
           <div className="grid text-sm leading-tight group-data-[collapsible=icon]:hidden">
             <span className="font-semibold">{tApp("shortName")}</span>
             <span className="text-xs text-sidebar-foreground/60">{roleLabel}</span>

@@ -3,7 +3,7 @@ import { CalendarDays, FlaskConical, AlertTriangle } from "lucide-react";
 import { GENDER_LABELS } from "@/lib/patients";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import { updatePatient } from "@/actions/patients";
 import { PatientForm } from "@/components/patients/patient-form";
 import { MedicalRecordList } from "@/components/medical-records/medical-record-list";
@@ -55,7 +55,7 @@ export default async function PatientDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const session = await requirePageRole(["ADMIN", "STAFF"]);
+  const session = await requireStaffPermissionPage("VIEW_PATIENTS");
   const { id } = await params;
   const tAppt = await getTranslations("appointments");
   const role = session.user.role;

@@ -1,5 +1,5 @@
 import { Download, FileBarChart2 } from "lucide-react";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import { clinicDateKey } from "@/lib/clinic-hours";
 import {
   REPORT_TABS,
@@ -41,7 +41,7 @@ export default async function ReportsPage({
 }: {
   searchParams: Promise<{ tab?: string; from?: string; to?: string }>;
 }) {
-  await requirePageRole(["ADMIN"]);
+  await requireStaffPermissionPage("VIEW_REPORTS");
 
   const { tab: tabParam, from, to } = await searchParams;
   const tab: ReportTab = REPORT_TABS.some((t) => t.value === tabParam)

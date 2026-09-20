@@ -2,6 +2,7 @@ import type { Role } from "@prisma/client";
 import { getLocale } from "next-intl/server";
 import { auth } from "@/auth";
 import { redirect } from "@/i18n/navigation";
+import { isStaffPermissionEnabled, type StaffPermissionKey } from "@/lib/permissions";
 
 export class UnauthorizedError extends Error {}
 
@@ -37,6 +38,28 @@ export function homeForRole(role: Role) {
 export async function requirePageRole(roles: Role[]) {
   const session = await requireSession();
   if (!roles.includes(session.user.role)) {
+    const locale = await getLocale();
+    redirect({ href: homeForRole(session.user.role), locale });
+  }
+  return session;
+}
+
+// For Server Actions gated by the admin-editable Roles & Permissions table
+// (Settings > Roles & Permissions): ADMIN always passes; STAFF is checked
+// against that table. Never used for DOCTOR/PATIENT, whose access isn't
+// controlled by it.
+export async function requireStaffPermission(permission: StaffPermissionKey) {
+  const session = await requireRole(["ADMIN", "STAFF"]);
+  if (session.user.role === "STAFF" && !(await isStaffPermissionEnabled(permission))) {
+    throw new UnauthorizedError("Forbidden");
+  }
+  return session;
+}
+
+// Same check for page Server Components — redirects instead of throwing.
+export async function requireStaffPermissionPage(permission: StaffPermissionKey) {
+  const session = await requirePageRole(["ADMIN", "STAFF"]);
+  if (session.user.role === "STAFF" && !(await isStaffPermissionEnabled(permission))) {
     const locale = await getLocale();
     redirect({ href: homeForRole(session.user.role), locale });
   }

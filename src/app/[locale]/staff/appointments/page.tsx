@@ -1,7 +1,7 @@
 import { CalendarDays, Plus } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
 import { todayRange } from "@/lib/queue";
 import { clinicDateKey, clinicDateParts } from "@/lib/clinic-hours";
@@ -82,7 +82,7 @@ export default async function AppointmentsPage({
     date?: string;
   }>;
 }) {
-  await requirePageRole(["ADMIN", "STAFF"]);
+  await requireStaffPermissionPage("VIEW_APPOINTMENTS");
   const t = await getTranslations("appointments");
 
   const {

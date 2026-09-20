@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, requireSession, UnauthorizedError, STAFF_ROLES } from "@/lib/authz";
 import { generatePatientCode } from "@/lib/patients";
 import { logActivity } from "@/lib/audit";
+import { isStaffPermissionEnabled } from "@/lib/permissions";
 
 const PATIENT_STAFF_ROLES = [...STAFF_ROLES, "DOCTOR"] as const;
 
@@ -80,7 +81,10 @@ export async function createPatient(
   _prevState: PatientFormState,
   formData: FormData
 ): Promise<PatientFormState> {
-  await requireRole([...PATIENT_STAFF_ROLES]);
+  const session = await requireRole([...PATIENT_STAFF_ROLES]);
+  if (session.user.role === "STAFF" && !(await isStaffPermissionEnabled("EDIT_PATIENTS"))) {
+    return { error: "You don't have permission to add patients." };
+  }
 
   const parsed = parsePatientForm(formData);
   if (!parsed.success) {
@@ -109,7 +113,10 @@ export async function updatePatient(
   _prevState: PatientFormState,
   formData: FormData
 ): Promise<PatientFormState> {
-  await requireRole(STAFF_ROLES);
+  const session = await requireRole(STAFF_ROLES);
+  if (session.user.role === "STAFF" && !(await isStaffPermissionEnabled("EDIT_PATIENTS"))) {
+    return { error: "You don't have permission to edit patients." };
+  }
 
   const parsed = parsePatientForm(formData);
   if (!parsed.success) {

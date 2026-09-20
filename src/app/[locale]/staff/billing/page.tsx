@@ -1,7 +1,7 @@
 import { Plus, Receipt } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
-import { requirePageRole } from "@/lib/authz";
+import { requireStaffPermissionPage } from "@/lib/authz";
 import { clinicDateKey } from "@/lib/clinic-hours";
 import { resolveReportRange, formatRangeLabel } from "@/lib/reports";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
@@ -42,7 +42,7 @@ export default async function BillingPage({
 }: {
   searchParams: Promise<{ tab?: string; from?: string; to?: string }>;
 }) {
-  await requirePageRole(["ADMIN", "STAFF"]);
+  await requireStaffPermissionPage("VIEW_BILLING");
   const t = await getTranslations("billing");
   const { tab: tabParam, from, to } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "all";
