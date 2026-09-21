@@ -68,6 +68,76 @@
     "featureAppointments": "Book and track appointments online",
     "featureCare": "Connect with doctors, pharmacy, and lab results"
   },
+  "landing": {
+    "nav": {
+      "home": "Home",
+      "services": "Services",
+      "aboutUs": "About Us",
+      "contact": "Contact",
+      "signUp": "Sign Up",
+      "login": "Login"
+    },
+    "hero": {
+      "titleLine1": "Trusted Healthcare,",
+      "titleLine2": "Designed for You",
+      "description": "Nyein Chan Aung Clinic's web application makes it easier to book appointments, view test results, access medical records, and manage your healthcare information in one place.",
+      "bookAppointment": "Book Appointment",
+      "signUp": "Sign Up",
+      "secureReliable": "Secure & Reliable",
+      "easyToUse": "Easy to Use",
+      "saveTime": "Save Time",
+      "photoAlt": "A nurse assisting a patient at the NCA Clinic front desk"
+    },
+    "features": {
+      "appointmentBookingTitle": "Appointment Booking",
+      "appointmentBookingDesc": "Book an appointment with your doctor online at a convenient date and time.",
+      "labTestsTitle": "Lab Tests",
+      "labTestsDesc": "View information about your required laboratory tests and examinations.",
+      "testResultsTitle": "Test Results",
+      "testResultsDesc": "Access your test and laboratory results online conveniently.",
+      "treatmentRecordsTitle": "Treatment Records",
+      "treatmentRecordsDesc": "View your treatment history and medical records in one place.",
+      "walkInTitle": "Walk-in Registration",
+      "walkInDesc": "Register as a walk-in patient when visiting the clinic.",
+      "scheduleTitle": "Schedule & Time Management",
+      "scheduleDesc": "Easily manage your appointments, schedules, and clinic visits."
+    },
+    "digital": {
+      "titleNormal": "Better Healthcare",
+      "titleHighlight": "Through Digital Technology",
+      "description": "NCA Clinic's web application brings essential patient services together in one place, making appointments, test results, treatment records, and healthcare information easier to access and manage.",
+      "screenshotBookAlt": "The real NCA Clinic appointment booking page",
+      "screenshotPortalAlt": "The real NCA Clinic patient portal home screen on mobile",
+      "convenientServices": "Convenient Services",
+      "secureInformation": "Secure Information",
+      "timeSaving": "Time-Saving"
+    },
+    "journey": {
+      "title": "Your Healthcare Journey",
+      "step1": "Book Appointment",
+      "step2": "Register",
+      "step3": "Get Tested",
+      "step4": "View Results",
+      "step5": "Continue Treatment"
+    },
+    "cta": {
+      "title": "Get Started with NCA Clinic Web Application",
+      "signUp": "Sign Up",
+      "login": "Login"
+    },
+    "contact": {
+      "title": "Get in Touch",
+      "addressTitle": "Visit Us",
+      "phoneTitle": "Call Us",
+      "emailTitle": "Email Us",
+      "getDirections": "Get Directions",
+      "noContactYet": "Contact details will be posted here soon."
+    },
+    "footer": {
+      "tagline": "Better Care, Brighter Tomorrow",
+      "copyright": "© {year} NCA Clinic. All rights reserved."
+    }
+  },
   "patients": {
     "title": "Patients",
     "new": "New patient",

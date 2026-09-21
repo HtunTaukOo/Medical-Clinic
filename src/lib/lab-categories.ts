@@ -36,3 +36,16 @@ export const LAB_TEST_CATEGORY_LABELS: Record<LabTestCategoryKey, string> = {
   WOMENS_HEALTH: "Women's & Pregnancy Care",
   GENERAL_HEALTH: "General Health",
 };
+
+// Reverse lookup from a patient-bookable "Lab Visit" ClinicService's name
+// (e.g. "Blood Health") back to its LabTestCategory — those 11 services are
+// named exactly after their category label (see the migration that seeded
+// them), so this is how staff-side code finds "which tests belong to the
+// category this appointment was booked under" without ClinicService needing
+// its own category column.
+export function labTestCategoryFromLabel(label: string): LabTestCategoryKey | null {
+  const entry = (Object.entries(LAB_TEST_CATEGORY_LABELS) as [LabTestCategoryKey, string][]).find(
+    ([, l]) => l === label
+  );
+  return entry?.[0] ?? null;
+}

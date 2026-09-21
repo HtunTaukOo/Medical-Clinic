@@ -13,18 +13,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InlineLabTestPicker } from "@/components/lab/inline-lab-test-picker";
+import { labTestCategoryFromLabel } from "@/lib/lab-categories";
+
+type LabTest = { id: string; name: string; unit: string | null; normalRange: string | null; price: number; category: string };
 
 export function RegisterWalkInForm({
   doctors,
   bookByServiceSpecialties,
   blockCapacitySpecialties,
   clinicServices,
+  labTests,
   existingPatient,
 }: {
   doctors: { id: string; name: string; specialty: string | null }[];
   bookByServiceSpecialties: string[];
   blockCapacitySpecialties: string[];
   clinicServices: { id: string; name: string; specialty: string | null }[];
+  labTests: LabTest[];
   // Set when registering a walk-in visit for an already-registered patient
   // (found via search on /staff/check-in) — skips the name/phone/dob/gender
   // fields entirely and submits their existing patientId instead.
@@ -53,6 +59,8 @@ export function RegisterWalkInForm({
     (s) => !!s.specialty && bookByServiceSpecialties.includes(s.specialty)
   );
   const selectedService = eligibleServices.find((s) => s.id === clinicServiceId) ?? null;
+  const selectedCategory = selectedService ? labTestCategoryFromLabel(selectedService.name) : null;
+  const categoryTests = selectedCategory ? labTests.filter((t) => t.category === selectedCategory) : [];
 
   return (
     <form action={formAction} className="grid gap-4">
@@ -158,7 +166,7 @@ export function RegisterWalkInForm({
       {isServiceBooking && (
         <>
           <div className="grid gap-2">
-            <Label htmlFor={`${uid}-clinicServiceId`}>Lab Test / Service</Label>
+            <Label htmlFor={`${uid}-clinicServiceId`}>Lab Category / Service</Label>
             <Select
               name="clinicServiceId"
               required
@@ -166,7 +174,7 @@ export function RegisterWalkInForm({
               onValueChange={setClinicServiceId}
             >
               <SelectTrigger id={`${uid}-clinicServiceId`} className="w-full">
-                <SelectValue placeholder="Select the test or service" />
+                <SelectValue placeholder="Select the category or service" />
               </SelectTrigger>
               <SelectContent>
                 {eligibleServices.map((s) => (
@@ -178,6 +186,10 @@ export function RegisterWalkInForm({
             </Select>
           </div>
           <input type="hidden" name="specialtyName" value={selectedService?.specialty ?? ""} />
+          {/* Since this visit auto-checks the patient in immediately, staff
+              get the chance to pick the actual test(s) right here instead of
+              only via the follow-up prompt on the appointment page. */}
+          <InlineLabTestPicker tests={categoryTests} />
         </>
       )}
 

@@ -8,7 +8,7 @@ import { requireRole, STAFF_ROLES } from "@/lib/authz";
 import { redirect } from "@/i18n/navigation";
 import { logActivity } from "@/lib/audit";
 import { generatePatientCode } from "@/lib/patients";
-import { createLabOrderForLinkedService } from "@/actions/appointments";
+import { createLabOrderForLinkedService, createLabOrderFromSelectedTests } from "@/actions/appointments";
 import { getClinicHoursForDate, clinicLocalMinutes, clinicMidnight, toMinutes } from "@/lib/clinic-hours";
 import { generateTimeBlocks, blockContainingMinuteOfDay, nearestBlock, blockDurationMinutes, blockCapacity } from "@/lib/time-blocks";
 import { isBlockSlotAvailable } from "@/lib/scheduling";
@@ -54,6 +54,7 @@ const convertSchema = z.object({
   doctorId: z.string().optional(),
   specialtyName: z.string().optional(),
   clinicServiceId: z.string().optional(),
+  testIds: z.array(z.string().min(1)).optional(),
 });
 
 export type ConvertWalkInState = { error?: string };
@@ -76,6 +77,7 @@ export async function convertWalkInToAppointment(
     doctorId: formData.get("doctorId") || undefined,
     specialtyName: formData.get("specialtyName") || undefined,
     clinicServiceId: formData.get("clinicServiceId") || undefined,
+    testIds: formData.getAll("testIds"),
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
@@ -185,6 +187,7 @@ export async function convertWalkInToAppointment(
   });
 
   await createLabOrderForLinkedService(appointment);
+  await createLabOrderFromSelectedTests(appointment, parsed.data.testIds ?? []);
 
   await logActivity({
     actorId: session.user.id,

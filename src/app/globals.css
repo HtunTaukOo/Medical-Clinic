@@ -150,6 +150,14 @@
   html {
     @apply font-sans;
   }
+  /* Inter/Plus Jakarta Sans have no Myanmar glyphs, so without this the
+     browser silently falls back to whatever Myanmar-script font the OS
+     happens to have — its line-height metrics don't match these UI fonts,
+     which is what made Burmese headings look clipped/cluttered at larger
+     sizes. html[lang] is set per-locale in the root layout. */
+  html:lang(my) {
+    font-family: var(--font-myanmar), var(--font-sans);
+  }
 }
 
 [data-sidebar="sidebar"] {

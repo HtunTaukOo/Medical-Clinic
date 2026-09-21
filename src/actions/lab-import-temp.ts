@@ -147,9 +147,17 @@ export async function createLabVisitProvider(): Promise<LabImportResult> {
         create: {
           specialty: SPECIALTY_NAME,
           consultationFee: 0,
-          workingDays: [1, 2, 3, 4, 5, 6],
+          // Every day, all day — this placeholder isn't a real doctor with
+          // real hours, it's pure FK plumbing for a SERVICE_CAPACITY
+          // specialty's Appointment.doctorId. A narrower default here
+          // silently becomes a second, tighter availability ceiling on top
+          // of the clinic's own configured hours (see the migration that
+          // widened the existing row after this bit patients out of
+          // booking evening Lab Visit slots the clinic was actually open
+          // for).
+          workingDays: [0, 1, 2, 3, 4, 5, 6],
           shifts: {
-            create: [1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, startTime: "08:00", endTime: "17:00" })),
+            create: [0, 1, 2, 3, 4, 5, 6].map((weekday) => ({ weekday, startTime: "00:00", endTime: "23:59" })),
           },
           experienceYears: 5,
           qualifications: "MBBS, Dip.Clin.Path",

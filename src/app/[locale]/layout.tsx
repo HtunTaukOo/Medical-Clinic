@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Plus_Jakarta_Sans, Geist_Mono } from "next/font/google";
+import { Inter, Plus_Jakarta_Sans, Geist_Mono, Noto_Sans_Myanmar } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getMessages } from "next-intl/server";
 import { hasLocale } from "next-intl";
@@ -22,6 +22,17 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+});
+
+// Inter/Plus Jakarta Sans have no Myanmar glyphs, so Burmese text falls back
+// to whatever Myanmar-script font the OS happens to have — its line-height
+// metrics don't match what these UI fonts were tuned for, which is what
+// made large Burmese headings look clipped/cluttered (see globals.css'
+// :lang(my) rule that actually applies this).
+const notoSansMyanmar = Noto_Sans_Myanmar({
+  variable: "--font-myanmar",
+  subsets: ["myanmar"],
+  weight: ["400", "500", "600", "700"],
 });
 
 export const metadata: Metadata = {
@@ -50,7 +61,7 @@ export default async function RootLayout({
   return (
     <html
       lang={locale}
-      className={`${inter.variable} ${plusJakartaSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${inter.variable} ${plusJakartaSans.variable} ${geistMono.variable} ${notoSansMyanmar.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">
         <NextIntlClientProvider messages={messages}>

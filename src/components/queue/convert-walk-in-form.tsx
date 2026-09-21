@@ -16,6 +16,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { InlineLabTestPicker } from "@/components/lab/inline-lab-test-picker";
+import { labTestCategoryFromLabel } from "@/lib/lab-categories";
+
+type LabTest = { id: string; name: string; unit: string | null; normalRange: string | null; price: number; category: string };
 
 export function ConvertWalkInForm({
   walkInId,
@@ -26,6 +30,7 @@ export function ConvertWalkInForm({
   bookByServiceSpecialties,
   blockCapacitySpecialties,
   clinicServices,
+  labTests,
 }: {
   walkInId: string;
   patients: { id: string; name: string }[];
@@ -38,6 +43,7 @@ export function ConvertWalkInForm({
   bookByServiceSpecialties: string[];
   blockCapacitySpecialties: string[];
   clinicServices: { id: string; name: string; specialty: string | null }[];
+  labTests: LabTest[];
 }) {
   const t = useTranslations("appointments");
   const boundAction = convertWalkInToAppointment.bind(null, walkInId);
@@ -63,6 +69,8 @@ export function ConvertWalkInForm({
     (s) => !!s.specialty && bookByServiceSpecialties.includes(s.specialty)
   );
   const selectedService = eligibleServices.find((s) => s.id === clinicServiceId) ?? null;
+  const selectedCategory = selectedService ? labTestCategoryFromLabel(selectedService.name) : null;
+  const categoryTests = selectedCategory ? labTests.filter((t) => t.category === selectedCategory) : [];
 
   return (
     <form action={formAction} className="grid max-w-md gap-4">
@@ -161,7 +169,7 @@ export function ConvertWalkInForm({
       {isServiceBooking && (
         <>
           <div className="grid gap-2">
-            <Label htmlFor="clinicServiceId">Lab Test / Service</Label>
+            <Label htmlFor="clinicServiceId">Lab Category / Service</Label>
             <Select
               name="clinicServiceId"
               required
@@ -169,7 +177,7 @@ export function ConvertWalkInForm({
               onValueChange={setClinicServiceId}
             >
               <SelectTrigger id="clinicServiceId" className="w-full">
-                <SelectValue placeholder="Select the test or service" />
+                <SelectValue placeholder="Select the category or service" />
               </SelectTrigger>
               <SelectContent>
                 {eligibleServices.map((s) => (
@@ -181,6 +189,7 @@ export function ConvertWalkInForm({
             </Select>
           </div>
           <input type="hidden" name="specialtyName" value={selectedService?.specialty ?? ""} />
+          <InlineLabTestPicker tests={categoryTests} />
         </>
       )}
 

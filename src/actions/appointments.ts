@@ -793,6 +793,36 @@ export async function createLabOrderForLinkedService(appointment: {
   revalidatePath("/staff/lab");
 }
 
+// Companion to createLabOrderForLinkedService, for when the linked service
+// is category-level (no single labTestId to auto-order) — staff picked the
+// actual test(s) directly in the walk-in registration form instead of
+// leaving it for the "Lab Visit — {category}" follow-up prompt. A no-op
+// when staff left the picker empty (they'll get that prompt instead).
+export async function createLabOrderFromSelectedTests(
+  appointment: { id: string; patientId: string; doctorId: string },
+  testIds: string[]
+) {
+  if (testIds.length === 0) return;
+
+  const existingOrder = await prisma.labOrder.findFirst({
+    where: { appointmentId: appointment.id },
+  });
+  if (existingOrder) return;
+
+  const tests = await prisma.labTest.findMany({ where: { id: { in: testIds } } });
+  if (tests.length === 0) return;
+
+  await prisma.labOrder.create({
+    data: {
+      patientId: appointment.patientId,
+      doctorId: appointment.doctorId,
+      appointmentId: appointment.id,
+      items: { create: tests.map((t) => ({ labTestId: t.id, price: t.price })) },
+    },
+  });
+  revalidatePath("/staff/lab");
+}
+
 export async function checkInAppointment(appointmentId: string) {
   const session = await requireSession();
   const role = session.user.role;

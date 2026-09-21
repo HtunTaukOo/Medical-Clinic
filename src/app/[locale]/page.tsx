@@ -1,5 +1,6 @@
 import { auth } from "@/auth";
 import { redirect } from "@/i18n/navigation";
+import { LandingPage } from "@/components/marketing/landing-page";
 
 export default async function HomePage({
   params,
@@ -10,7 +11,7 @@ export default async function HomePage({
   const session = await auth();
 
   if (!session?.user) {
-    redirect({ href: "/login", locale });
+    return <LandingPage />;
   } else if (session.user.role === "PATIENT") {
     redirect({ href: "/portal", locale });
   } else if (session.user.role === "DOCTOR") {

@@ -23,6 +23,8 @@ import {
   isRangeBookingAppointment,
   formatAppointmentDateTime,
 } from "@/lib/appointment-provider";
+import { labTestCategoryFromLabel } from "@/lib/lab-categories";
+import { CreateLabOrderForAppointmentForm } from "@/components/lab/create-lab-order-for-appointment-form";
 
 export default async function AppointmentDetailPage({
   params,
@@ -55,6 +57,24 @@ export default async function AppointmentDetailPage({
   ]);
 
   if (!appointment) notFound();
+
+  const needsLabOrder =
+    appointment.clinicService?.specialty === "Lab Visit" &&
+    !appointment.clinicService.labTestId &&
+    appointment.labOrders.length === 0;
+  const labCategory = needsLabOrder ? labTestCategoryFromLabel(appointment.clinicService!.name) : null;
+
+  let categoryTests: { id: string; name: string; unit: string | null; normalRange: string | null; price: number }[] = [];
+  if (labCategory) {
+    const tests = await prisma.labTest.findMany({ where: { category: labCategory }, orderBy: { name: "asc" } });
+    categoryTests = tests.map((t) => ({
+      id: t.id,
+      name: t.name,
+      unit: t.unit,
+      normalRange: t.normalRange,
+      price: Number(t.price),
+    }));
+  }
 
   return (
     <div className="grid gap-6">
@@ -91,21 +111,22 @@ export default async function AppointmentDetailPage({
         </Card>
       )}
 
-      {appointment.clinicService?.specialty === "Lab Visit" &&
-        !appointment.clinicService.labTestId &&
-        appointment.labOrders.length === 0 && (
+      {needsLabOrder && (
         <Card className="border-primary/40 bg-primary/5">
           <CardHeader>
-            <CardTitle>Lab Visit — {appointment.clinicService.name}</CardTitle>
+            <CardTitle>Lab Visit — {appointment.clinicService!.name}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
             <p className="text-sm text-muted-foreground">
               Patient booked this category, not a specific test. Talk to the patient about their reason for
-              visiting, then create the lab order for the actual test(s) needed.
+              visiting, then pick the actual test(s) needed below.
             </p>
-            <Button asChild className="w-fit">
-              <Link href="/staff/lab?tab=new">Create Lab Order</Link>
-            </Button>
+            <CreateLabOrderForAppointmentForm
+              appointmentId={appointment.id}
+              patientId={appointment.patientId}
+              doctorId={appointment.doctorId}
+              tests={categoryTests}
+            />
           </CardContent>
         </Card>
       )}

@@ -161,6 +161,7 @@ const staffOrderSchema = z.object({
   patientId: z.string().min(1),
   doctorId: z.string().min(1),
   testIds: z.array(z.string().min(1)).min(1),
+  appointmentId: z.string().optional(),
 });
 
 export type StaffOrderLabTestsState = { error?: string; success?: boolean; orderId?: string };
@@ -175,6 +176,7 @@ export async function orderLabTestsByStaff(
     patientId: formData.get("patientId"),
     doctorId: formData.get("doctorId"),
     testIds: formData.getAll("testIds"),
+    appointmentId: formData.get("appointmentId") || undefined,
   });
   if (!parsed.success) {
     return { error: parsed.error.issues[0]?.message ?? "Select a patient, doctor, and at least one test" };
@@ -191,6 +193,7 @@ export async function orderLabTestsByStaff(
     data: {
       patientId: parsed.data.patientId,
       doctorId: parsed.data.doctorId,
+      appointmentId: parsed.data.appointmentId,
       items: {
         create: tests.map((test) => ({
           labTestId: test.id,
@@ -201,6 +204,13 @@ export async function orderLabTestsByStaff(
   });
 
   revalidatePath("/staff/lab");
+  // Set (from the "Lab Visit" appointment detail page's inline order form)
+  // when this order fulfills a category-level Lab Visit booking — without
+  // this, the appointment's "needs a lab order" prompt would never clear
+  // since it keys off appointment.labOrders.
+  if (parsed.data.appointmentId) {
+    revalidatePath(`/staff/appointments/${parsed.data.appointmentId}`);
+  }
   return { success: true, orderId: order.id };
 }
 
