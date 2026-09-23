@@ -509,6 +509,7 @@
       "methodCash": "Cash at reception",
       "methodCard": "Card",
       "methodMobileBanking": "Mobile banking",
+      "scanToPay": "Scan to pay with MyanmarPay",
       "contactClinic": "Contact the clinic to arrange payment",
       "staffWillRecord": "A staff member will record your payment once received, and this invoice will update automatically."
     },

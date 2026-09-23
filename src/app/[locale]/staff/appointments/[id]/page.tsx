@@ -25,6 +25,7 @@ import {
 } from "@/lib/appointment-provider";
 import { labTestCategoryFromLabel } from "@/lib/lab-categories";
 import { CreateLabOrderForAppointmentForm } from "@/components/lab/create-lab-order-for-appointment-form";
+import { PrescriptionItemDetail } from "@/components/prescriptions/prescription-item-detail";
 
 export default async function AppointmentDetailPage({
   params,
@@ -279,16 +280,13 @@ export default async function AppointmentDetailPage({
                     {rx.fulfilled ? "Fulfilled" : "Pending"}
                   </Badge>
                 </div>
-                <ul className="text-sm">
+                <ul className="grid gap-2 text-sm">
                   {rx.items.map((item) => (
                     <li key={item.id}>
-                      {item.medicine.name} &mdash; {item.dosage} x{item.quantity}
-                      {item.timesPerDay && item.durationDays && (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          (reminders: {item.timesPerDay}x/day for {item.durationDays} days)
-                        </span>
-                      )}
+                      <p>
+                        {item.medicine.name} &mdash; {item.dosage}
+                      </p>
+                      <PrescriptionItemDetail item={item} />
                     </li>
                   ))}
                 </ul>

@@ -12,6 +12,7 @@ import {
 import { createPrescription } from "@/actions/prescriptions";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 import { PrescriptionForm } from "@/components/prescriptions/prescription-form";
+import { PrescriptionItemDetail } from "@/components/prescriptions/prescription-item-detail";
 import { OrderLabTestsForm } from "@/components/lab/order-lab-tests-form";
 import { DiagnosisForm } from "@/components/diagnoses/diagnosis-form";
 import { DiagnosisList } from "@/components/diagnoses/diagnosis-list";
@@ -297,10 +298,13 @@ export default async function DoctorAppointmentDetailPage({
                           {rx.fulfilled ? "Fulfilled" : "Pending"}
                         </Badge>
                       </div>
-                      <ul className="text-sm">
+                      <ul className="grid gap-2 text-sm">
                         {rx.items.map((item) => (
                           <li key={item.id}>
-                            {item.medicine.name} &mdash; {item.dosage} x{item.quantity}
+                            <p>
+                              {item.medicine.name} &mdash; {item.dosage}
+                            </p>
+                            <PrescriptionItemDetail item={item} />
                           </li>
                         ))}
                       </ul>
@@ -514,16 +518,13 @@ export default async function DoctorAppointmentDetailPage({
                     {rx.fulfilled ? "Fulfilled" : "Pending"}
                   </Badge>
                 </div>
-                <ul className="text-sm">
+                <ul className="grid gap-2 text-sm">
                   {rx.items.map((item) => (
                     <li key={item.id}>
-                      {item.medicine.name} &mdash; {item.dosage} x{item.quantity}
-                      {item.timesPerDay && item.durationDays && (
-                        <span className="text-muted-foreground">
-                          {" "}
-                          (reminders: {item.timesPerDay}x/day for {item.durationDays} days)
-                        </span>
-                      )}
+                      <p>
+                        {item.medicine.name} &mdash; {item.dosage}
+                      </p>
+                      <PrescriptionItemDetail item={item} />
                     </li>
                   ))}
                 </ul>

@@ -1,6 +1,7 @@
 "use client";
 
-import { Banknote, CreditCard, Smartphone, Phone, MapPin } from "lucide-react";
+import Image from "next/image";
+import { Banknote, CreditCard, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -17,13 +18,9 @@ function formatKyat(value: number) {
 
 export function PayNowDialog({
   amount,
-  phones,
-  address,
   trigger,
 }: {
   amount: number;
-  phones: string[];
-  address: string | null;
   trigger: React.ReactNode;
 }) {
   const t = useTranslations("portal.billingCard");
@@ -50,23 +47,16 @@ export function PayNowDialog({
               </span>
             </div>
           </div>
-          {(phones.length > 0 || address) && (
-            <div className="grid gap-2 rounded-lg border p-3">
-              <p className="font-medium">{t("contactClinic")}</p>
-              <div className="grid gap-1.5 text-muted-foreground">
-                {phones.map((phone) => (
-                  <span key={phone} className="flex items-center gap-2">
-                    <Phone className="size-4" /> {phone}
-                  </span>
-                ))}
-                {address && (
-                  <span className="flex items-center gap-2">
-                    <MapPin className="size-4" /> {address}
-                  </span>
-                )}
-              </div>
-            </div>
-          )}
+          <div className="grid justify-items-center gap-2 rounded-lg border p-3 text-center">
+            <p className="font-medium">{t("scanToPay")}</p>
+            <Image
+              src="/billing/myanmar-pay-qr.png"
+              alt="MyanmarPay MMQR code"
+              width={240}
+              height={240}
+              className="rounded-md"
+            />
+          </div>
           <p className="text-xs text-muted-foreground">{t("staffWillRecord")}</p>
         </div>
       </DialogContent>

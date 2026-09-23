@@ -1,5 +1,6 @@
 import { AlertTriangle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
+import { PrescriptionItemDetail } from "@/components/prescriptions/prescription-item-detail";
 
 const ALLERGY_SEVERITY_STYLES: Record<string, string> = {
   SEVERE: "bg-red-600 text-white",
@@ -15,7 +16,17 @@ export function ConsultationSidebar({
 }: {
   allergies: { id: string; name: string; reaction: string | null; severity: string }[];
   activeConditions: { id: string; description: string }[];
-  currentMedications: { id: string; medicine: { name: string }; dosage: string; frequency: string | null }[];
+  currentMedications: {
+    id: string;
+    medicine: { name: string };
+    dosage: string;
+    quantity: number | null;
+    frequency: string | null;
+    timesPerDay: number | null;
+    durationDays: number | null;
+    instructions: string | null;
+    refillsLeft: number | null;
+  }[];
   lastVisitNote: { note: string; date: Date } | null;
 }) {
   return (
@@ -64,14 +75,16 @@ export function ConsultationSidebar({
         {currentMedications.length === 0 ? (
           <p className="text-sm text-muted-foreground">None active.</p>
         ) : (
-          <ul className="grid gap-1 text-sm">
+          <ul className="grid gap-2 text-sm">
             {currentMedications.map((item) => (
               <li key={item.id} className="flex items-start gap-1.5">
                 <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-blue-500" />
-                <span>
-                  {item.medicine.name} {item.dosage}
-                  {item.frequency && ` ${item.frequency}`}
-                </span>
+                <div>
+                  <p>
+                    {item.medicine.name} {item.dosage}
+                  </p>
+                  <PrescriptionItemDetail item={item} />
+                </div>
               </li>
             ))}
           </ul>

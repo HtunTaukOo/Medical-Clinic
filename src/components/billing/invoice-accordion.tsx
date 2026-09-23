@@ -28,13 +28,9 @@ function formatKyat(value: number) {
 export function InvoiceAccordion({
   invoices,
   emptyMessage,
-  clinicPhones,
-  clinicAddress,
 }: {
   invoices: InvoiceRecord[];
   emptyMessage: string;
-  clinicPhones: string[];
-  clinicAddress: string | null;
 }) {
   const t = useTranslations("portal.billingCard");
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -123,8 +119,6 @@ export function InvoiceAccordion({
                 ) : (
                   <PayNowDialog
                     amount={invoice.remaining}
-                    phones={clinicPhones}
-                    address={clinicAddress}
                     trigger={<Button className="w-full">{t("payNow")}</Button>}
                   />
                 )}

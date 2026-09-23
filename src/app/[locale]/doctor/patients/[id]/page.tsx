@@ -35,6 +35,7 @@ import {
 } from "@/lib/vitals";
 import { VitalsRangeFilter } from "@/components/patients/vitals-range-filter";
 import { VitalsTrendChart } from "@/components/patients/vitals-trend-chart";
+import { PrescriptionItemDetail } from "@/components/prescriptions/prescription-item-detail";
 
 const ALLERGY_SEVERITY_STYLES: Record<string, string> = {
   SEVERE: "bg-red-600 text-white",
@@ -322,12 +323,16 @@ export default async function DoctorPatientDetailPage({
               {currentMedications.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No active prescriptions.</p>
               ) : (
-                <ul className="grid gap-1.5 text-sm">
+                <ul className="grid gap-3 text-sm">
                   {currentMedications.map((item) => (
-                    <li key={item.id} className="flex items-center gap-2">
-                      <span className="size-1.5 shrink-0 rounded-full bg-blue-500" />
-                      {item.medicine.name} {item.dosage}
-                      {item.frequency && ` (${item.frequency})`}
+                    <li key={item.id} className="flex items-start gap-2">
+                      <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-blue-500" />
+                      <div>
+                        <p>
+                          {item.medicine.name} {item.dosage}
+                        </p>
+                        <PrescriptionItemDetail item={item} />
+                      </div>
                     </li>
                   ))}
                 </ul>

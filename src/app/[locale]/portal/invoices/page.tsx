@@ -1,7 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
-import { getClinicSettings } from "@/lib/clinic-hours";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InvoiceAccordion, type InvoiceRecord } from "@/components/billing/invoice-accordion";
@@ -25,7 +24,7 @@ export default async function PortalInvoicesPage() {
   const tp = await getTranslations("portal.invoicesPage");
   const patientId = session?.user.patientId;
 
-  const [invoices, settings, bookByServiceNames] = await Promise.all([
+  const [invoices, bookByServiceNames] = await Promise.all([
     patientId
       ? prisma.invoice.findMany({
           where: { patientId },
@@ -42,7 +41,6 @@ export default async function PortalInvoicesPage() {
           },
         })
       : [],
-    getClinicSettings(),
     getBookByServiceSpecialtyNames(),
   ]);
 
@@ -103,8 +101,6 @@ export default async function PortalInvoicesPage() {
             </div>
             <PayNowDialog
               amount={outstandingTotal}
-              phones={settings.phones}
-              address={settings.address}
               trigger={
                 <Button className="bg-orange-600 text-white hover:bg-orange-700">
                   {tp("payAllNow")}
@@ -125,20 +121,10 @@ export default async function PortalInvoicesPage() {
           </TabsTrigger>
         </TabsList>
         <TabsContent value="unpaid" className="mt-4">
-          <InvoiceAccordion
-            invoices={unpaid}
-            emptyMessage={tp("noUnpaid")}
-            clinicPhones={settings.phones}
-            clinicAddress={settings.address}
-          />
+          <InvoiceAccordion invoices={unpaid} emptyMessage={tp("noUnpaid")} />
         </TabsContent>
         <TabsContent value="paid" className="mt-4">
-          <InvoiceAccordion
-            invoices={paid}
-            emptyMessage={tp("noPaid")}
-            clinicPhones={settings.phones}
-            clinicAddress={settings.address}
-          />
+          <InvoiceAccordion invoices={paid} emptyMessage={tp("noPaid")} />
         </TabsContent>
       </Tabs>
     </div>
