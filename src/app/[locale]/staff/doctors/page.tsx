@@ -2,8 +2,8 @@ import { Calendar, CalendarOff, Clock, Pencil, Plus, Stethoscope } from "lucide-
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { todayRange } from "@/lib/queue";
-import { formatTime } from "@/lib/clinic-hours";
-import { WEEKDAY_LABELS } from "@/lib/doctor-availability";
+import { formatTime, clinicWeekday, getClinicHoursForDate } from "@/lib/clinic-hours";
+import { WEEKDAY_LABELS, isWorkingDay, isWithinShiftRanges } from "@/lib/doctor-availability";
 import { initials } from "@/lib/format";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -78,12 +78,31 @@ function shiftGroupLines(
   return groups.map((g) => `${formatWorkingDaysRange(g.days)}: ${g.label}`);
 }
 
+// Mirrors the gating logic in doctor-week-schedule.tsx: working today, the
+// clinic actually open today, and (falling back to the clinic's own hours
+// for that day when the doctor has no explicit shift rows) the current time
+// within one of the applicable ranges.
+function isDoctorAvailableNow(
+  workingDays: number[],
+  shiftsToday: { startTime: string; endTime: string }[],
+  clinicToday: { isOpen: boolean; openTime: string; closeTime: string },
+  now: Date
+) {
+  if (!isWorkingDay(workingDays, now)) return false;
+  if (!clinicToday.isOpen) return false;
+  const effectiveRanges =
+    shiftsToday.length > 0 ? shiftsToday : [{ startTime: clinicToday.openTime, endTime: clinicToday.closeTime }];
+  return isWithinShiftRanges(now, effectiveRanges);
+}
+
 export default async function DoctorsSchedulesPage() {
   await requirePageRole(["ADMIN"]);
 
   const { start: todayStart, end: todayEnd } = todayRange();
+  const now = new Date();
+  const todayWeekday = clinicWeekday(now);
 
-  const [allDoctors, todaysAppointmentCounts, allShifts, serviceSpecialties] = await Promise.all([
+  const [allDoctors, todaysAppointmentCounts, allShifts, serviceSpecialties, clinicToday] = await Promise.all([
     prisma.doctorProfile.findMany({
       include: {
         user: true,
@@ -104,6 +123,7 @@ export default async function DoctorsSchedulesPage() {
       select: { doctorId: true, weekday: true, startTime: true, endTime: true },
     }),
     prisma.specialty.findMany({ where: { bookingMode: "SERVICE_CAPACITY" }, select: { name: true } }),
+    getClinicHoursForDate(now),
   ]);
 
   // SERVICE_CAPACITY specialties (e.g. Lab Visit) are backed by a placeholder
@@ -167,6 +187,9 @@ export default async function DoctorsSchedulesPage() {
             const isOnLeave = onLeaveToday.has(doctor.id);
             const todayCount = todayCountByDoctorId.get(doctor.id) ?? 0;
             const doctorShifts = shiftsByDoctorId.get(doctor.id) ?? [];
+            const shiftsToday = doctorShifts.filter((s) => s.weekday === todayWeekday);
+            const isAvailableNow =
+              !isOnLeave && isDoctorAvailableNow(doctor.workingDays, shiftsToday, clinicToday, now);
             return (
               <Card key={doctor.id}>
                 <CardContent className="grid gap-3">
@@ -187,10 +210,12 @@ export default async function DoctorsSchedulesPage() {
                       className={
                         isOnLeave
                           ? "bg-orange-100 text-orange-700"
-                          : "bg-emerald-100 text-emerald-700"
+                          : isAvailableNow
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-100 text-slate-600"
                       }
                     >
-                      {isOnLeave ? "On Leave" : "Available"}
+                      {isOnLeave ? "On Leave" : isAvailableNow ? "Available" : "Unavailable"}
                     </Badge>
                   </div>
 
