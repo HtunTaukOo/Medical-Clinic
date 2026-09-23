@@ -1,4 +1,4 @@
-import { Pill, AlertTriangle, Clock } from "lucide-react";
+import { Pill } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
@@ -141,57 +141,6 @@ export default async function InventoryPage({
           </CardContent>
         </Card>
       </div>
-
-      {expiredList.length > 0 && (
-        <div className="flex items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-4">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-rose-600" />
-          <div>
-            <p className="font-semibold text-rose-700">Expired Items — Immediate Action Required</p>
-            <p className="text-sm text-rose-700">
-              {expiredList
-                .map((m) => `${m.name} — remove from dispensing shelves immediately`)
-                .join(" · ")}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {expiringList.length > 0 && (
-        <div className="flex items-start gap-3 rounded-lg border border-orange-200 bg-orange-50 p-4">
-          <Clock className="mt-0.5 size-5 shrink-0 text-orange-600" />
-          <div>
-            <p className="font-semibold text-orange-700">Expiring Soon</p>
-            <p className="text-sm text-orange-700">
-              {expiringList
-                .map(
-                  (m) =>
-                    `${m.name} (expires ${m.expiryDate?.toLocaleDateString(undefined, {
-                      month: "short",
-                      year: "numeric",
-                    })})`
-                )
-                .join(" · ")}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {lowStockList.length > 0 && (
-        <div className="flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
-          <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
-          <div>
-            <p className="font-semibold text-amber-700">Low Stock Warning</p>
-            <p className="text-sm text-amber-700">
-              {lowStockList
-                .map(
-                  (m) =>
-                    `${m.name} — ${m.stockQty} ${m.unit} remaining (reorder at ${m.reorderLevel})`
-                )
-                .join(" · ")}
-            </p>
-          </div>
-        </div>
-      )}
 
       <div className="flex flex-wrap items-center gap-2">
         <SearchInput placeholder="Search medicine..." />
