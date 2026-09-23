@@ -42,7 +42,7 @@ const STATUS_STYLES: Record<string, string> = {
   CHECKED_IN: "bg-purple-100 text-purple-800",
   COMPLETED: "bg-emerald-100 text-emerald-800",
   CANCELLED: "bg-rose-100 text-rose-800 line-through",
-  NO_SHOW: "bg-orange-100 text-orange-800",
+  NO_SHOW: "bg-amber-100 text-amber-800",
 };
 
 const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -271,6 +271,24 @@ export default async function AppointmentsPage({
                 </Link>
               </Button>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-blue-400" /> Confirmed
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-purple-400" /> Checked-in
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-emerald-400" /> Completed
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-rose-400" /> Cancelled
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-amber-400" /> No-show
+            </span>
           </div>
 
           <div className="overflow-x-auto">
