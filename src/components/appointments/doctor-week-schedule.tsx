@@ -13,7 +13,11 @@ import {
 import { APPOINTMENT_SLOT_MINUTES } from "@/lib/scheduling";
 import { blockContainingMinuteOfDay, formatTimeLabel } from "@/lib/time-blocks";
 import { getBlocksForDate } from "@/lib/booking-slots";
-import { getDoctorShiftsByWeekday, isWithinShiftRanges } from "@/lib/doctor-availability";
+import {
+  getDoctorShiftsByWeekday,
+  isWithinShiftRanges,
+  isRangeWithinShiftRanges,
+} from "@/lib/doctor-availability";
 import { BackLink } from "@/components/back-link";
 import { DoctorLeaveManager } from "@/components/staff/doctor-leave-manager";
 import { RequestLeaveDialog } from "@/components/staff/request-leave-dialog";
@@ -179,6 +183,12 @@ export async function DoctorWeekSchedule({
     weekLeaveDays.filter((l) => l.status === "PENDING").map((l) => weekKeyFor(l.date))
   );
   const now = new Date().getTime();
+
+  // Per-weekday clinic hours (isOpen/openTime/closeTime), keyed 0=Sun..6=Sat
+  // — shared by both the block-mode and default grids below so each day
+  // column respects that specific day's own clinic hours/closedness, not
+  // just a week-wide aggregate.
+  const clinicHoursByWeekday = new Map(clinicWeeklyHours.map((h) => [h.weekday, h]));
   const rangeLabel = `${weekStart.toLocaleDateString(undefined, {
     timeZone: "Asia/Yangon",
     month: "short",
@@ -257,7 +267,27 @@ export async function DoctorWeekSchedule({
         const isLeave = approvedLeaveDayKeys.has(dayKey);
         const blockEndInstant = dayMidnight + toMinutes(block.endTime) * 60000;
         const isPast = blockEndInstant <= now;
-        if (!isWorking || isLeave || isPast) {
+        const clinicDay = clinicHoursByWeekday.get(weekdayIndex);
+        const isClinicOpen = clinicDay?.isOpen ?? false;
+        const dayShifts = shiftsByWeekday.get(weekdayIndex) ?? [];
+        // No explicit DoctorShift rows for this weekday → fall back to the
+        // clinic's own hours for that day, instead of treating every block
+        // in the day as available just because it's a working day (a
+        // specialist working "Tue" isn't necessarily in clinic for every
+        // block that day — their actual shift narrows it further).
+        const effectiveRanges =
+          dayShifts.length > 0
+            ? dayShifts
+            : clinicDay && isClinicOpen
+              ? [{ startTime: clinicDay.openTime, endTime: clinicDay.closeTime }]
+              : [];
+        const blockDurationMinutes = toMinutes(block.endTime) - toMinutes(block.startTime);
+        const withinShift = isRangeWithinShiftRanges(
+          new Date(dayMidnight + toMinutes(block.startTime) * 60000),
+          blockDurationMinutes,
+          effectiveRanges
+        );
+        if (!isWorking || !isClinicOpen || isLeave || isPast || !withinShift) {
           blockedCount++;
           return { type: "blocked" };
         }
@@ -457,11 +487,6 @@ export async function DoctorWeekSchedule({
       </div>
     );
   }
-
-  // Per-weekday clinic hours (isOpen/openTime/closeTime), keyed 0=Sun..6=Sat —
-  // used below so each day column respects that specific day's own clinic
-  // hours/closedness, not just the week-wide aggregate `clinicHours` range.
-  const clinicHoursByWeekday = new Map(clinicWeeklyHours.map((h) => [h.weekday, h]));
 
   // Row range spans the union of every working day's shifts (falling back to
   // the clinic's own hours for days with no specific shifts recorded) — a

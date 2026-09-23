@@ -6,6 +6,7 @@ import type { AppointmentFormState } from "@/actions/appointments";
 import { useRouter, Link } from "@/i18n/navigation";
 import { JoinWaitlistForm } from "@/components/appointments/join-waitlist-form";
 import { BlockPicker } from "@/components/appointments/block-picker";
+import { DoctorSlotPicker } from "@/components/appointments/doctor-slot-picker";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -192,15 +193,7 @@ export function AppointmentForm({
               doctorId={doctorId}
             />
           ) : (
-            <div className="grid gap-2">
-              <Label htmlFor="scheduledAt">{t("scheduledAt")}</Label>
-              <Input
-                id="scheduledAt"
-                name="scheduledAt"
-                type="datetime-local"
-                required
-              />
-            </div>
+            <DoctorSlotPicker doctorId={doctorId} />
           )}
         </>
       )}
