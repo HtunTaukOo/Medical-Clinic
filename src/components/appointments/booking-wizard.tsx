@@ -567,37 +567,34 @@ export function BookingWizard({
                 <p className="text-sm text-muted-foreground">{t("selectDatePrompt")}</p>
               ) : slotsPending ? (
                 <p className="text-sm text-muted-foreground">{t("loadingTimes")}</p>
-              ) : blockAvailability.length === 0 ? (
+              ) : blockAvailability.filter((b) => b.available).length === 0 ? (
                 <p className="text-sm text-muted-foreground">{t("noAvailableTimes")}</p>
               ) : (
                 <div className="grid gap-2">
-                  {blockAvailability.map((b) => {
-                    const selected = blockId === b.blockId;
-                    return (
-                      <button
-                        key={b.blockId}
-                        type="button"
-                        disabled={!b.available}
-                        onClick={() => setBlockId(b.blockId)}
-                        className={`flex items-center justify-between rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
-                          selected
-                            ? "border-primary bg-primary text-primary-foreground"
-                            : b.available
-                              ? "hover:bg-muted/50"
-                              : "text-muted-foreground/40 line-through"
-                        }`}
-                      >
-                        <span>
-                          {formatTimeLabel(b.startTime)} – {formatTimeLabel(b.endTime)}
-                        </span>
-                        <span className={selected ? "" : "text-muted-foreground"}>
-                          {b.available
-                            ? t("blockCapacityLabel", { occupied: b.occupied, capacity: b.capacity })
-                            : t("blockFull")}
-                        </span>
-                      </button>
-                    );
-                  })}
+                  {blockAvailability
+                    .filter((b) => b.available)
+                    .map((b) => {
+                      const selected = blockId === b.blockId;
+                      return (
+                        <button
+                          key={b.blockId}
+                          type="button"
+                          onClick={() => setBlockId(b.blockId)}
+                          className={`flex items-center justify-between rounded-lg border px-4 py-3 text-sm font-medium transition-colors ${
+                            selected
+                              ? "border-primary bg-primary text-primary-foreground"
+                              : "hover:bg-muted/50"
+                          }`}
+                        >
+                          <span>
+                            {formatTimeLabel(b.startTime)} – {formatTimeLabel(b.endTime)}
+                          </span>
+                          <span className={selected ? "" : "text-muted-foreground"}>
+                            {t("blockCapacityLabel", { occupied: b.occupied, capacity: b.capacity })}
+                          </span>
+                        </button>
+                      );
+                    })}
                 </div>
               )}
             </div>
