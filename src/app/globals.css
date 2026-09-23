@@ -191,3 +191,19 @@
   color: #ffffff;
   box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.22);
 }
+
+/* Indeterminate top progress bar shown while a sidebar navigation is in
+   flight (see nav-transition.tsx) — the bar segment sweeps across the full
+   width of its (overflow-hidden) track, since the wait's real duration is
+   unknown up front. */
+@keyframes nav-progress-sweep {
+  0% {
+    transform: translateX(-100%);
+  }
+  60% {
+    transform: translateX(200%);
+  }
+  100% {
+    transform: translateX(200%);
+  }
+}

@@ -1,10 +1,8 @@
 "use client";
 
-import { useState, useTransition } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Home,
-  Loader2,
   LayoutDashboard,
   Users,
   CalendarDays,
@@ -33,7 +31,7 @@ import {
   HandCoins,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Link, usePathname, useRouter } from "@/i18n/navigation";
+import { Link, usePathname } from "@/i18n/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -45,11 +43,12 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ClinicLogo } from "@/components/clinic-logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
+import { useNavTransition } from "@/components/nav-transition";
+import { cn } from "@/lib/utils";
 
 export type SidebarNavItem = {
   href: string;
@@ -123,10 +122,7 @@ export function AppSidebar({
   const t = useTranslations("nav");
   const tApp = useTranslations("app");
   const pathname = usePathname();
-  const router = useRouter();
-  const { isMobile, setOpenMobile } = useSidebar();
-  const [isPending, startTransition] = useTransition();
-  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const { pendingHref, navigate } = useNavTransition();
 
   // When section labels are hidden, also collapse every group into one flat
   // list — otherwise each group still gets its own SidebarGroup padding,
@@ -173,7 +169,7 @@ export function AppSidebar({
                       pathname === item.href ||
                       (!isRootItem && pathname.startsWith(`${item.href}/`));
                     const Icon = ICONS[item.labelKey] ?? LayoutDashboard;
-                    const isItemPending = isPending && pendingHref === item.href;
+                    const isItemPending = pendingHref === item.href;
                     return (
                       <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
@@ -183,6 +179,10 @@ export function AppSidebar({
                         >
                           <Link
                             href={item.href}
+                            className={cn(
+                              "transition-opacity duration-200",
+                              isItemPending && "opacity-60"
+                            )}
                             onClick={(e) => {
                               // Leave modifier-key clicks (open in new tab,
                               // etc.) and already-handled events to the
@@ -199,16 +199,8 @@ export function AppSidebar({
                               ) {
                                 return;
                               }
-                              // Close the mobile drawer immediately on tap —
-                              // instead of waiting for the server round-trip
-                              // to finish before it visually acknowledges the
-                              // tap, which is what made navigation feel slow.
-                              if (isMobile) setOpenMobile(false);
                               e.preventDefault();
-                              setPendingHref(item.href);
-                              startTransition(() => {
-                                router.push(item.href);
-                              });
+                              navigate(item.href);
                             }}
                           >
                             <Icon />
@@ -217,11 +209,6 @@ export function AppSidebar({
                               <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-destructive text-xs font-medium text-white">
                                 {item.badge}
                               </span>
-                            )}
-                            {isItemPending && (
-                              <Loader2
-                                className={`size-3.5 animate-spin ${item.badge ? "" : "ml-auto"}`}
-                              />
                             )}
                           </Link>
                         </SidebarMenuButton>
