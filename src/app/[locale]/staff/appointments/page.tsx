@@ -161,9 +161,9 @@ export default async function AppointmentsPage({
   const visibleAppointments = filteredAppointments
     .filter((a) => matchesTab(a, tab))
     .sort((a, b) =>
-      tab === "completed" || tab === "cancelled"
-        ? b.scheduledAt.getTime() - a.scheduledAt.getTime()
-        : a.scheduledAt.getTime() - b.scheduledAt.getTime()
+      tab === "today" || tab === "upcoming"
+        ? a.scheduledAt.getTime() - b.scheduledAt.getTime()
+        : b.scheduledAt.getTime() - a.scheduledAt.getTime()
     );
 
   const weeks = getMonthGrid(year, month);
