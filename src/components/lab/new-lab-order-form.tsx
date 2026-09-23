@@ -8,13 +8,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categories";
 
 function formatKyat(value: number) {
@@ -33,11 +26,14 @@ type Test = {
 
 export function NewLabOrderForm({
   patients,
-  doctors,
+  doctorId,
   tests,
 }: {
   patients: { id: string; name: string }[];
-  doctors: { id: string; name: string }[];
+  // Walk-in lab orders from this page aren't referred by any specific
+  // physician — always attributed to the "Lab Visit Scheduling" placeholder
+  // doctor (see staff/lab/page.tsx), same as a booked Lab Visit appointment.
+  doctorId: string;
   tests: Test[];
 }) {
   const [state, formAction, pending] = useActionState<StaffOrderLabTestsState, FormData>(
@@ -50,7 +46,6 @@ export function NewLabOrderForm({
   );
   const [patientQuery, setPatientQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
-  const [doctorId, setDoctorId] = useState(doctors[0]?.id ?? "");
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
 
   const [dismissed, setDismissed] = useState(false);
@@ -113,9 +108,9 @@ export function NewLabOrderForm({
       <div className="grid gap-4">
         <Card className="relative z-20 overflow-visible">
           <CardHeader>
-            <CardTitle className="text-base">Patient &amp; Referring Doctor</CardTitle>
+            <CardTitle className="text-base">Patient</CardTitle>
           </CardHeader>
-          <CardContent className="grid gap-4 sm:grid-cols-2">
+          <CardContent>
             <div className="grid gap-2">
               <Label>Patient</Label>
               <div className="relative">
@@ -151,21 +146,6 @@ export function NewLabOrderForm({
                   </div>
                 )}
               </div>
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="doctorId">Referring Doctor</Label>
-              <Select value={doctorId} onValueChange={setDoctorId}>
-                <SelectTrigger id="doctorId" className="w-full">
-                  <SelectValue placeholder="Select doctor" />
-                </SelectTrigger>
-                <SelectContent>
-                  {doctors.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
             </div>
           </CardContent>
         </Card>
@@ -242,12 +222,6 @@ export function NewLabOrderForm({
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Patient</span>
             <span className="font-medium">{selectedPatient?.name ?? "—"}</span>
-          </div>
-          <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Doctor</span>
-            <span className="font-medium">
-              {doctors.find((d) => d.id === doctorId)?.name ?? "—"}
-            </span>
           </div>
           <div className="flex items-center justify-between">
             <span className="text-muted-foreground">Tests</span>

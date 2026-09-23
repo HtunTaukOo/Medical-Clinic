@@ -88,22 +88,24 @@ test("lab test ordered after a prescription merges into the same invoice, not a 
   await prisma.doctorProfile.update({ where: { id: doctor.id }, data: { consultationFee: originalFee } });
 });
 
-test("staff standalone lab order (no appointment) creates its own invoice", async ({ page }) => {
-  const doctorUser = await prisma.user.findFirstOrThrow({ where: { email: "doctor@nca.clinic" } });
+test("staff standalone lab order (no appointment) creates its own invoice, attributed to Lab Visit Scheduling", async ({ page }) => {
+  const labVisitDoctor = await prisma.doctorProfile.findFirstOrThrow({ where: { specialty: "Lab Visit" } });
   const patient = await prisma.patient.create({ data: { name: `Lab Standalone Test ${Date.now()}` } });
 
   await loginAs(page, "admin@nca.clinic");
   await page.goto("/en/staff/lab?tab=new");
 
+  await expect(page.getByText("Referring Doctor")).toHaveCount(0);
+
   await page.getByPlaceholder("Search patient...").fill(patient.name);
   await page.getByRole("button", { name: patient.name }).click();
-
-  await page.locator("#doctorId").click();
-  await page.getByRole("option", { name: doctorUser.name ?? "" }).click();
 
   await page.getByRole("checkbox").first().check();
   await page.getByRole("button", { name: "Create Order" }).click();
   await page.waitForLoadState("networkidle");
+
+  const order = await prisma.labOrder.findFirstOrThrow({ where: { patientId: patient.id } });
+  expect(order.doctorId).toBe(labVisitDoctor.id);
 
   const invoice = await prisma.invoice.findFirstOrThrow({
     where: { patientId: patient.id },

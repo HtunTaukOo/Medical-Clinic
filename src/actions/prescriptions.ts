@@ -7,6 +7,7 @@ import { requireRole, UnauthorizedError } from "@/lib/authz";
 import { notifyIfLowStock, notifyPatient } from "@/lib/telegram";
 import { generateReminderSchedule } from "@/lib/pill-reminders";
 import { createNotification } from "@/lib/notifications";
+import { billAppointmentItems, ensureConsultationFeeBilled } from "@/lib/invoice-billing";
 
 const itemsSchema = z
   .array(
@@ -73,43 +74,22 @@ export async function createPrescription(
   });
   const medicineById = new Map(medicines.map((m) => [m.id, m]));
 
-  const existingInvoice = await prisma.invoice.findUnique({ where: { appointmentId } });
-  if (!existingInvoice) {
-    const invoiceItems = items.map((item) => {
+  await ensureConsultationFeeBilled(appointmentId);
+  await billAppointmentItems(
+    appointment.patientId,
+    appointmentId,
+    items.map((item) => {
       const medicine = medicineById.get(item.medicineId)!;
       return {
         description: `${medicine.name} (${item.dosage})`,
         quantity: item.quantity,
-        unitPrice: medicine.price,
+        unitPrice: Number(medicine.price),
       };
-    });
+    })
+  );
 
-    const consultationFee = Number(appointment.doctor.consultationFee);
-    if (consultationFee > 0) {
-      invoiceItems.unshift({
-        description: `Consultation — ${appointment.doctor.user.name}`,
-        quantity: 1,
-        unitPrice: appointment.doctor.consultationFee,
-      });
-    }
-
-    const total = invoiceItems.reduce(
-      (sum, item) => sum + item.quantity * Number(item.unitPrice),
-      0
-    );
-
-    await prisma.invoice.create({
-      data: {
-        patientId: appointment.patientId,
-        appointmentId,
-        total,
-        items: { create: invoiceItems },
-      },
-    });
-
-    revalidatePath("/staff/billing");
-    revalidatePath("/portal/invoices");
-  }
+  revalidatePath("/staff/billing");
+  revalidatePath("/portal/invoices");
 
   const now = new Date();
   for (const item of prescription.items) {

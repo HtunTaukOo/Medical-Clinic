@@ -39,6 +39,7 @@ import { blockDurationMinutes, blockCapacity, STANDARD_BLOCK_MINUTES } from "@/l
 import { getBlocksForDate } from "@/lib/booking-slots";
 import { isSpecialtyRangeBooking, formatAppointmentDateTime, formatAppointmentTime } from "@/lib/appointment-provider";
 import { isStaffPermissionEnabled } from "@/lib/permissions";
+import { ensureConsultationFeeBilled } from "@/lib/invoice-billing";
 
 const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOINTMENT_SLOT_MINUTES} minutes of that time.`;
 const CAPACITY_CONFLICT_MESSAGE = "That slot just filled up. Please pick a different time, or join the waitlist.";
@@ -1217,33 +1218,13 @@ export async function updateConsultation(
       relatedId: `consult-complete-${appointmentId}`,
     });
 
-    // Auto-generate the visit's invoice from the doctor's consultation fee —
-    // unless one already exists (e.g. the doctor prescribed something first,
-    // which bundles the fee into that invoice already; see createPrescription).
-    // Sent to the patient now so they know what's owed before they even reach
-    // the front desk, rather than only finding out at checkout.
-    let invoice = await prisma.invoice.findUnique({ where: { appointmentId } });
-    if (!invoice) {
-      const doctor = await prisma.doctorProfile.findUnique({
-        where: { id: appointment.doctorId },
-        select: { consultationFee: true },
-      });
-      const consultationFee = doctor ? Number(doctor.consultationFee) : 0;
-      if (consultationFee > 0) {
-        invoice = await prisma.invoice.create({
-          data: {
-            patientId: appointment.patientId,
-            appointmentId,
-            total: consultationFee,
-            items: {
-              create: [
-                { description: `Consultation — ${doctorName}`, quantity: 1, unitPrice: consultationFee },
-              ],
-            },
-          },
-        });
-      }
-    }
+    // Bills the consultation fee onto the visit's invoice — merging into one
+    // already started by a prescription or lab order, or creating one fresh
+    // for a consultation-only visit. Sent to the patient now so they know
+    // what's owed before they even reach the front desk, rather than only
+    // finding out at checkout.
+    await ensureConsultationFeeBilled(appointmentId);
+    const invoice = await prisma.invoice.findUnique({ where: { appointmentId } });
 
     if (invoice) {
       const invoiceBody = `Your invoice for today's consultation with ${doctorName} is ready — ${formatKyat(Number(invoice.total))}.`;

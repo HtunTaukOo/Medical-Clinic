@@ -7,17 +7,14 @@ import { requireRole, UnauthorizedError, STAFF_ROLES } from "@/lib/authz";
 import { notifyStaff, notifyPatient, notifyDoctor } from "@/lib/telegram";
 import { createNotification, notifyStaffUsers } from "@/lib/notifications";
 import { LAB_TEST_CATEGORIES } from "@/lib/lab-categories";
-import { recomputeInvoiceStatus } from "@/actions/billing";
+import { billAppointmentItems, ensureConsultationFeeBilled } from "@/lib/invoice-billing";
 
-// Bills the ordered tests onto the appointment's invoice (creating one if
-// this appointment doesn't have one yet, e.g. no prescription was written
-// this visit) — mirrors createPrescription's find-or-create pattern, but
-// also merges into an already-existing UNPAID/PARTIAL invoice (e.g. a
-// prescription's consultation-fee invoice) instead of only handling the
-// "no invoice yet" case, so lab charges never go silently unbilled just
-// because something else billed first. A PAID invoice is left alone,
-// matching addInvoiceItem's existing "can't edit a paid invoice" rule — a
-// walk-in order with no appointmentId always gets its own invoice.
+// Bills the ordered tests onto the patient's invoice — merged into the
+// appointment's existing invoice (or a new one) when this order is tied to
+// an appointment, so lab charges never go silently unbilled just because a
+// prescription or the consultation fee already created one first. A walk-in
+// order with no appointmentId (the standalone "New Test" tab) always gets
+// its own invoice instead, since there's no appointment to attach it to.
 async function billLabTestsToInvoice(
   patientId: string,
   appointmentId: string | undefined,
@@ -28,25 +25,13 @@ async function billLabTestsToInvoice(
     quantity: 1,
     unitPrice: Number(test.price),
   }));
-  const total = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
 
   if (appointmentId) {
-    const existingInvoice = await prisma.invoice.findUnique({ where: { appointmentId } });
-    if (existingInvoice) {
-      if (existingInvoice.status !== "PAID") {
-        await prisma.invoiceItem.createMany({
-          data: items.map((item) => ({ invoiceId: existingInvoice.id, ...item })),
-        });
-        await recomputeInvoiceStatus(existingInvoice.id);
-      }
-      return;
-    }
-    await prisma.invoice.create({
-      data: { patientId, appointmentId, total, items: { create: items } },
-    });
+    await billAppointmentItems(patientId, appointmentId, items);
     return;
   }
 
+  const total = items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0);
   await prisma.invoice.create({
     data: { patientId, total, items: { create: items } },
   });
@@ -204,6 +189,7 @@ export async function orderLabTests(
     },
   });
 
+  await ensureConsultationFeeBilled(appointmentId);
   await billLabTestsToInvoice(appointment.patientId, appointmentId, tests);
 
   revalidatePath(`/doctor/appointments/${appointmentId}`);
@@ -259,6 +245,9 @@ export async function orderLabTestsByStaff(
     },
   });
 
+  if (parsed.data.appointmentId) {
+    await ensureConsultationFeeBilled(parsed.data.appointmentId);
+  }
   await billLabTestsToInvoice(parsed.data.patientId, parsed.data.appointmentId, tests);
 
   revalidatePath("/staff/lab");

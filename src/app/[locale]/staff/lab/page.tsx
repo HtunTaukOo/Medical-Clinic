@@ -111,9 +111,11 @@ export default async function LabPage({
   ]);
 
   // SERVICE_CAPACITY specialties (e.g. Lab Visit) are backed by a placeholder
-  // DoctorProfile — not a real ordering physician, so it's excluded here.
+  // DoctorProfile ("Lab Visit Scheduling") — walk-in lab orders from this
+  // page aren't referred by any real physician, so they're always attributed
+  // to that placeholder rather than asking staff to pick one.
   const serviceSpecialtyNames = new Set(serviceSpecialties.map((s) => s.name));
-  const orderingDoctors = doctors.filter((d) => !d.specialty || !serviceSpecialtyNames.has(d.specialty));
+  const labVisitDoctor = doctors.find((d) => d.specialty && serviceSpecialtyNames.has(d.specialty));
 
   return (
     <TabTransitionScope>
@@ -135,7 +137,7 @@ export default async function LabPage({
       {tab === "new" && (
         <NewLabOrderForm
           patients={patients.map((p) => ({ id: p.id, name: p.name }))}
-          doctors={orderingDoctors.map((d) => ({ id: d.id, name: d.user.name }))}
+          doctorId={labVisitDoctor?.id ?? ""}
           tests={tests.map((t) => ({
             id: t.id,
             name: t.name,
