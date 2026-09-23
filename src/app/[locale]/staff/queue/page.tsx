@@ -18,7 +18,7 @@ import {
   formatAppointmentTime,
 } from "@/lib/appointment-provider";
 
-type ColumnKey = "WAITING" | "CALLED" | "IN_CONSULTATION" | "COMPLETED" | "MISSED";
+type ColumnKey = "WAITING" | "IN_CONSULTATION" | "COMPLETED" | "MISSED";
 
 type QueueCard = {
   key: string;
@@ -36,7 +36,6 @@ const COLUMN_META: Record<
   { label: string; headerClass: string; numberClass: string }
 > = {
   WAITING: { label: "Waiting", headerClass: "bg-amber-500", numberClass: "text-amber-600" },
-  CALLED: { label: "Called", headerClass: "bg-blue-500", numberClass: "text-blue-600" },
   IN_CONSULTATION: {
     label: "In Consultation",
     headerClass: "bg-purple-500",
@@ -50,7 +49,7 @@ const COLUMN_META: Record<
   MISSED: { label: "Missed", headerClass: "bg-rose-500", numberClass: "text-rose-600" },
 };
 
-const COLUMN_ORDER: ColumnKey[] = ["WAITING", "CALLED", "IN_CONSULTATION", "COMPLETED", "MISSED"];
+const COLUMN_ORDER: ColumnKey[] = ["WAITING", "IN_CONSULTATION", "COMPLETED", "MISSED"];
 
 function ActionButton({
   formAction,
@@ -197,7 +196,7 @@ export default async function QueuePage() {
         patientName: walkIn.name || t("anonymousWalkIn"),
         doctorName: walkIn.doctor?.user.name ?? "Any doctor",
         specialty: walkIn.doctor?.specialty ?? null,
-        column: "CALLED",
+        column: "IN_CONSULTATION",
         action: (
           <Link
             href={`/staff/queue/walk-ins/${walkIn.id}`}
@@ -256,7 +255,6 @@ export default async function QueuePage() {
 
   const columns: Record<ColumnKey, (QueueCard & { queueNumber: number })[]> = {
     WAITING: [],
-    CALLED: [],
     IN_CONSULTATION: [],
     COMPLETED: [],
     MISSED: [],
@@ -292,7 +290,7 @@ export default async function QueuePage() {
         </div>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-5">
+      <div className="grid gap-4 lg:grid-cols-4">
         {COLUMN_ORDER.map((column) => {
           const meta = COLUMN_META[column];
           const columnCards = columns[column];

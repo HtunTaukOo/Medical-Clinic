@@ -103,7 +103,6 @@ const APPT_STATUS_CLASS: Record<string, string> = {
 const QUEUE_STATUS_CLASS: Record<string, string> = {
   Completed: "bg-emerald-100 text-emerald-700",
   "In Consultation": "bg-purple-100 text-purple-700",
-  Called: "bg-blue-100 text-blue-700",
   Waiting: "bg-amber-100 text-amber-700",
 };
 
@@ -355,14 +354,16 @@ export default async function StaffDashboardPage({
   }
 
   // The queue overview blends four very different record shapes (completed
-  // visits, in-progress consultations, called and waiting walk-ins/bookings)
-  // into one ordered list, mirroring how the front desk actually experiences
-  // "who's in the clinic right now" rather than four separate queries.
+  // visits, in-progress consultations — including called walk-ins, folded in
+  // here since "called" is functionally the same step as "in consultation" —
+  // and waiting walk-ins/bookings) into one ordered list, mirroring how the
+  // front desk actually experiences "who's in the clinic right now" rather
+  // than four separate queries.
   type QueueRow = {
     key: string;
     patientName: string;
     doctorName: string;
-    statusLabel: "Completed" | "In Consultation" | "Called" | "Waiting";
+    statusLabel: "Completed" | "In Consultation" | "Waiting";
     priority: number;
     sortKey: number;
     action: ReactNode;
@@ -396,8 +397,8 @@ export default async function StaffDashboardPage({
         key: `called-${walkIn.id}`,
         patientName: walkIn.name || "Walk-in",
         doctorName: walkIn.doctor?.user.name ?? "Any doctor",
-        statusLabel: "Called",
-        priority: 2,
+        statusLabel: "In Consultation",
+        priority: 1,
         sortKey: (walkIn.calledAt ?? walkIn.createdAt).getTime(),
         action: (
           <Link href={`/staff/queue/walk-ins/${walkIn.id}`} className="font-medium text-primary underline">
