@@ -422,6 +422,8 @@
       "summaryDate": "Date",
       "summaryTime": "Time",
       "summaryReason": "Reason",
+      "summaryConsultationFee": "Consultation Fee",
+      "summaryServiceCost": "Cost",
       "done": "Done",
       "title": "Book an Appointment",
       "subtitleService": "Choose your specialty, service, date, and time.",

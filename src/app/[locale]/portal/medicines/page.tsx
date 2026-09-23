@@ -14,7 +14,7 @@ const PILL_TAB_TRIGGER =
   "!h-auto flex-none grow-0 rounded-full border border-border bg-white px-4 py-2 text-sm font-medium text-foreground shadow-none data-active:border-transparent data-active:bg-primary data-active:text-primary-foreground";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 export default async function PortalMedicinesPage() {

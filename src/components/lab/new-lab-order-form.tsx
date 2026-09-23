@@ -18,7 +18,7 @@ import {
 import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categories";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 type Test = {

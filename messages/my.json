@@ -422,6 +422,8 @@
       "summaryDate": "ရက်စွဲ",
       "summaryTime": "အချိန်",
       "summaryReason": "အကြောင်းအရင်း",
+      "summaryConsultationFee": "ဆရာဝန်ခ",
+      "summaryServiceCost": "ကုန်ကျစရိတ်",
       "done": "ပြီးပါပြီ",
       "title": "ချိန်းဆိုမှုအသစ်ပြုလုပ်ရန်",
       "subtitleService": "အထူးကုဌာန၊ ဝန်ဆောင်မှု၊ ရက်စွဲနှင့် အချိန်ကို ရွေးချယ်ပါ။",

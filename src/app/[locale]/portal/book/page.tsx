@@ -30,6 +30,7 @@ export default async function BookAppointmentPage() {
           matchSpecialty(d.specialty, specialtyNames) ?? d.specialty?.trim() ?? t("generalMedicineFallback"),
         experienceYears: d.experienceYears,
         qualifications: d.qualifications,
+        consultationFee: Number(d.consultationFee),
         slotsAvailableToday: slotsToday.length,
         nextAvailability,
       };

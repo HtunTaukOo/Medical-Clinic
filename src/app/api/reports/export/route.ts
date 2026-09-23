@@ -9,7 +9,7 @@ import {
 } from "@/lib/reports";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 function csvEscape(value: string | number) {

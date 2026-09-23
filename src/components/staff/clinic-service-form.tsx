@@ -125,7 +125,7 @@ export function ClinicServiceForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="price">Price (K)</Label>
+          <Label htmlFor="price">Price (MMK)</Label>
           <Input
             key={labTestId}
             id="price"

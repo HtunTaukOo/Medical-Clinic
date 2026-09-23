@@ -87,7 +87,7 @@ export function ExpenseForm({
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor="amount">Amount (K)</Label>
+          <Label htmlFor="amount">Amount (MMK)</Label>
           <Input
             id="amount"
             name="amount"

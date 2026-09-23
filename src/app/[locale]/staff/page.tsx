@@ -35,6 +35,8 @@ import { getDisplayFirstName } from "@/lib/format";
 import { clinicLocalMinutes, clinicMidnight, clinicWeekday, formatClinicDateTime } from "@/lib/clinic-hours";
 import { MONTH_NAMES } from "@/lib/reports";
 import { SolidStatCard } from "@/components/solid-stat-card";
+import { WeeklyAppointmentsChart } from "@/components/dashboard/weekly-appointments-chart";
+import { ProfitTrendChart } from "@/components/dashboard/profit-trend-chart";
 import { checkInAppointment } from "@/actions/appointments";
 import { callWalkIn } from "@/actions/walk-ins";
 import { NewAnnouncementDialog } from "@/components/staff/new-announcement-dialog";
@@ -540,7 +542,7 @@ export default async function StaffDashboardPage({
             <SolidStatCard
               icon={Wallet}
               label="Monthly Profit"
-              value={`K ${Math.round(monthlyProfit).toLocaleString()}`}
+              value={`MMK ${Math.round(monthlyProfit).toLocaleString()}`}
               className={monthlyProfit >= 0 ? "bg-orange-600" : "bg-rose-600"}
             />
           </div>
@@ -552,27 +554,12 @@ export default async function StaffDashboardPage({
                 <span className="text-sm text-muted-foreground">Mon – Sun</span>
               </CardHeader>
               <CardContent>
-                <div className="flex h-48 items-end gap-3">
-                  {(() => {
-                    const max = Math.max(1, ...weeklyAppointmentCounts);
-                    return WEEKDAY_LABELS_MON_FIRST.map((label, i) => (
-                      <div key={label} className="flex flex-1 flex-col items-center gap-2">
-                        <span className="text-xs font-medium text-primary">
-                          {weeklyAppointmentCounts[i]}
-                        </span>
-                        <div className="flex w-full flex-1 items-end">
-                          <div
-                            className="w-full rounded-t-md bg-primary"
-                            style={{
-                              height: `${Math.max(2, (weeklyAppointmentCounts[i] / max) * 100)}%`,
-                            }}
-                          />
-                        </div>
-                        <span className="text-xs font-medium">{label}</span>
-                      </div>
-                    ));
-                  })()}
-                </div>
+                <WeeklyAppointmentsChart
+                  data={WEEKDAY_LABELS_MON_FIRST.map((label, i) => ({
+                    label,
+                    value: weeklyAppointmentCounts[i],
+                  }))}
+                />
               </CardContent>
             </Card>
 
@@ -581,26 +568,11 @@ export default async function StaffDashboardPage({
                 <CardTitle>Profit Trend</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex h-32 items-end gap-3">
-                  {(() => {
-                    const max = Math.max(1, ...profitByMonth.map((m) => Math.abs(m.total)));
-                    return profitByMonth.map((m) => (
-                      <div key={m.key} className="flex flex-1 flex-col items-center gap-2">
-                        <div className="flex w-full flex-1 items-end">
-                          <div
-                            className={`w-full rounded-t-md ${m.total >= 0 ? "bg-emerald-500" : "bg-rose-500"}`}
-                            style={{ height: `${Math.max(2, (Math.abs(m.total) / max) * 100)}%` }}
-                          />
-                        </div>
-                        <span className="text-xs font-medium">{m.label}</span>
-                      </div>
-                    ));
-                  })()}
-                </div>
+                <ProfitTrendChart data={profitByMonth} />
                 <div className="mt-4 border-t pt-3">
                   <p className="text-xs text-muted-foreground">This Month</p>
                   <p className={`text-xl font-bold ${monthlyProfit >= 0 ? "text-emerald-600" : "text-rose-600"}`}>
-                    K {Math.round(monthlyProfit).toLocaleString()}
+                    MMK {Math.round(monthlyProfit).toLocaleString()}
                   </p>
                   {profitMonthChangePct !== null && (
                     <p className={`text-xs ${profitMonthChangePct >= 0 ? "text-emerald-600" : "text-rose-600"}`}>

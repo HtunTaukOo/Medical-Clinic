@@ -18,7 +18,7 @@ import {
 } from "@/components/ui/select";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 const PAYMENT_METHODS = ["CASH", "CARD", "MOBILE_BANKING", "OTHER"] as const;

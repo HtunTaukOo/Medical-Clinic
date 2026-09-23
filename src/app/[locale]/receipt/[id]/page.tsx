@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { PrintButton } from "@/components/lab/print-button";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 export default async function ReceiptPage({

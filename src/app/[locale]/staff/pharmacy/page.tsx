@@ -21,7 +21,7 @@ import { EmptyState } from "@/components/empty-state";
 import { NewSaleForm } from "@/components/pharmacy/new-sale-form";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 const STATUS_LABEL: Record<string, string> = {

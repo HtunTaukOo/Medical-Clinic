@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/dialog";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 export function PayNowDialog({

@@ -32,6 +32,7 @@ type Doctor = {
   specialty: string;
   experienceYears: number | null;
   qualifications: string | null;
+  consultationFee: number;
   slotsAvailableToday: number;
   nextAvailability: { label: string; year: number; month: number; day: number } | null;
 };
@@ -95,7 +96,7 @@ function formatTimeLabel(time: string) {
 }
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 function addMinutesToTime(time: string, minutesToAdd: number) {
@@ -223,6 +224,18 @@ export function BookingWizard({
       ? slotCount > 1
         ? `${formatTimeLabel(time)} – ${formatTimeLabel(addMinutesToTime(time, slotCount * 30))} (${slotCount * 30} min)`
         : formatTimeLabel(time)
+      : null;
+  // Service-based specialties (e.g. Lab Visit) price the picked category;
+  // everything else prices the doctor's own consultation fee — patients
+  // should see cost before confirming, same as they already see it on each
+  // doctor/service card while picking.
+  const costLabel = isBookByService ? t("summaryServiceCost") : t("summaryConsultationFee");
+  const costValue = isBookByService
+    ? selectedService
+      ? formatKyat(selectedService.price)
+      : null
+    : selectedDoctor
+      ? formatKyat(selectedDoctor.consultationFee)
       : null;
 
   useEffect(() => {
@@ -365,6 +378,7 @@ export function BookingWizard({
             [t("summaryDate"), date && formatDateLabel(date)],
             [t("summaryTime"), timeRangeLabel],
             [t("summaryReason"), reasonCategory],
+            ...(costValue ? [[costLabel, costValue]] : []),
           ].map(([label, value]) => (
             <div key={label} className="flex items-center justify-between border-b p-3 last:border-b-0">
               <span className="text-muted-foreground">{label}</span>
@@ -644,35 +658,40 @@ export function BookingWizard({
                       key={d.id}
                       type="button"
                       onClick={() => setDoctorId(d.id)}
-                      className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
+                      className={`flex items-center justify-between gap-4 rounded-xl border p-4 text-left transition-colors ${
                         selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
                       }`}
                     >
-                      <Avatar className="size-12">
-                        <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                          {d.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-0.5">
-                        <p className="font-semibold">{d.name}</p>
-                        {d.qualifications && (
-                          <p className="text-sm text-muted-foreground">{d.qualifications}</p>
-                        )}
-                        <p className="text-sm text-muted-foreground">
-                          {d.experienceYears != null && t("yearsExp", { years: d.experienceYears })}
-                          {d.slotsAvailableToday > 0 ? (
-                            <span className="text-success">
-                              {t("slotsAvailableToday", { count: d.slotsAvailableToday })}
-                            </span>
-                          ) : d.nextAvailability ? (
-                            <span className="text-muted-foreground">
-                              {t("nextAvailable", { label: d.nextAvailability.label })}
-                            </span>
-                          ) : (
-                            <span className="text-muted-foreground">{t("noUpcomingAvailability")}</span>
+                      <div className="flex items-center gap-4">
+                        <Avatar className="size-12">
+                          <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                            {d.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="grid gap-0.5">
+                          <p className="font-semibold">{d.name}</p>
+                          {d.qualifications && (
+                            <p className="text-sm text-muted-foreground">{d.qualifications}</p>
                           )}
-                        </p>
+                          <p className="text-sm text-muted-foreground">
+                            {d.experienceYears != null && t("yearsExp", { years: d.experienceYears })}
+                            {d.slotsAvailableToday > 0 ? (
+                              <span className="text-success">
+                                {t("slotsAvailableToday", { count: d.slotsAvailableToday })}
+                              </span>
+                            ) : d.nextAvailability ? (
+                              <span className="text-muted-foreground">
+                                {t("nextAvailable", { label: d.nextAvailability.label })}
+                              </span>
+                            ) : (
+                              <span className="text-muted-foreground">{t("noUpcomingAvailability")}</span>
+                            )}
+                          </p>
+                        </div>
                       </div>
+                      <p className="shrink-0 text-sm font-semibold whitespace-nowrap text-primary">
+                        {formatKyat(d.consultationFee)}
+                      </p>
                     </button>
                   );
                 })}
@@ -777,26 +796,31 @@ export function BookingWizard({
                       key={d.id}
                       type="button"
                       onClick={() => setDoctorId(d.id)}
-                      className={`flex items-center gap-4 rounded-xl border p-4 text-left transition-colors ${
+                      className={`flex items-center justify-between gap-4 rounded-xl border p-4 text-left transition-colors ${
                         selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
                       }`}
                     >
-                      <Avatar className="size-12">
-                        <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
-                          {d.initials}
-                        </AvatarFallback>
-                      </Avatar>
-                      <div className="grid gap-0.5">
-                        <p className="font-semibold">{d.name}</p>
-                        {d.qualifications && (
-                          <p className="text-sm text-muted-foreground">{d.qualifications}</p>
-                        )}
-                        {d.experienceYears != null && (
-                          <p className="text-sm text-muted-foreground">
-                            {t("yearsExp", { years: d.experienceYears })}
-                          </p>
-                        )}
+                      <div className="flex items-center gap-4">
+                        <Avatar className="size-12">
+                          <AvatarFallback className="bg-primary text-primary-foreground font-semibold">
+                            {d.initials}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="grid gap-0.5">
+                          <p className="font-semibold">{d.name}</p>
+                          {d.qualifications && (
+                            <p className="text-sm text-muted-foreground">{d.qualifications}</p>
+                          )}
+                          {d.experienceYears != null && (
+                            <p className="text-sm text-muted-foreground">
+                              {t("yearsExp", { years: d.experienceYears })}
+                            </p>
+                          )}
+                        </div>
                       </div>
+                      <p className="shrink-0 text-sm font-semibold whitespace-nowrap text-primary">
+                        {formatKyat(d.consultationFee)}
+                      </p>
                     </button>
                   );
                 })}
@@ -1005,6 +1029,7 @@ export function BookingWizard({
                 [t("summaryDate"), formatDateLabel(date)],
                 [t("summaryTime"), timeRangeLabel],
                 [t("summaryReason"), reasonCategory],
+                ...(costValue ? [[costLabel, costValue]] : []),
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between p-3">
                   <span className="text-muted-foreground">{label}</span>

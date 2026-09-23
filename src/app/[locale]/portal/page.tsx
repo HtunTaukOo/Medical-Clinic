@@ -56,7 +56,7 @@ const ANNOUNCEMENT_BADGE_STYLES: Record<string, string> = {
 };
 
 function formatK(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 function getGreetingKey(hour: number) {

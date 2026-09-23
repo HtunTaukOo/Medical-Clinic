@@ -19,7 +19,7 @@ import { ClinicServiceEditDialog } from "@/components/staff/clinic-service-edit-
 import { DeleteClinicServiceButton } from "@/components/staff/delete-clinic-service-button";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 const SPECIALTY_COLORS = [

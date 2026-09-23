@@ -1,7 +1,7 @@
 "use client";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 type Test = { id: string; name: string; unit: string | null; normalRange: string | null; price: number };

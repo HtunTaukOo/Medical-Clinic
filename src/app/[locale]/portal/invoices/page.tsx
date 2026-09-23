@@ -16,7 +16,7 @@ const PILL_TAB_TRIGGER =
 const INVOICE_DUE_DAYS = 30;
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 export default async function PortalInvoicesPage() {

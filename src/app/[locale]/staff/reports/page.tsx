@@ -23,7 +23,7 @@ import { DateRangeFilter } from "@/components/reports/date-range-filter";
 import { EmptyState } from "@/components/empty-state";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 function GrowthText({ value }: { value: number | null }) {

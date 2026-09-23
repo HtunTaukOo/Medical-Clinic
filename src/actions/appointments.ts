@@ -44,7 +44,7 @@ const CONFLICT_MESSAGE = `This doctor already has an appointment within ${APPOIN
 const CAPACITY_CONFLICT_MESSAGE = "That slot just filled up. Please pick a different time, or join the waitlist.";
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 const bookingSchema = z.object({

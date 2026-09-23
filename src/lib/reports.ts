@@ -18,7 +18,7 @@ export const REPORT_TABS = [
 export type ReportTab = (typeof REPORT_TABS)[number]["value"];
 
 function formatKyat(value: number) {
-  return `K ${Math.round(value).toLocaleString()}`;
+  return `MMK ${Math.round(value).toLocaleString()}`;
 }
 
 // Percent change vs. the prior period. `null` (rendered as "—") means there's
