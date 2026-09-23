@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { Banknote, CreditCard, Smartphone } from "lucide-react";
+import { Banknote, Smartphone } from "lucide-react";
 import { useTranslations } from "next-intl";
 import {
   Dialog,
@@ -38,9 +38,6 @@ export function PayNowDialog({
             <div className="grid gap-1.5 text-muted-foreground">
               <span className="flex items-center gap-2">
                 <Banknote className="size-4" /> {t("methodCash")}
-              </span>
-              <span className="flex items-center gap-2">
-                <CreditCard className="size-4" /> {t("methodCard")}
               </span>
               <span className="flex items-center gap-2">
                 <Smartphone className="size-4" /> {t("methodMobileBanking")}
