@@ -1,8 +1,10 @@
 "use client";
 
+import { useState, useTransition } from "react";
 import type { LucideIcon } from "lucide-react";
 import {
   Home,
+  Loader2,
   LayoutDashboard,
   Users,
   CalendarDays,
@@ -31,7 +33,7 @@ import {
   HandCoins,
 } from "lucide-react";
 import { useTranslations } from "next-intl";
-import { Link, usePathname } from "@/i18n/navigation";
+import { Link, usePathname, useRouter } from "@/i18n/navigation";
 import {
   Sidebar,
   SidebarContent,
@@ -43,6 +45,7 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ClinicLogo } from "@/components/clinic-logo";
@@ -120,6 +123,10 @@ export function AppSidebar({
   const t = useTranslations("nav");
   const tApp = useTranslations("app");
   const pathname = usePathname();
+  const router = useRouter();
+  const { isMobile, setOpenMobile } = useSidebar();
+  const [isPending, startTransition] = useTransition();
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
 
   // When section labels are hidden, also collapse every group into one flat
   // list — otherwise each group still gets its own SidebarGroup padding,
@@ -166,6 +173,7 @@ export function AppSidebar({
                       pathname === item.href ||
                       (!isRootItem && pathname.startsWith(`${item.href}/`));
                     const Icon = ICONS[item.labelKey] ?? LayoutDashboard;
+                    const isItemPending = isPending && pendingHref === item.href;
                     return (
                       <SidebarMenuItem key={item.href}>
                         <SidebarMenuButton
@@ -173,13 +181,47 @@ export function AppSidebar({
                           isActive={isActive}
                           className="data-[active=true]:bg-sidebar-active data-[active=true]:text-sidebar-primary data-[active=true]:hover:bg-sidebar-active data-[active=true]:hover:text-sidebar-primary"
                         >
-                          <Link href={item.href}>
+                          <Link
+                            href={item.href}
+                            onClick={(e) => {
+                              // Leave modifier-key clicks (open in new tab,
+                              // etc.) and already-handled events to the
+                              // browser/Link's own default behavior — only
+                              // intercept a genuine plain left-click.
+                              if (
+                                isActive ||
+                                e.defaultPrevented ||
+                                e.button !== 0 ||
+                                e.metaKey ||
+                                e.ctrlKey ||
+                                e.shiftKey ||
+                                e.altKey
+                              ) {
+                                return;
+                              }
+                              // Close the mobile drawer immediately on tap —
+                              // instead of waiting for the server round-trip
+                              // to finish before it visually acknowledges the
+                              // tap, which is what made navigation feel slow.
+                              if (isMobile) setOpenMobile(false);
+                              e.preventDefault();
+                              setPendingHref(item.href);
+                              startTransition(() => {
+                                router.push(item.href);
+                              });
+                            }}
+                          >
                             <Icon />
                             <span>{t(item.labelKey)}</span>
                             {!!item.badge && (
                               <span className="ml-auto flex size-5 items-center justify-center rounded-full bg-destructive text-xs font-medium text-white">
                                 {item.badge}
                               </span>
+                            )}
+                            {isItemPending && (
+                              <Loader2
+                                className={`size-3.5 animate-spin ${item.badge ? "" : "ml-auto"}`}
+                              />
                             )}
                           </Link>
                         </SidebarMenuButton>
