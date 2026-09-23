@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect } from "react";
 import { useTranslations } from "next-intl";
+import { toast } from "sonner";
 import { createMedicine, updateMedicine, type MedicineFormState } from "@/actions/inventory";
 import { useRouter } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -29,7 +30,8 @@ export function MedicineForm({
 
   useEffect(() => {
     if (state.success) {
-      router.push(medicine ? `/staff/inventory/${medicine.id}` : "/staff/inventory");
+      toast.success(medicine ? "Medicine updated" : "Medicine added");
+      router.push("/staff/inventory");
     }
   }, [state.success, router, medicine]);
 

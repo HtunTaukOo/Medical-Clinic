@@ -18,6 +18,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
+import { TabTransitionScope, TabLink, TabTransitionContent } from "@/components/tab-transition";
 
 function formatKyat(value: number) {
   return `MMK ${Math.round(value).toLocaleString()}`;
@@ -108,6 +109,7 @@ export default async function BillingPage({
           : rows.filter((r) => r.invoice.status === "PAID" && !r.hasRefund);
 
   return (
+    <TabTransitionScope>
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <div>
@@ -153,20 +155,20 @@ export default async function BillingPage({
 
       <div className="inline-flex w-fit items-center gap-1 rounded-xl bg-muted p-1">
         {TABS.map(({ value, label }) => (
-          <Link
+          <TabLink
             key={value}
             href={`/staff/billing?tab=${value}${dateQuery}`}
-            className={
-              tab === value
-                ? "rounded-lg bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm"
-                : "rounded-lg px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground"
-            }
+            active={tab === value}
+            className="rounded-lg px-4 py-2 text-sm font-medium"
+            activeClassName="bg-card text-primary shadow-sm"
+            inactiveClassName="text-muted-foreground hover:text-foreground"
           >
             {label}
-          </Link>
+          </TabLink>
         ))}
       </div>
 
+      <TabTransitionContent>
       {visibleRows.length === 0 ? (
         <EmptyState icon={Receipt} message={t("noResults")} />
       ) : (
@@ -276,6 +278,8 @@ export default async function BillingPage({
           </CardContent>
         </Card>
       )}
+      </TabTransitionContent>
     </div>
+    </TabTransitionScope>
   );
 }

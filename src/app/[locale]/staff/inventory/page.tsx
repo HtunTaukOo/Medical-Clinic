@@ -171,7 +171,7 @@ export default async function InventoryPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("name")}</TableHead>
-                  <TableHead>Category</TableHead>
+                  <TableHead>Generic</TableHead>
                   <TableHead>{t("price")}</TableHead>
                   <TableHead>{t("stockQty")}</TableHead>
                   <TableHead>{t("expiryDate")}</TableHead>
@@ -188,7 +188,7 @@ export default async function InventoryPage({
                     <TableRow key={medicine.id}>
                       <TableCell className="font-medium">{medicine.name}</TableCell>
                       <TableCell className="text-muted-foreground">
-                        {medicine.category ?? "—"}
+                        {medicine.brand ?? "—"}
                       </TableCell>
                       <TableCell>{Number(medicine.price).toFixed(2)}</TableCell>
                       <TableCell>

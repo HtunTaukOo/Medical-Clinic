@@ -8,7 +8,6 @@ import {
   formatDateLabel,
   type ReportTab,
 } from "@/lib/reports";
-import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -21,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
 import { EmptyState } from "@/components/empty-state";
+import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
 
 function formatKyat(value: number) {
   return `MMK ${Math.round(value).toLocaleString()}`;
@@ -53,6 +53,7 @@ export default async function ReportsPage({
   const exportHref = `/api/reports/export?tab=${tab}&from=${range.from}&to=${range.to}`;
 
   return (
+    <TabTransitionScope>
     <div className="grid gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Reports</h1>
@@ -61,17 +62,15 @@ export default async function ReportsPage({
 
       <div className="flex flex-wrap items-center gap-2">
         {REPORT_TABS.map(({ value, label }) => (
-          <Button
+          <TabButton
             key={value}
-            asChild
-            variant={tab === value ? "default" : "outline"}
+            href={`/staff/reports?tab=${value}&from=${range.from}&to=${range.to}`}
+            active={tab === value}
             size="sm"
             className="rounded-full"
           >
-            <Link href={`/staff/reports?tab=${value}&from=${range.from}&to=${range.to}`}>
-              {label}
-            </Link>
-          </Button>
+            {label}
+          </TabButton>
         ))}
       </div>
 
@@ -89,6 +88,7 @@ export default async function ReportsPage({
         </Button>
       </div>
 
+      <TabTransitionContent className="grid gap-6">
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent>
@@ -293,6 +293,8 @@ export default async function ReportsPage({
             ))}
         </CardContent>
       </Card>
+      </TabTransitionContent>
     </div>
+    </TabTransitionScope>
   );
 }

@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
 import {
   Table,
   TableBody,
@@ -157,6 +158,7 @@ export default async function UserManagementPage({
   }
 
   return (
+    <TabTransitionScope>
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <div>
@@ -174,9 +176,9 @@ export default async function UserManagementPage({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
           {TABS.map(({ value, label }) => (
-            <Button key={value} asChild variant={tab === value ? "default" : "outline"} size="sm">
-              <Link href={`/staff/users?tab=${value}`}>{label}</Link>
-            </Button>
+            <TabButton key={value} href={`/staff/users?tab=${value}`} active={tab === value} size="sm">
+              {label}
+            </TabButton>
           ))}
         </div>
         <div className="w-64 sm:w-80">
@@ -184,6 +186,7 @@ export default async function UserManagementPage({
         </div>
       </div>
 
+      <TabTransitionContent>
       {visibleRows.length === 0 ? (
         <EmptyState icon={UserCog} message="No users match this view." />
       ) : (
@@ -337,6 +340,8 @@ export default async function UserManagementPage({
           </CardContent>
         </Card>
       )}
+      </TabTransitionContent>
     </div>
+    </TabTransitionScope>
   );
 }

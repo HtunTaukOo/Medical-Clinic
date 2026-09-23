@@ -143,7 +143,6 @@ export default async function StaffDashboardPage({
     completedLabToday,
     patientCount,
     activeDoctorsCount,
-    todaysAppointmentCountAdmin,
     sixMonthPayments,
     monthRefunds,
     sixMonthExpenses,
@@ -254,9 +253,6 @@ export default async function StaffDashboardPage({
     role === "ADMIN" ? prisma.patient.count() : Promise.resolve(0),
     role === "ADMIN"
       ? prisma.doctorProfile.count({ where: { user: { active: true } } })
-      : Promise.resolve(0),
-    role === "ADMIN"
-      ? prisma.appointment.count({ where: { scheduledAt: { gte: todayStart, lt: todayEnd } } })
       : Promise.resolve(0),
     role === "ADMIN"
       ? prisma.payment.findMany({
@@ -530,8 +526,8 @@ export default async function StaffDashboardPage({
             />
             <SolidStatCard
               icon={CalendarDays}
-              label="Today's Appointments"
-              value={todaysAppointmentCountAdmin}
+              label="Weekly Appointments"
+              value={weekAppointments.length}
               className="bg-blue-600"
             />
             <SolidStatCard

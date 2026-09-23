@@ -21,6 +21,7 @@ import {
 import { formatTimeLabel } from "@/lib/time-blocks";
 import { getBlocksForDate } from "@/lib/booking-slots";
 import { cn } from "@/lib/utils";
+import { TabTransitionScope, TabButton, TabLink, TabTransitionContent } from "@/components/tab-transition";
 
 const STATUS_STYLES: Record<string, string> = {
   REQUESTED: "bg-amber-100 text-amber-800",
@@ -155,6 +156,7 @@ export default async function PortalAppointmentsPage({
   }
 
   return (
+    <TabTransitionScope>
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
@@ -197,12 +199,12 @@ export default async function PortalAppointmentsPage({
       )}
 
       <div className="flex items-center gap-2">
-        <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
-          <Link href="/portal/appointments?view=list">{tp("viewList")}</Link>
-        </Button>
-        <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
-          <Link href="/portal/appointments?view=calendar">{tp("viewCalendar")}</Link>
-        </Button>
+        <TabButton href="/portal/appointments?view=list" active={view === "list"} size="sm">
+          {tp("viewList")}
+        </TabButton>
+        <TabButton href="/portal/appointments?view=calendar" active={view === "calendar"} size="sm">
+          {tp("viewCalendar")}
+        </TabButton>
       </div>
 
       {view === "list" && (
@@ -210,15 +212,13 @@ export default async function PortalAppointmentsPage({
           {APPOINTMENT_TABS.map((value) => {
             const active = tab === value;
             return (
-              <Link
+              <TabLink
                 key={value}
                 href={`/portal/appointments?view=list&tab=${value}`}
-                className={cn(
-                  "flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-colors",
-                  active
-                    ? "bg-primary text-primary-foreground"
-                    : "border bg-white text-foreground hover:bg-muted/50"
-                )}
+                active={active}
+                className="rounded-full px-4 py-2 text-sm font-medium transition-colors"
+                activeClassName="bg-primary text-primary-foreground"
+                inactiveClassName="border bg-white text-foreground hover:bg-muted/50"
               >
                 {TAB_META[value].label}
                 <span
@@ -229,12 +229,13 @@ export default async function PortalAppointmentsPage({
                 >
                   {appointmentsByTab[value].length}
                 </span>
-              </Link>
+              </TabLink>
             );
           })}
         </div>
       )}
 
+      <TabTransitionContent>
       {view === "list" ? (
         visibleAppointments.length === 0 ? (
           <EmptyState icon={CalendarDays} message={t("noResults")} />
@@ -365,6 +366,8 @@ export default async function PortalAppointmentsPage({
           </div>
         </div>
       )}
+      </TabTransitionContent>
     </div>
+    </TabTransitionScope>
   );
 }

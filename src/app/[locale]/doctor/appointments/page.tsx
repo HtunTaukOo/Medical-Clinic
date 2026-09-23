@@ -13,6 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
 import { AppointmentRow, GENDER_LETTER } from "@/components/appointments/appointment-row";
 import { isDoctorRangeBooking, formatAppointmentTime } from "@/lib/appointment-provider";
+import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
 
 const STATUS_STYLES: Record<string, string> = {
   REQUESTED: "bg-amber-100 text-amber-800",
@@ -140,6 +141,7 @@ export default async function DoctorAppointmentsPage({
   const todayKey = clinicDateKey(now);
 
   return (
+    <TabTransitionScope>
     <div className="grid gap-4">
       <div>
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
@@ -149,32 +151,28 @@ export default async function DoctorAppointmentsPage({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
-          <Link href={`/doctor/appointments?view=list&tab=${tab}`}>List</Link>
-        </Button>
-        <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
-          <Link href="/doctor/appointments?view=calendar">Calendar</Link>
-        </Button>
+        <TabButton href={`/doctor/appointments?view=list&tab=${tab}`} active={view === "list"} size="sm">
+          List
+        </TabButton>
+        <TabButton href="/doctor/appointments?view=calendar" active={view === "calendar"} size="sm">
+          Calendar
+        </TabButton>
       </div>
 
       {view === "list" && (
         <div className="flex flex-wrap items-center gap-2">
           {DOCTOR_TABS.map(({ value, label }) => (
-            <Button key={value} asChild variant={tab === value ? "default" : "outline"} className="gap-2">
-              <Link href={`/doctor/appointments?tab=${value}`}>
-                {label}
-                <Badge
-                  variant="secondary"
-                  className={tab === value ? "bg-white/20 text-white" : undefined}
-                >
-                  {tabCounts[value]}
-                </Badge>
-              </Link>
-            </Button>
+            <TabButton key={value} href={`/doctor/appointments?tab=${value}`} active={tab === value}>
+              {label}
+              <Badge variant="secondary" className={tab === value ? "bg-white/20 text-white" : undefined}>
+                {tabCounts[value]}
+              </Badge>
+            </TabButton>
           ))}
         </div>
       )}
 
+      <TabTransitionContent>
       {view === "calendar" ? (
         <div className="grid gap-4">
           <div className="flex items-center justify-between">
@@ -290,6 +288,8 @@ export default async function DoctorAppointmentsPage({
           )}
         </div>
       )}
+      </TabTransitionContent>
     </div>
+    </TabTransitionScope>
   );
 }

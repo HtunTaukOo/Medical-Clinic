@@ -116,7 +116,7 @@ export function InvoiceForm({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
-      <Card>
+      <Card className="relative z-20 overflow-visible">
         <CardHeader>
           <CardTitle>New Invoice</CardTitle>
         </CardHeader>
@@ -144,7 +144,7 @@ export function InvoiceForm({
                     onBlur={() => setTimeout(() => setShowResults(false), 150)}
                   />
                   {showResults && matches.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border bg-card shadow-md">
+                    <div className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border bg-card shadow-md">
                       {matches.map((p) => (
                         <button
                           key={p.id}

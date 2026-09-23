@@ -29,6 +29,7 @@ import { InventoryFilterSelect } from "@/components/inventory/inventory-filter-s
 import { DateFilterInput } from "@/components/appointments/date-filter-input";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 import { CompleteCheckoutButton } from "@/components/appointments/complete-checkout-button";
+import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
 import {
   getRangeBookingSpecialtyNames,
   isRangeBookingAppointment,
@@ -184,6 +185,7 @@ export default async function AppointmentsPage({
   const filterQuery = filterParams.toString();
 
   return (
+    <TabTransitionScope>
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <div>
@@ -209,25 +211,29 @@ export default async function AppointmentsPage({
       </div>
 
       <div className="flex items-center gap-2">
-        <Button asChild variant={view === "list" ? "default" : "outline"} size="sm">
-          <Link href={`/staff/appointments?view=list&tab=${tab}${filterQuery ? `&${filterQuery}` : ""}`}>
-            List
-          </Link>
-        </Button>
-        <Button asChild variant={view === "calendar" ? "default" : "outline"} size="sm">
-          <Link href="/staff/appointments?view=calendar">Calendar</Link>
-        </Button>
+        <TabButton
+          href={`/staff/appointments?view=list&tab=${tab}${filterQuery ? `&${filterQuery}` : ""}`}
+          active={view === "list"}
+          size="sm"
+        >
+          List
+        </TabButton>
+        <TabButton href="/staff/appointments?view=calendar" active={view === "calendar"} size="sm">
+          Calendar
+        </TabButton>
       </div>
 
       {view === "list" && (
         <>
           <div className="flex flex-wrap items-center gap-2">
             {TABS.map(({ value, label }) => (
-              <Button key={value} asChild variant={tab === value ? "default" : "outline"}>
-                <Link href={`/staff/appointments?tab=${value}${filterQuery ? `&${filterQuery}` : ""}`}>
-                  {label}
-                </Link>
-              </Button>
+              <TabButton
+                key={value}
+                href={`/staff/appointments?tab=${value}${filterQuery ? `&${filterQuery}` : ""}`}
+                active={tab === value}
+              >
+                {label}
+              </TabButton>
             ))}
           </div>
 
@@ -243,6 +249,7 @@ export default async function AppointmentsPage({
         </>
       )}
 
+      <TabTransitionContent>
       {view === "calendar" ? (
         <div className="grid gap-4">
           <div className="flex items-center justify-between">
@@ -487,6 +494,8 @@ export default async function AppointmentsPage({
           </CardContent>
         </Card>
       )}
+      </TabTransitionContent>
     </div>
+    </TabTransitionScope>
   );
 }

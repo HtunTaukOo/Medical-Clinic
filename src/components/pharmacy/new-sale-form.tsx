@@ -244,7 +244,7 @@ export function NewSaleForm({
   return (
     <form action={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div className="grid gap-4">
-        <Card>
+        <Card className="relative z-20 overflow-visible">
           <CardHeader>
             <CardTitle className="text-base">Prescription Reference</CardTitle>
           </CardHeader>
@@ -327,7 +327,7 @@ export function NewSaleForm({
                     onBlur={() => setTimeout(() => setShowPatientResults(false), 150)}
                   />
                   {showPatientResults && patientMatches.length > 0 && (
-                    <div className="absolute z-10 mt-1 w-full rounded-lg border bg-card shadow-md">
+                    <div className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border bg-card shadow-md">
                       {patientMatches.map((p) => (
                         <button
                           key={p.id}
@@ -350,7 +350,7 @@ export function NewSaleForm({
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="relative z-20 overflow-visible">
           <CardHeader>
             <CardTitle className="text-base">Add OTC Item</CardTitle>
           </CardHeader>
@@ -370,7 +370,7 @@ export function NewSaleForm({
                   onBlur={() => setTimeout(() => setShowOtcResults(false), 150)}
                 />
                 {showOtcResults && otcMatches.length > 0 && (
-                  <div className="absolute z-10 mt-1 w-full rounded-lg border bg-card shadow-md">
+                  <div className="absolute z-10 mt-1 max-h-64 w-full overflow-y-auto rounded-lg border bg-card shadow-md">
                     {otcMatches.map((m) => (
                       <button
                         key={m.id}

@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 import { NewSaleForm } from "@/components/pharmacy/new-sale-form";
+import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
 
 function formatKyat(value: number) {
   return `MMK ${Math.round(value).toLocaleString()}`;
@@ -113,22 +114,24 @@ export default async function PharmacyPage({
     ]);
 
   return (
-    <div className="grid gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold">Pharmacy</h1>
-        <p className="text-sm text-muted-foreground">
-          Dispense prescriptions and sell over-the-counter medicine.
-        </p>
-      </div>
+    <TabTransitionScope>
+      <div className="grid gap-6">
+        <div>
+          <h1 className="text-2xl font-semibold">Pharmacy</h1>
+          <p className="text-sm text-muted-foreground">
+            Dispense prescriptions and sell over-the-counter medicine.
+          </p>
+        </div>
 
-      <div className="flex flex-wrap items-center gap-2">
-        {TABS.map(({ value, label }) => (
-          <Button key={value} asChild variant={tab === value ? "default" : "outline"} size="sm">
-            <Link href={`/staff/pharmacy?tab=${value}`}>{label}</Link>
-          </Button>
-        ))}
-      </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {TABS.map(({ value, label }) => (
+            <TabButton key={value} href={`/staff/pharmacy?tab=${value}`} active={tab === value} size="sm">
+              {label}
+            </TabButton>
+          ))}
+        </div>
 
+        <TabTransitionContent className="grid gap-6">
       {tab === "new" && (
         <NewSaleForm
           pendingPrescriptions={pendingPrescriptions.map((rxItem) => ({
@@ -425,6 +428,8 @@ export default async function PharmacyPage({
             </CardContent>
           </Card>
         ))}
-    </div>
+        </TabTransitionContent>
+      </div>
+    </TabTransitionScope>
   );
 }

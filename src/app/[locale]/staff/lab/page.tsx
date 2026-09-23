@@ -18,6 +18,7 @@ import { collectSample } from "@/actions/lab";
 import { NewLabOrderForm } from "@/components/lab/new-lab-order-form";
 import { DeleteLabTestButton } from "@/components/lab/delete-lab-test-button";
 import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categories";
+import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
 
 const STATUS_STYLES: Record<string, string> = {
   ORDERED: "bg-amber-100 text-amber-800",
@@ -85,6 +86,7 @@ export default async function LabPage({
   const orderingDoctors = doctors.filter((d) => !d.specialty || !serviceSpecialtyNames.has(d.specialty));
 
   return (
+    <TabTransitionScope>
     <div className="grid gap-6">
       <div>
         <h1 className="text-2xl font-semibold">Laboratory</h1>
@@ -93,12 +95,13 @@ export default async function LabPage({
 
       <div className="flex flex-wrap items-center gap-2">
         {TABS.map(({ value, label }) => (
-          <Button key={value} asChild variant={tab === value ? "default" : "outline"} size="sm">
-            <Link href={`/staff/lab?tab=${value}`}>{label}</Link>
-          </Button>
+          <TabButton key={value} href={`/staff/lab?tab=${value}`} active={tab === value} size="sm">
+            {label}
+          </TabButton>
         ))}
       </div>
 
+      <TabTransitionContent className="grid gap-6">
       {tab === "new" && (
         <NewLabOrderForm
           patients={patients.map((p) => ({ id: p.id, name: p.name }))}
@@ -317,6 +320,8 @@ export default async function LabPage({
             </CardContent>
           </Card>
         ))}
+      </TabTransitionContent>
     </div>
+    </TabTransitionScope>
   );
 }
