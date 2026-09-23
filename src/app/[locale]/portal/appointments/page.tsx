@@ -24,12 +24,12 @@ import { cn } from "@/lib/utils";
 import { TabTransitionScope, TabButton, TabLink, TabTransitionContent } from "@/components/tab-transition";
 
 const STATUS_STYLES: Record<string, string> = {
-  REQUESTED: "bg-amber-100 text-amber-800",
+  REQUESTED: "bg-blue-100 text-blue-800",
   CONFIRMED: "bg-blue-100 text-blue-800",
-  CHECKED_IN: "bg-emerald-100 text-emerald-800",
+  CHECKED_IN: "bg-purple-100 text-purple-800",
   COMPLETED: "bg-emerald-100 text-emerald-800",
   CANCELLED: "bg-rose-100 text-rose-800 line-through",
-  NO_SHOW: "bg-orange-100 text-orange-800",
+  NO_SHOW: "bg-amber-100 text-amber-800",
 };
 
 const APPOINTMENT_TABS = ["upcoming", "completed", "cancelled"] as const;
@@ -289,6 +289,24 @@ export default async function PortalAppointmentsPage({
                 </Link>
               </Button>
             </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-blue-400" /> {STATUS_LABELS.CONFIRMED}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-purple-400" /> {STATUS_LABELS.CHECKED_IN}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-emerald-400" /> {STATUS_LABELS.COMPLETED}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-rose-400" /> {STATUS_LABELS.CANCELLED}
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="size-2.5 rounded-full bg-amber-400" /> {STATUS_LABELS.NO_SHOW}
+            </span>
           </div>
 
           <div className="overflow-x-auto">
