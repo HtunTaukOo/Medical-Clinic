@@ -40,7 +40,7 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[]; staffPermission?: StaffPermis
   {
     href: "/staff/inventory",
     labelKey: "inventory",
-    roles: ["STAFF"],
+    roles: ["ADMIN", "STAFF"],
     group: "sectionOperations",
   },
   {
