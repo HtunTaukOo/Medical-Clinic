@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { Link } from "@/i18n/navigation";
 import {
   getClinicHoursRange,
+  getClinicWeeklyHours,
   toMinutes,
   formatTime,
   clinicDateKey,
@@ -13,6 +14,7 @@ import { APPOINTMENT_SLOT_MINUTES } from "@/lib/scheduling";
 import { blockContainingMinuteOfDay, formatTimeLabel } from "@/lib/time-blocks";
 import { getBlocksForDate } from "@/lib/booking-slots";
 import { getDoctorShiftsByWeekday, isWithinShiftRanges } from "@/lib/doctor-availability";
+import { BackLink } from "@/components/back-link";
 import { DoctorLeaveManager } from "@/components/staff/doctor-leave-manager";
 import { RequestLeaveDialog } from "@/components/staff/request-leave-dialog";
 import { UserActionDialog } from "@/components/staff/user-action-dialog";
@@ -121,10 +123,11 @@ export async function DoctorWeekSchedule({
     return `${basePath}?${params.toString()}`;
   }
 
-  const [doctor, clinicHours, weekAppointments, upcomingLeaveDays, weekLeaveDays, shiftsByWeekday] =
+  const [doctor, clinicHours, clinicWeeklyHours, weekAppointments, upcomingLeaveDays, weekLeaveDays, shiftsByWeekday] =
     await Promise.all([
       prisma.doctorProfile.findUnique({ where: { id: doctorId } }),
       getClinicHoursRange(),
+      getClinicWeeklyHours(),
       prisma.appointment.findMany({
         where: {
           doctorId,
@@ -155,9 +158,12 @@ export async function DoctorWeekSchedule({
     ? (patients.find((p) => p.id === followUpPatientId) ?? null)
     : null;
   const followUpBanner = followUpPatient ? (
-    <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
-      Booking a follow-up for <span className="font-medium">{followUpPatient.name}</span> — click an{" "}
-      <span className="font-medium">Available</span> slot below to schedule it.
+    <div className="grid gap-2">
+      <BackLink href="/doctor/appointments" />
+      <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
+        Booking a follow-up for <span className="font-medium">{followUpPatient.name}</span> — click an{" "}
+        <span className="font-medium">Available</span> slot below to schedule it.
+      </div>
     </div>
   ) : null;
 
@@ -452,6 +458,11 @@ export async function DoctorWeekSchedule({
     );
   }
 
+  // Per-weekday clinic hours (isOpen/openTime/closeTime), keyed 0=Sun..6=Sat —
+  // used below so each day column respects that specific day's own clinic
+  // hours/closedness, not just the week-wide aggregate `clinicHours` range.
+  const clinicHoursByWeekday = new Map(clinicWeeklyHours.map((h) => [h.weekday, h]));
+
   // Row range spans the union of every working day's shifts (falling back to
   // the clinic's own hours for days with no specific shifts recorded) — a
   // shared set of grid rows across all 7 day-columns, with per-day/per-row
@@ -515,9 +526,20 @@ export async function DoctorWeekSchedule({
       const isLeave = approvedLeaveDayKeys.has(dayKey);
       const slotInstant = dayMidnight + minutes * 60000;
       const isPast = slotInstant <= now;
+      const clinicDay = clinicHoursByWeekday.get(weekdayIndex);
+      const isClinicOpen = clinicDay?.isOpen ?? false;
       const dayShifts = shiftsByWeekday.get(weekdayIndex) ?? [];
-      const withinShifts = isWithinShiftRanges(new Date(slotInstant), dayShifts);
-      if (!isWorking || isLeave || isPast || !withinShifts) {
+      // No explicit DoctorShift rows for this weekday → fall back to the
+      // clinic's own hours for that specific day, instead of treating the
+      // day as unrestricted across the week's widest aggregate range.
+      const effectiveRanges =
+        dayShifts.length > 0
+          ? dayShifts
+          : clinicDay && isClinicOpen
+            ? [{ startTime: clinicDay.openTime, endTime: clinicDay.closeTime }]
+            : [];
+      const withinShifts = isWithinShiftRanges(new Date(slotInstant), effectiveRanges);
+      if (!isWorking || !isClinicOpen || isLeave || isPast || !withinShifts) {
         blockedCount++;
         return { type: "blocked" };
       }

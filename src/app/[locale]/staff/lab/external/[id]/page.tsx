@@ -1,15 +1,13 @@
 import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
-import { collectSample, enterResults } from "@/actions/lab";
+import { enterExternalLabReferralResults } from "@/actions/external-lab";
 import { ResultEntryForm } from "@/components/lab/result-entry-form";
-import { Link } from "@/i18n/navigation";
 import { BackLink } from "@/components/back-link";
-import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default async function LabOrderDetailPage({
+export default async function ExternalLabReferralDetailPage({
   params,
 }: {
   params: Promise<{ id: string }>;
@@ -17,49 +15,44 @@ export default async function LabOrderDetailPage({
   await requirePageRole(["ADMIN", "STAFF"]);
   const { id } = await params;
 
-  const order = await prisma.labOrder.findUnique({
+  const referral = await prisma.externalLabReferral.findUnique({
     where: { id },
-    include: {
-      patient: true,
-      doctor: { include: { user: true } },
-      items: { include: { labTest: true } },
-    },
+    include: { patient: true, items: { include: { labTest: true } } },
   });
 
-  if (!order) notFound();
+  if (!referral) notFound();
+
+  const resultsEntered = referral.items.every((item) => item.resultEnteredAt);
 
   return (
     <div className="grid gap-6">
-      <BackLink href="/staff/lab" />
+      <BackLink href="/staff/lab?tab=external" />
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">{order.patient.name}</h1>
-          <p className="text-muted-foreground">Ordered by {order.doctor.user.name}</p>
+          <h1 className="text-2xl font-semibold">{referral.patient.name}</h1>
+          <p className="text-muted-foreground">Referred to {referral.referredLabName}</p>
         </div>
-        <Badge variant="outline">{order.status.replace("_", " ")}</Badge>
+        <Badge variant="outline">{referral.status}</Badge>
       </div>
 
-      {order.status === "ORDERED" && (
+      {referral.status === "SENDING" && (
         <Card>
-          <CardContent className="flex items-center justify-between">
-            <p className="text-muted-foreground">Waiting for sample collection.</p>
-            <form action={collectSample.bind(null, order.id)}>
-              <Button type="submit">Collect sample</Button>
-            </form>
+          <CardContent className="text-muted-foreground">
+            Mark this referral received before entering results.
           </CardContent>
         </Card>
       )}
 
-      {order.status === "SAMPLE_COLLECTED" && (
+      {referral.status === "RECEIVED" && !resultsEntered && (
         <Card>
           <CardHeader>
             <CardTitle>Enter results</CardTitle>
           </CardHeader>
           <CardContent>
             <ResultEntryForm
-              action={enterResults.bind(null, order.id)}
-              items={order.items.map((item) => ({
+              action={enterExternalLabReferralResults.bind(null, referral.id)}
+              items={referral.items.map((item) => ({
                 id: item.id,
                 labTest: {
                   name: item.labTest.name,
@@ -67,18 +60,19 @@ export default async function LabOrderDetailPage({
                   normalRange: item.labTest.normalRange,
                 },
               }))}
+              showDocumentUpload
             />
           </CardContent>
         </Card>
       )}
 
-      {order.status === "COMPLETED" && (
+      {referral.status === "RECEIVED" && resultsEntered && (
         <Card>
           <CardHeader>
             <CardTitle>Results</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
-            {order.items.map((item) => (
+            {referral.items.map((item) => (
               <div key={item.id} className="rounded-md border p-3">
                 <p className="font-medium">{item.labTest.name}</p>
                 <p className="text-sm">
@@ -95,10 +89,13 @@ export default async function LabOrderDetailPage({
                 )}
               </div>
             ))}
-            <Button asChild variant="outline" className="w-fit">
-              <Link href={`/lab-report/${order.id}`}>Print report</Link>
-            </Button>
           </CardContent>
+        </Card>
+      )}
+
+      {referral.status === "CANCELLED" && (
+        <Card>
+          <CardContent className="text-muted-foreground">This referral was cancelled.</CardContent>
         </Card>
       )}
     </div>

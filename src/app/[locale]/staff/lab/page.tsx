@@ -1,4 +1,4 @@
-import { FlaskConical, ClipboardList, History as HistoryIcon } from "lucide-react";
+import { FlaskConical, ClipboardList, History as HistoryIcon, FileText } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
@@ -15,21 +15,27 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 import { collectSample } from "@/actions/lab";
+import { markExternalLabReferralReceived, cancelExternalLabReferral } from "@/actions/external-lab";
 import { NewLabOrderForm } from "@/components/lab/new-lab-order-form";
+import { NewExternalLabReferralForm } from "@/components/lab/new-external-lab-referral-form";
 import { DeleteLabTestButton } from "@/components/lab/delete-lab-test-button";
 import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categories";
 import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
+import { calculateAge } from "@/lib/format";
 
 const STATUS_STYLES: Record<string, string> = {
   ORDERED: "bg-amber-100 text-amber-800",
   SAMPLE_COLLECTED: "bg-blue-100 text-blue-800",
   COMPLETED: "bg-emerald-100 text-emerald-800",
   CANCELLED: "bg-rose-100 text-rose-800",
+  SENDING: "bg-amber-100 text-amber-800",
+  RECEIVED: "bg-emerald-100 text-emerald-800",
 };
 
 const TABS = [
   { value: "new", label: "New Test" },
   { value: "orders", label: "Orders" },
+  { value: "external", label: "External Lab Test" },
   { value: "catalog", label: "Test Catalog" },
   { value: "history", label: "History" },
 ] as const;
@@ -44,7 +50,16 @@ export default async function LabPage({
   const { tab: tabParam } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "new";
 
-  const [activeOrders, historyOrders, tests, patients, doctors, serviceSpecialties] = await Promise.all([
+  const [
+    activeOrders,
+    historyOrders,
+    tests,
+    patients,
+    doctors,
+    serviceSpecialties,
+    externalReferrals,
+    referredLabNameRows,
+  ] = await Promise.all([
     tab === "orders"
       ? prisma.labOrder.findMany({
           where: { status: { in: ["ORDERED", "SAMPLE_COLLECTED"] } },
@@ -68,15 +83,30 @@ export default async function LabPage({
           take: 200,
         })
       : Promise.resolve([]),
-    tab === "new" || tab === "catalog"
+    tab === "new" || tab === "catalog" || tab === "external"
       ? prisma.labTest.findMany({ orderBy: { name: "asc" } })
       : Promise.resolve([]),
-    tab === "new" ? prisma.patient.findMany({ orderBy: { name: "asc" } }) : Promise.resolve([]),
+    tab === "new" || tab === "external"
+      ? prisma.patient.findMany({ orderBy: { name: "asc" } })
+      : Promise.resolve([]),
     tab === "new"
       ? prisma.doctorProfile.findMany({ include: { user: true }, orderBy: { user: { name: "asc" } } })
       : Promise.resolve([]),
     tab === "new"
       ? prisma.specialty.findMany({ where: { bookingMode: "SERVICE_CAPACITY" }, select: { name: true } })
+      : Promise.resolve([]),
+    tab === "external"
+      ? prisma.externalLabReferral.findMany({
+          include: { patient: true, items: { include: { labTest: true } } },
+          orderBy: [{ status: "asc" }, { createdAt: "desc" }],
+        })
+      : Promise.resolve([]),
+    tab === "external"
+      ? prisma.externalLabReferral.findMany({
+          distinct: ["referredLabName"],
+          orderBy: { referredLabName: "asc" },
+          select: { referredLabName: true },
+        })
       : Promise.resolve([]),
   ]);
 
@@ -113,6 +143,7 @@ export default async function LabPage({
             normalRange: t.normalRange,
             price: Number(t.price),
             category: t.category,
+            requiresExternalLab: t.requiresExternalLab,
           }))}
         />
       )}
@@ -190,6 +221,152 @@ export default async function LabPage({
           </Card>
         ))}
 
+      {tab === "external" && (
+        <div className="grid gap-6">
+          <NewExternalLabReferralForm
+            patients={patients.map((p) => ({ id: p.id, name: p.name }))}
+            tests={tests.map((t) => ({
+              id: t.id,
+              name: t.name,
+              normalRange: t.normalRange,
+              category: t.category,
+              requiresExternalLab: t.requiresExternalLab,
+            }))}
+            referredLabNames={referredLabNameRows.map((r) => r.referredLabName)}
+          />
+
+          {externalReferrals.length === 0 ? (
+            <EmptyState icon={FlaskConical} message="No external lab referrals yet." />
+          ) : (
+            <Card>
+              <CardContent className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Age</TableHead>
+                      <TableHead>ID</TableHead>
+                      <TableHead>Requested test</TableHead>
+                      <TableHead>Refer lab</TableHead>
+                      <TableHead>Sample collected time</TableHead>
+                      <TableHead>Requested time</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead className="text-right">Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {externalReferrals.map((referral) => (
+                      <TableRow key={referral.id}>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {referral.createdAt.toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          })}
+                        </TableCell>
+                        <TableCell className="font-medium">
+                          <Link
+                            href={`/staff/patients/${referral.patientId}`}
+                            className="underline underline-offset-2"
+                          >
+                            {referral.patient.name}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {calculateAge(referral.patient.dob) ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {referral.patient.patientCode ?? "—"}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          {referral.items.map((i) => i.labTest.name).join(", ")}
+                        </TableCell>
+                        <TableCell className="text-muted-foreground">
+                          <div className="flex items-center gap-1.5">
+                            {referral.referredLabName}
+                            {referral.documentName && (
+                              <a
+                                href={`/api/external-lab-referrals/${referral.id}/file`}
+                                target="_blank"
+                                rel="noreferrer"
+                                title={referral.documentName}
+                                className="text-primary hover:text-primary/80"
+                              >
+                                <FileText className="size-4" />
+                              </a>
+                            )}
+                          </div>
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {referral.sampleCollectedAt.toLocaleString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </TableCell>
+                        <TableCell className="whitespace-nowrap text-muted-foreground">
+                          {referral.requestedAt.toLocaleString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          })}
+                        </TableCell>
+                        <TableCell>
+                          <Badge className={STATUS_STYLES[referral.status]}>
+                            {referral.status === "SENDING"
+                              ? "Sending"
+                              : referral.status === "RECEIVED"
+                                ? "Received"
+                                : "Cancelled"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {referral.status === "SENDING" ? (
+                            <div className="flex items-center justify-end gap-3">
+                              <form action={markExternalLabReferralReceived.bind(null, referral.id)} className="inline">
+                                <button
+                                  type="submit"
+                                  className="font-medium text-primary underline underline-offset-2"
+                                >
+                                  Mark Received
+                                </button>
+                              </form>
+                              <form action={cancelExternalLabReferral.bind(null, referral.id)} className="inline">
+                                <button
+                                  type="submit"
+                                  className="font-medium text-destructive underline underline-offset-2"
+                                >
+                                  Cancel
+                                </button>
+                              </form>
+                            </div>
+                          ) : referral.status === "RECEIVED" &&
+                            !referral.items.every((i) => i.resultEnteredAt) ? (
+                            <Link
+                              href={`/staff/lab/external/${referral.id}`}
+                              className="font-medium text-primary underline underline-offset-2"
+                            >
+                              Enter results
+                            </Link>
+                          ) : (
+                            <span className="whitespace-nowrap text-muted-foreground">
+                              {referral.status === "RECEIVED" ? referral.receivedByName : referral.cancelledByName}
+                            </span>
+                          )}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
+
       {tab === "catalog" && (
         <div className="grid gap-4">
           <div className="flex items-center justify-end">
@@ -227,6 +404,14 @@ export default async function LabPage({
                                     {Number(test.price).toFixed(2)}
                                     {test.unit && ` — ${test.unit}`}
                                   </p>
+                                  {test.requiresExternalLab && (
+                                    <Badge
+                                      variant="outline"
+                                      className="mt-1 w-fit border-amber-300 text-amber-700"
+                                    >
+                                      Sent Externally
+                                    </Badge>
+                                  )}
                                 </div>
                               </div>
                               <div className="grid justify-items-end gap-1">

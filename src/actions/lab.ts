@@ -14,6 +14,7 @@ const labTestSchema = z.object({
   normalRange: z.string().optional(),
   price: z.coerce.number().nonnegative(),
   category: z.enum(LAB_TEST_CATEGORIES),
+  requiresExternalLab: z.enum(["on", "off"]).transform((v) => v === "on"),
 });
 
 export type LabTestFormState = { error?: string; success?: boolean };
@@ -25,6 +26,7 @@ function parseLabTestForm(formData: FormData) {
     normalRange: formData.get("normalRange") || undefined,
     price: formData.get("price"),
     category: formData.get("category") || undefined,
+    requiresExternalLab: formData.get("requiresExternalLab") ? "on" : "off",
   });
 }
 
@@ -83,13 +85,19 @@ export async function deleteLabTest(
   /* eslint-enable @typescript-eslint/no-unused-vars */
   await requireRole(STAFF_ROLES);
 
-  const [orderItemCount, linkedService] = await Promise.all([
+  const [orderItemCount, referralItemCount, linkedService] = await Promise.all([
     prisma.labOrderItem.count({ where: { labTestId } }),
+    prisma.externalLabReferralItem.count({ where: { labTestId } }),
     prisma.clinicService.findUnique({ where: { labTestId } }),
   ]);
   if (orderItemCount > 0) {
     return {
       error: `Can't delete — ordered ${orderItemCount} time${orderItemCount === 1 ? "" : "s"} already. Existing lab orders need this record to keep their results.`,
+    };
+  }
+  if (referralItemCount > 0) {
+    return {
+      error: `Can't delete — referred to an external lab ${referralItemCount} time${referralItemCount === 1 ? "" : "s"} already.`,
     };
   }
   if (linkedService) {

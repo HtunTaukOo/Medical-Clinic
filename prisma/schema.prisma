@@ -114,6 +114,7 @@ model Patient {
   medicalRecords       MedicalRecord[]
   pillReminders        PillReminder[]
   labOrders            LabOrder[]
+  externalLabReferrals ExternalLabReferral[]
   telegramChatMessages TelegramChatMessage[]
   waitlistEntries      Waitlist[]
   diagnoses            Diagnosis[]
@@ -893,17 +894,19 @@ enum LabTestCategory {
 }
 
 model LabTest {
-  id          String          @id @default(cuid())
-  name        String
-  unit        String?
-  normalRange String?
-  price       Decimal         @db.Decimal(10, 2)
-  category    LabTestCategory @default(GENERAL_HEALTH)
-  createdAt   DateTime        @default(now())
-  updatedAt   DateTime        @updatedAt
+  id                  String          @id @default(cuid())
+  name                String
+  unit                String?
+  normalRange         String?
+  price               Decimal         @db.Decimal(10, 2)
+  category            LabTestCategory @default(GENERAL_HEALTH)
+  requiresExternalLab Boolean         @default(false)
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
 
-  orderItems    LabOrderItem[]
-  clinicService ClinicService?
+  orderItems            LabOrderItem[]
+  clinicService         ClinicService?
+  externalReferralItems ExternalLabReferralItem[]
 }
 
 enum LabOrderStatus {
@@ -952,6 +955,59 @@ model LabOrderItem {
   resultNote      String?
   resultStatus    LabResultStatus?
   resultEnteredAt DateTime?
+}
+
+enum ExternalLabReferralStatus {
+  SENDING
+  RECEIVED
+  CANCELLED
+}
+
+// Tracks a sample the clinic collected in-house but sent OUT to an external
+// referral lab for a test it can't run itself — a distinct, lighter-weight
+// workflow from LabOrder (which is for tests the clinic performs directly).
+// No price fields here: this is a hand-off tracker, not a billing record.
+model ExternalLabReferral {
+  id                String                    @id @default(cuid())
+  patientId         String
+  patient           Patient                   @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  referredLabName   String
+  status            ExternalLabReferralStatus @default(SENDING)
+  sampleCollectedAt DateTime
+  requestedAt       DateTime
+  notes             String?
+  documentName      String?
+  documentType      String?
+  documentData      Bytes?
+  createdById       String
+  createdByName     String
+  receivedById      String?
+  receivedByName    String?
+  receivedAt        DateTime?
+  cancelledById     String?
+  cancelledByName   String?
+  cancelledAt       DateTime?
+  createdAt         DateTime                  @default(now())
+  updatedAt         DateTime                  @updatedAt
+
+  items ExternalLabReferralItem[]
+
+  @@index([patientId])
+  @@index([status])
+}
+
+model ExternalLabReferralItem {
+  id                    String              @id @default(cuid())
+  externalLabReferralId String
+  externalLabReferral   ExternalLabReferral @relation(fields: [externalLabReferralId], references: [id], onDelete: Cascade)
+  labTestId             String
+  labTest               LabTest             @relation(fields: [labTestId], references: [id])
+  resultValue           String?
+  resultNote            String?
+  resultStatus          LabResultStatus?
+  resultEnteredAt       DateTime?
+
+  @@index([externalLabReferralId])
 }
 
 model Specialty {

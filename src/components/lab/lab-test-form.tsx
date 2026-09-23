@@ -22,6 +22,7 @@ type ExistingTest = {
   normalRange: string | null;
   price: number;
   category: (typeof LAB_TEST_CATEGORIES)[number];
+  requiresExternalLab: boolean;
 };
 
 export function LabTestForm({ test }: { test?: ExistingTest }) {
@@ -81,6 +82,15 @@ export function LabTestForm({ test }: { test?: ExistingTest }) {
           required
         />
       </div>
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="requiresExternalLab"
+          defaultChecked={test?.requiresExternalLab ?? false}
+          className="size-4"
+        />
+        Requires sending to an external lab
+      </label>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
         {test ? "Save changes" : "Create test"}

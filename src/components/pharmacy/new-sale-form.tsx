@@ -200,9 +200,16 @@ export function NewSaleForm({
     setDismissed(true);
   }
 
-  const subtotal = items.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+  // Prescribed items are already billed on the appointment's own invoice —
+  // only OTC items (a pure walk-in sale, or extras added on top of a
+  // looked-up prescription) get charged again here.
+  const rxItemsList = items.filter((i) => i.source === "rx");
+  const otcItemsList = items.filter((i) => i.source === "otc");
+  const rxSubtotal = rxItemsList.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+  const otcSubtotal = otcItemsList.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
   const discountValue = Number(discount) || 0;
-  const total = Math.max(0, subtotal - discountValue);
+  const total = Math.max(0, otcSubtotal - discountValue);
+  const hasOtcItems = otcItemsList.length > 0;
 
   function handleSubmit(formData: FormData) {
     if (!patient || items.length === 0) return;
@@ -211,31 +218,54 @@ export function NewSaleForm({
     if (initialRequestId) formData.set("requestId", initialRequestId);
     formData.set(
       "items",
-      JSON.stringify(items.map(({ medicineId, name, quantity, unitPrice }) => ({ medicineId, name, quantity, unitPrice })))
+      JSON.stringify(
+        items.map(({ medicineId, name, quantity, unitPrice, source }) => ({
+          medicineId,
+          name,
+          quantity,
+          unitPrice,
+          source,
+        }))
+      )
     );
     formData.set("discount", String(discountValue));
     formData.set("paymentMethod", paymentMethod);
     return formAction(formData);
   }
 
-  if (state.success && state.saleId && !dismissed) {
+  if (state.success && !dismissed) {
     return (
       <Card>
         <CardContent className="grid justify-items-center gap-4 py-12 text-center">
-          <p className="text-lg font-semibold text-emerald-700">Sale completed successfully.</p>
-          <p className="text-sm text-muted-foreground">
-            {formatKyat(total)} charged to {patient?.name}.
-          </p>
-          <div className="flex items-center gap-2">
-            <Button asChild>
-              <Link href={`/pharmacy-receipt/${state.saleId}`} target="_blank">
-                Print Receipt
-              </Link>
-            </Button>
-            <Button variant="outline" onClick={resetSale}>
-              New Sale
-            </Button>
-          </div>
+          {state.saleId ? (
+            <>
+              <p className="text-lg font-semibold text-emerald-700">Sale completed successfully.</p>
+              <p className="text-sm text-muted-foreground">
+                {formatKyat(total)} charged to {patient?.name}.
+              </p>
+              <div className="flex items-center gap-2">
+                <Button asChild>
+                  <Link href={`/pharmacy-receipt/${state.saleId}`} target="_blank">
+                    Print Receipt
+                  </Link>
+                </Button>
+                <Button variant="outline" onClick={resetSale}>
+                  New Sale
+                </Button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p className="text-lg font-semibold text-emerald-700">Prescription dispensed.</p>
+              <p className="text-sm text-muted-foreground">
+                {patient?.name}&rsquo;s prescribed medicines have been given out — already billed on
+                their visit invoice, so no new charge or sale was created.
+              </p>
+              <Button variant="outline" onClick={resetSale}>
+                New Sale
+              </Button>
+            </>
+          )}
         </CardContent>
       </Card>
     );
@@ -461,10 +491,17 @@ export function NewSaleForm({
             <span>{items.length}</span>
           </div>
 
+          {rxItemsList.length > 0 && (
+            <div className="flex items-center justify-between border-t pt-3 text-muted-foreground">
+              <span>Prescribed (already invoiced)</span>
+              <span>{formatKyat(rxSubtotal)} · no charge</span>
+            </div>
+          )}
+
           <div className="grid gap-2 border-t pt-3">
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Subtotal</span>
-              <span>{formatKyat(subtotal)}</span>
+              <span>{formatKyat(otcSubtotal)}</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="text-muted-foreground">Discount</span>
@@ -475,6 +512,7 @@ export function NewSaleForm({
                   min={0}
                   value={discount}
                   onChange={(e) => setDiscount(e.target.value)}
+                  disabled={!hasOtcItems}
                   className="h-7 w-20 text-right"
                 />
               </div>
@@ -490,30 +528,32 @@ export function NewSaleForm({
             <span className="text-primary">{formatKyat(total)}</span>
           </div>
 
-          <div className="grid gap-2 border-t pt-3">
-            <Label>Payment Method</Label>
-            <div className="grid grid-cols-3 gap-2">
-              {PAYMENT_METHODS.map((m) => (
-                <button
-                  key={m.value}
-                  type="button"
-                  onClick={() => setPaymentMethod(m.value)}
-                  className={
-                    paymentMethod === m.value
-                      ? "rounded-md bg-primary py-1.5 text-sm font-medium text-primary-foreground"
-                      : "rounded-md border py-1.5 text-sm font-medium hover:bg-muted"
-                  }
-                >
-                  {m.label}
-                </button>
-              ))}
+          {hasOtcItems && (
+            <div className="grid gap-2 border-t pt-3">
+              <Label>Payment Method</Label>
+              <div className="grid grid-cols-3 gap-2">
+                {PAYMENT_METHODS.map((m) => (
+                  <button
+                    key={m.value}
+                    type="button"
+                    onClick={() => setPaymentMethod(m.value)}
+                    className={
+                      paymentMethod === m.value
+                        ? "rounded-md bg-primary py-1.5 text-sm font-medium text-primary-foreground"
+                        : "rounded-md border py-1.5 text-sm font-medium hover:bg-muted"
+                    }
+                  >
+                    {m.label}
+                  </button>
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
           <Button type="submit" size="lg" disabled={pending || !patient || items.length === 0}>
-            Complete Sale
+            {hasOtcItems ? "Complete Sale" : "Dispense Prescription"}
           </Button>
           <Button type="button" variant="outline" disabled>
             Print Receipt
@@ -522,7 +562,7 @@ export function NewSaleForm({
           <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">
             <AlertTriangle className="mt-0.5 size-4 shrink-0" />
             <span>
-              Sell only prescribed medicines in approved quantities. Verify patient identity
+              Dispense only prescribed medicines in approved quantities. Verify patient identity
               before dispensing.
             </span>
           </div>

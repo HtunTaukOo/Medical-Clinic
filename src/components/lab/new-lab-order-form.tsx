@@ -28,6 +28,7 @@ type Test = {
   normalRange: string | null;
   price: number;
   category: (typeof LAB_TEST_CATEGORIES)[number];
+  requiresExternalLab: boolean;
 };
 
 export function NewLabOrderForm({
@@ -205,7 +206,14 @@ export function NewLabOrderForm({
                                 className="size-4"
                               />
                               <div>
-                                <p className="text-sm font-medium">{test.name}</p>
+                                <p className="text-sm font-medium">
+                                  {test.name}
+                                  {test.requiresExternalLab && (
+                                    <span className="ml-2 text-xs font-normal text-amber-700">
+                                      Sent externally
+                                    </span>
+                                  )}
+                                </p>
                                 {test.normalRange && (
                                   <p className="text-xs text-muted-foreground">
                                     Normal: {test.normalRange}

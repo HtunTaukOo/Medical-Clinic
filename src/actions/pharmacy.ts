@@ -13,6 +13,11 @@ const saleItemSchema = z.object({
   name: z.string().min(1),
   quantity: z.coerce.number().int().positive(),
   unitPrice: z.coerce.number().nonnegative(),
+  // "rx" items were already billed on the appointment's invoice the moment
+  // the doctor wrote the prescription (see createPrescription) — dispensing
+  // them here must not charge the patient again. Only "otc" items (added on
+  // top of a looked-up prescription, or a pure walk-in sale) get billed.
+  source: z.enum(["rx", "otc"]).default("otc"),
 });
 
 const saleSchema = z.object({
@@ -55,10 +60,14 @@ export async function completeSale(
   const { patientId, prescriptionId, requestId, items: saleItems, discount, paymentMethod } =
     parsed.data;
 
-  const subtotal = saleItems.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
-  const total = Math.max(0, subtotal - discount);
+  // "rx" items are dispensing a prescription already billed on the
+  // appointment's invoice — no new charge. Only "otc" items (a pure walk-in
+  // sale, or extras added alongside a looked-up prescription) get billed.
+  const otcItems = saleItems.filter((i) => i.source === "otc");
+  const otcSubtotal = otcItems.reduce((sum, i) => sum + i.quantity * i.unitPrice, 0);
+  const total = Math.max(0, otcSubtotal - discount);
 
-  let saleId: string;
+  let saleId: string | null;
   try {
     saleId = await prisma.$transaction(async (tx) => {
       for (const item of saleItems) {
@@ -78,9 +87,34 @@ export async function completeSale(
             medicineId: item.medicineId,
             type: "OUT",
             quantity: item.quantity,
-            reason: "Pharmacy sale",
+            reason: item.source === "rx" ? "Prescription dispensed" : "Pharmacy sale",
           },
         });
+      }
+
+      if (prescriptionId) {
+        await tx.prescription.update({
+          where: { id: prescriptionId },
+          data: { fulfilled: true, fulfilledAt: new Date() },
+        });
+      }
+
+      // Nothing billable in this transaction (a pure prescription pickup,
+      // no OTC add-ons) — dispense only, no sale/invoice record at all, so
+      // it doesn't show up as a "sale" anywhere in Pharmacy or Billing.
+      if (otcItems.length === 0) {
+        if (requestId) {
+          await tx.medicineRequest.updateMany({
+            where: { id: requestId, status: "PENDING" },
+            data: {
+              status: "COMPLETED",
+              completedById: session.user.id,
+              completedByName: session.user.name ?? "Staff",
+              completedAt: new Date(),
+            },
+          });
+        }
+        return null;
       }
 
       const sale = await tx.pharmacySale.create({
@@ -88,12 +122,12 @@ export async function completeSale(
           patientId,
           prescriptionId,
           soldById: session.user.id,
-          subtotal,
+          subtotal: otcSubtotal,
           discount,
           total,
           paymentMethod,
           items: {
-            create: saleItems.map((item) => ({
+            create: otcItems.map((item) => ({
               medicineId: item.medicineId,
               name: item.name,
               quantity: item.quantity,
@@ -103,22 +137,17 @@ export async function completeSale(
         },
       });
 
-      if (prescriptionId) {
-        await tx.prescription.update({
-          where: { id: prescriptionId },
-          data: { fulfilled: true, fulfilledAt: new Date() },
-        });
-      }
-
       // A pharmacy sale is billed and paid in the same step (no separate
       // "receive payment" flow like appointment invoices), so the invoice is
-      // created already PAID. Line items mirror the sale items; a discount
-      // becomes its own negative-amount line so items still sum to `total`
-      // — recomputeInvoiceStatus (run after any later refund) recomputes
-      // `total` straight from the item sum, so this has to hold or a
-      // discounted sale's total would silently drift back up after a return.
+      // created already PAID. Line items mirror the OTC sale items only — the
+      // prescribed items are excluded, since they're already on the
+      // appointment's own invoice. A discount becomes its own negative-amount
+      // line so items still sum to `total` — recomputeInvoiceStatus (run
+      // after any later refund) recomputes `total` straight from the item
+      // sum, so this has to hold or a discounted sale's total would silently
+      // drift back up after a return.
       const invoiceItems: { description: string; quantity: number; unitPrice: number }[] =
-        saleItems.map((item) => ({
+        otcItems.map((item) => ({
           description: item.name,
           quantity: item.quantity,
           unitPrice: item.unitPrice,
@@ -178,7 +207,7 @@ export async function completeSale(
   revalidatePath("/staff/inventory");
   revalidatePath("/staff/billing");
   revalidatePath("/staff/reports");
-  return { success: true, saleId };
+  return { success: true, saleId: saleId ?? undefined };
 }
 
 export async function processReturn(saleId: string) {

@@ -27,6 +27,7 @@ export default async function EditLabTestPage({
           normalRange: test.normalRange,
           price: Number(test.price),
           category: test.category,
+          requiresExternalLab: test.requiresExternalLab,
         }}
       />
     </div>

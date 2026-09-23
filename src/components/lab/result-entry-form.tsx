@@ -1,7 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
-import { enterResults, type EnterResultsState } from "@/actions/lab";
+import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -18,18 +18,18 @@ type Item = {
   labTest: { name: string; unit: string | null; normalRange: string | null };
 };
 
+type ResultFormState = { error?: string; success?: boolean };
+
 export function ResultEntryForm({
-  labOrderId,
+  action,
   items,
+  showDocumentUpload,
 }: {
-  labOrderId: string;
+  action: (prevState: ResultFormState, formData: FormData) => Promise<ResultFormState>;
   items: Item[];
+  showDocumentUpload?: boolean;
 }) {
-  const boundAction = enterResults.bind(null, labOrderId);
-  const [state, formAction, pending] = useActionState<EnterResultsState, FormData>(
-    boundAction,
-    {}
-  );
+  const [state, formAction, pending] = useActionState<ResultFormState, FormData>(action, {});
 
   return (
     <form action={formAction} className="grid gap-6">
@@ -72,6 +72,21 @@ export function ResultEntryForm({
           </div>
         </div>
       ))}
+      {showDocumentUpload && (
+        <div className="grid gap-2">
+          <Label htmlFor="document">Document (optional)</Label>
+          <div className="relative">
+            <Upload className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              id="document"
+              name="document"
+              type="file"
+              accept=".pdf,.png,.jpg,.jpeg,.webp"
+              className="pl-8"
+            />
+          </div>
+        </div>
+      )}
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
         Save results

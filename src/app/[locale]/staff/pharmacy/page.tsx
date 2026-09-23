@@ -191,7 +191,7 @@ export default async function PharmacyPage({
                   </div>
                   <Button asChild size="sm">
                     <Link href={`/staff/pharmacy?tab=new&rx=${rxCode(rxItem.id, rxItem.createdAt)}`}>
-                      Sell
+                      Dispense
                     </Link>
                   </Button>
                 </CardContent>
@@ -237,7 +237,7 @@ export default async function PharmacyPage({
                     </div>
                     <div className="flex items-center gap-2">
                       <Button asChild size="sm">
-                        <Link href={sellHref}>Sell</Link>
+                        <Link href={sellHref}>{isRefill ? "Dispense" : "Sell"}</Link>
                       </Button>
                       <form action={cancelMedicineRequest.bind(null, req.id)}>
                         <button
