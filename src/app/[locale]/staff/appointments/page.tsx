@@ -56,17 +56,23 @@ const TABS = [
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
 
-function getRowDisplay(
-  status: string,
-  { isInProgress, isWaiting }: { isInProgress: boolean; isWaiting: boolean }
-) {
+// Maps the row's real status (plus consultationStartedAt) straight to a
+// label — not a proxy like "first checked-in today" — so every row reads
+// correctly on every tab, not just "Today". CONFIRMED means the slot is on
+// the calendar but the patient hasn't arrived, so it reads "Confirmed", not
+// "Waiting" (that's reserved for someone actually checked in and not yet
+// with the doctor).
+function getRowDisplay(status: string, consultationStartedAt: Date | null) {
   if (status === "COMPLETED") return { label: "Completed", className: "bg-emerald-100 text-emerald-700" };
   if (status === "CANCELLED") return { label: "Cancelled", className: "bg-rose-100 text-rose-700" };
   if (status === "NO_SHOW") return { label: "No-show", className: "bg-rose-100 text-rose-700" };
-  if (isInProgress) return { label: "In Progress", className: "bg-purple-100 text-purple-700" };
-  if (isWaiting || status === "CONFIRMED") {
-    return { label: "Waiting", className: "bg-amber-100 text-amber-700" };
+  if (status === "CHECKED_IN") {
+    return consultationStartedAt
+      ? { label: "In Progress", className: "bg-purple-100 text-purple-700" }
+      : { label: "Waiting", className: "bg-amber-100 text-amber-700" };
   }
+  if (status === "CONFIRMED") return { label: "Confirmed", className: "bg-blue-100 text-blue-700" };
+  if (status === "REQUESTED") return { label: "Requested", className: "bg-amber-100 text-amber-700" };
   return { label: "Scheduled", className: "bg-blue-100 text-blue-700" };
 }
 
@@ -152,19 +158,9 @@ export default async function AppointmentsPage({
 
   const filteredAppointments = appointments.filter(matchesFilters);
 
-  const checkedInToday = appointments
-    .filter((a) => matchesTab(a, "today") && a.status === "CHECKED_IN")
-    .sort((a, b) => (a.checkedInAt?.getTime() ?? 0) - (b.checkedInAt?.getTime() ?? 0));
-  const inProgressApptId = checkedInToday[0]?.id ?? null;
-  const waitingApptIds = new Set(checkedInToday.slice(1).map((a) => a.id));
-
   const visibleAppointments = filteredAppointments
     .filter((a) => matchesTab(a, tab))
-    .sort((a, b) =>
-      tab === "today" || tab === "upcoming"
-        ? a.scheduledAt.getTime() - b.scheduledAt.getTime()
-        : b.scheduledAt.getTime() - a.scheduledAt.getTime()
-    );
+    .sort((a, b) => b.scheduledAt.getTime() - a.scheduledAt.getTime());
 
   const weeks = getMonthGrid(year, month);
   const byDay = new Map<string, typeof appointments>();
@@ -344,9 +340,7 @@ export default async function AppointmentsPage({
               </TableHeader>
               <TableBody>
                 {visibleAppointments.map((appt, index) => {
-                  const isInProgress = tab === "today" && appt.id === inProgressApptId;
-                  const isWaiting = tab === "today" && waitingApptIds.has(appt.id);
-                  const { label, className } = getRowDisplay(appt.status, { isInProgress, isWaiting });
+                  const { label, className } = getRowDisplay(appt.status, appt.consultationStartedAt);
                   return (
                     <TableRow key={appt.id}>
                       <TableCell className="text-muted-foreground">{index + 1}</TableCell>
