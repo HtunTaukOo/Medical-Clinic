@@ -73,6 +73,7 @@
       "home": "Home",
       "services": "Services",
       "aboutUs": "About Us",
+      "location": "Location",
       "contact": "Contact",
       "signUp": "Sign Up",
       "login": "Login"
@@ -89,6 +90,8 @@
       "photoAlt": "A nurse assisting a patient at the NCA Clinic front desk"
     },
     "features": {
+      "eyebrow": "Services",
+      "heading": "Good quality services for you",
       "appointmentBookingTitle": "Appointment Booking",
       "appointmentBookingDesc": "Book an appointment with your doctor online at a convenient date and time.",
       "labTestsTitle": "Lab Tests",
@@ -121,16 +124,26 @@
       "step5": "Continue Treatment"
     },
     "cta": {
-      "title": "Get Started with NCA Clinic Web Application",
+      "title": "Make an Appointment",
+      "description": "Your healthcare information — always within reach. Sign in securely to manage appointments, review records, and see your latest results.",
       "signUp": "Sign Up",
       "login": "Login"
     },
+    "location": {
+      "eyebrow": "Location",
+      "heading": "Easy to find. Easy to reach.",
+      "findLabel": "Find NCA Clinic",
+      "description": "We are located at {address}.",
+      "mapAlt": "Map showing the NCA Clinic location"
+    },
     "contact": {
       "title": "Get in Touch",
+      "eyebrow": "Contacts",
       "addressTitle": "Visit Us",
       "phoneTitle": "Call Us",
       "emailTitle": "Email Us",
       "getDirections": "Get Directions",
+      "responseHours": "Response hours: {opening} to {closing}",
       "noContactYet": "Contact details will be posted here soon."
     },
     "footer": {

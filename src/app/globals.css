@@ -207,3 +207,38 @@
     transform: translateX(200%);
   }
 }
+
+/* Landing page orbit-icon ring (see orbit-icon-ring.tsx) — the ring layer
+   spins continuously while each icon badge spins the opposite direction at
+   the same speed, cancelling out so the icon glyphs stay upright even
+   though their position sweeps around the circle. */
+@keyframes orbit-spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes orbit-spin-reverse {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(-360deg);
+  }
+}
+
+/* Landing page hero photo collage (see hero-photo-collage.tsx) — each piece
+   fades/slides in with a per-element animation-delay so they appear to land
+   one after another rather than all at once. */
+@keyframes collage-in {
+  from {
+    opacity: 0;
+    transform: translateY(18px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
