@@ -570,7 +570,7 @@ export default async function StaffDashboardPage({
               icon={Stethoscope}
               label="Active Doctors"
               value={activeDoctorsCount}
-              className="bg-emerald-600"
+              className="bg-[#D4A03A]"
             />
             <SolidStatCard
               icon={Wallet}
