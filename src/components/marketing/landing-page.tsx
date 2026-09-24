@@ -147,8 +147,8 @@ export async function LandingPage() {
 
       {/* Digital technology — orbit-icon ring + real screenshots */}
       <section id="digital" className="bg-muted/40 py-16">
-        <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-center">
-          <div className="flex justify-center">
+        <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-start">
+          <div className="flex justify-center pt-4">
             <OrbitIconRing hasLogo={hasLogo} label={tApp("shortName")} />
           </div>
 
