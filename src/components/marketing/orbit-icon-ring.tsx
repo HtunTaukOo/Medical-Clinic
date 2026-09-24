@@ -23,16 +23,15 @@ const ORBIT_ITEMS = [
 // speed, cancelling the parent's rotation so the icon glyph itself stays
 // upright throughout — the classic "counter-rotating children" technique,
 // pure CSS, no animation library or client component needed.
-export function OrbitIconRing({ hasLogo, label }: { hasLogo: boolean; label: string }) {
+export function OrbitIconRing({ hasLogo }: { hasLogo: boolean }) {
   return (
     <div className="relative mx-auto" style={{ width: `${RING_SIZE_REM}rem`, height: `${RING_SIZE_REM}rem` }}>
       <div className="absolute inset-0 rounded-full border border-primary/20" />
       <div className="absolute inset-10 rounded-full border border-primary/10" />
 
       <div className="absolute inset-0 grid place-items-center">
-        <div className="grid size-36 place-items-center gap-0 rounded-full bg-gradient-to-br from-violet-100 via-primary/10 to-primary/15 text-center shadow-inner ring-1 ring-primary/10">
-          <ClinicLogo hasLogo={hasLogo} className="size-12 rounded-lg" />
-          <span className="-mt-0.5 text-xs font-bold tracking-wide text-primary uppercase">{label}</span>
+        <div className="grid size-36 place-items-center rounded-full bg-gradient-to-br from-violet-100 via-primary/10 to-primary/15 shadow-inner ring-1 ring-primary/10">
+          <ClinicLogo hasLogo={hasLogo} className="size-32 rounded-full" />
         </div>
       </div>
 

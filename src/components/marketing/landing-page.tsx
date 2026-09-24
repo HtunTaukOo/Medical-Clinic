@@ -19,6 +19,7 @@ import { ClinicLogo } from "@/components/clinic-logo";
 import { LocaleSwitcher } from "@/components/locale-switcher";
 import { OrbitIconRing } from "@/components/marketing/orbit-icon-ring";
 import { HeroPhotoCollage } from "@/components/marketing/hero-photo-collage";
+import { CtaPhotoCluster } from "@/components/marketing/cta-photo-cluster";
 import { getClinicSettings, getClinicHoursForDate, formatTime } from "@/lib/clinic-hours";
 
 const FEATURE_ICONS = [CalendarDays, FlaskConical, FileText, Pill, UserPlus, Clock] as const;
@@ -149,7 +150,7 @@ export async function LandingPage() {
       <section id="digital" className="bg-muted/40 py-16">
         <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-start">
           <div className="flex justify-center pt-4">
-            <OrbitIconRing hasLogo={hasLogo} label={tApp("shortName")} />
+            <OrbitIconRing hasLogo={hasLogo} />
           </div>
 
           <div className="grid gap-8">
@@ -223,7 +224,7 @@ export async function LandingPage() {
                 key={feature.titleKey}
                 className="grid gap-3 rounded-2xl border bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
               >
-                <div className="flex size-12 items-center justify-center rounded-full bg-teal-50 text-teal-600">
+                <div className="flex size-12 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                   <Icon className="size-6" />
                 </div>
                 <h3 className="font-semibold">{t(`features.${feature.titleKey}`)}</h3>
@@ -235,8 +236,8 @@ export async function LandingPage() {
       </section>
 
       {/* CTA */}
-      <section className="mx-auto max-w-6xl px-4 pb-16 sm:px-6">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary-mid to-primary px-6 py-12 text-primary-foreground sm:px-12">
+      <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary-mid to-sky-400 px-6 py-12 text-primary-foreground sm:px-12">
           <div
             aria-hidden
             className="pointer-events-none absolute -top-16 -right-16 size-64 rounded-full bg-white/10 blur-2xl"
@@ -260,15 +261,13 @@ export async function LandingPage() {
                 </Button>
               </div>
             </div>
-            <div className="relative mx-auto hidden size-40 shrink-0 overflow-hidden rounded-full ring-4 ring-white/20 sm:block">
-              <Image src="/marketing/landing-hero-photo.png" alt="" aria-hidden fill className="object-cover" />
-            </div>
+            <CtaPhotoCluster />
           </div>
         </div>
       </section>
 
       {/* Location */}
-      <section id="location" className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <section id="location" className="mx-auto max-w-6xl px-4 pt-8 pb-16 sm:px-6">
         <p className="mb-8 text-center text-sm font-semibold tracking-wide text-primary uppercase">
           {t("location.eyebrow")}
         </p>
