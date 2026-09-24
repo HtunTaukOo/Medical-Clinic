@@ -264,6 +264,28 @@ export default async function AppointmentDetailPage({
         </Card>
       )}
 
+      {appointment.notes && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Clinical Notes</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm">{appointment.notes}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {appointment.treatmentPlan && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Treatment Plan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="whitespace-pre-wrap text-sm">{appointment.treatmentPlan}</p>
+          </CardContent>
+        </Card>
+      )}
+
       {appointment.prescriptions.length > 0 && (
         <Card>
           <CardHeader>
