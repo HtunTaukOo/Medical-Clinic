@@ -87,7 +87,10 @@
       "secureReliable": "Secure & Reliable",
       "easyToUse": "Easy to Use",
       "saveTime": "Save Time",
-      "photoAlt": "A nurse assisting a patient at the NCA Clinic front desk"
+      "photoAlt1": "A stethoscope and medication on a patient history form",
+      "photoAlt2": "Gloved hands labeling a blood sample tube next to a rack of samples",
+      "photoAlt3": "A doctor holding a stethoscope surrounded by medical icons",
+      "photoAlt4": "A stethoscope resting on medical reports and charts"
     },
     "features": {
       "eyebrow": "Services",

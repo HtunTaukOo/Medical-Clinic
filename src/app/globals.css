@@ -229,16 +229,27 @@
   }
 }
 
-/* Landing page hero photo collage (see hero-photo-collage.tsx) — each piece
-   fades/slides in with a per-element animation-delay so they appear to land
-   one after another rather than all at once. */
-@keyframes collage-in {
+/* Landing page hero photo collage (see hero-photo-collage.tsx) — each photo
+   slides in from its own side (left-column tiles from the left, right-column
+   tiles from the right) with a per-element animation-delay, so they appear
+   to move into place side by side one after another rather than all at once. */
+@keyframes collage-in-left {
   from {
     opacity: 0;
-    transform: translateY(18px) scale(0.94);
+    transform: translateX(-32px);
   }
   to {
     opacity: 1;
-    transform: translateY(0) scale(1);
+    transform: translateX(0);
+  }
+}
+@keyframes collage-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(32px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }

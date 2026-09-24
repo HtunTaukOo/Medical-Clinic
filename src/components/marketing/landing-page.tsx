@@ -134,7 +134,14 @@ export async function LandingPage() {
               })}
             </div>
           </div>
-          <HeroPhotoCollage photoAlt={t("hero.photoAlt")} />
+          <HeroPhotoCollage
+            altTexts={[
+              t("hero.photoAlt1"),
+              t("hero.photoAlt2"),
+              t("hero.photoAlt3"),
+              t("hero.photoAlt4"),
+            ]}
+          />
         </div>
       </section>
 
