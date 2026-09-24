@@ -28,6 +28,13 @@ export function SymptomPicker({
   defaultValues: string[];
 }) {
   const [selected, setSelected] = useState<string[]>(defaultValues);
+  // Custom symptoms the doctor has typed in, kept as their own pill list so
+  // toggling one off (deselecting) just dims it like a common symptom does,
+  // instead of the pill vanishing entirely because it was only ever derived
+  // from the selected list itself.
+  const [customSymptoms, setCustomSymptoms] = useState<string[]>(
+    defaultValues.filter((s) => !COMMON_SYMPTOMS.includes(s))
+  );
   const [custom, setCustom] = useState("");
 
   function toggle(symptom: string) {
@@ -38,18 +45,17 @@ export function SymptomPicker({
 
   function addCustom() {
     const value = custom.trim();
-    if (value && !selected.includes(value)) {
-      setSelected((prev) => [...prev, value]);
+    if (value) {
+      setCustomSymptoms((prev) => (prev.includes(value) ? prev : [...prev, value]));
+      setSelected((prev) => (prev.includes(value) ? prev : [...prev, value]));
     }
     setCustom("");
   }
 
-  const extraSelected = selected.filter((s) => !COMMON_SYMPTOMS.includes(s));
-
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-2">
-        {[...COMMON_SYMPTOMS, ...extraSelected].map((symptom) => {
+        {[...COMMON_SYMPTOMS, ...customSymptoms].map((symptom) => {
           const active = selected.includes(symptom);
           return (
             <button
