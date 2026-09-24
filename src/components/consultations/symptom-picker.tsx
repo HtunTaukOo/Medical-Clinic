@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -52,25 +53,45 @@ export function SymptomPicker({
     setCustom("");
   }
 
+  function removeCustom(symptom: string) {
+    setCustomSymptoms((prev) => prev.filter((s) => s !== symptom));
+    setSelected((prev) => prev.filter((s) => s !== symptom));
+  }
+
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-2">
         {[...COMMON_SYMPTOMS, ...customSymptoms].map((symptom) => {
           const active = selected.includes(symptom);
+          const isCustom = customSymptoms.includes(symptom);
           return (
-            <button
+            <span
               key={symptom}
-              type="button"
-              onClick={() => toggle(symptom)}
               className={cn(
-                "rounded-full border px-3 py-1.5 text-sm transition-colors",
+                "inline-flex items-center gap-1 rounded-full border pl-3 pr-1.5 py-1.5 text-sm transition-colors",
+                !isCustom && "pr-3",
                 active
                   ? "border-primary bg-primary text-primary-foreground"
                   : "border-input bg-background hover:bg-muted"
               )}
             >
-              {symptom}
-            </button>
+              <button type="button" onClick={() => toggle(symptom)}>
+                {symptom}
+              </button>
+              {isCustom && (
+                <button
+                  type="button"
+                  onClick={() => removeCustom(symptom)}
+                  aria-label={`Remove ${symptom}`}
+                  className={cn(
+                    "rounded-full p-0.5 transition-colors",
+                    active ? "hover:bg-white/20" : "hover:bg-black/10"
+                  )}
+                >
+                  <X className="size-3" />
+                </button>
+              )}
+            </span>
           );
         })}
       </div>
