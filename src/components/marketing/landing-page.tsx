@@ -147,7 +147,7 @@ export async function LandingPage() {
       </section>
 
       {/* Digital technology — orbit-icon ring + real screenshots */}
-      <section id="digital" className="bg-muted/40 py-16">
+      <section id="digital" className="bg-muted/40 pt-16 pb-8">
         <div className="mx-auto grid max-w-6xl gap-12 px-4 sm:px-6 lg:grid-cols-2 lg:items-start">
           <div className="flex justify-center pt-4">
             <OrbitIconRing hasLogo={hasLogo} />
@@ -211,7 +211,7 @@ export async function LandingPage() {
       </section>
 
       {/* Services */}
-      <section id="services" className="mx-auto max-w-6xl px-4 py-16 sm:px-6">
+      <section id="services" className="mx-auto max-w-6xl px-4 pt-8 pb-16 sm:px-6">
         <div className="mb-10 grid justify-items-center gap-2 text-center">
           <p className="text-sm font-semibold tracking-wide text-primary uppercase">{t("features.eyebrow")}</p>
           <h2 className="text-3xl leading-[1.3] font-bold tracking-tight sm:text-4xl">{t("features.heading")}</h2>
@@ -267,7 +267,7 @@ export async function LandingPage() {
       </section>
 
       {/* Location */}
-      <section id="location" className="mx-auto max-w-6xl px-4 pt-8 pb-16 sm:px-6">
+      <section id="location" className="mx-auto max-w-6xl px-4 pt-8 pb-8 sm:px-6">
         <p className="mb-8 text-center text-sm font-semibold tracking-wide text-primary uppercase">
           {t("location.eyebrow")}
         </p>
@@ -310,60 +310,60 @@ export async function LandingPage() {
       </section>
 
       {/* Contacts */}
-      <section id="contact" className="relative overflow-hidden bg-muted/40 py-16">
-        <div
-          aria-hidden
-          className="pointer-events-none absolute -bottom-24 -left-24 size-80 rounded-full bg-primary/10 blur-3xl"
-        />
-        <div className="relative mx-auto max-w-6xl px-4 sm:px-6">
-          <div className="mb-8 grid justify-items-center gap-3 text-center">
-            <p className="text-sm font-semibold tracking-wide text-primary uppercase">{t("contact.eyebrow")}</p>
-          </div>
-
-          {hasReachInfo ? (
-            <div className="flex flex-col items-center justify-center gap-6 rounded-3xl bg-card px-6 py-10 shadow-sm sm:flex-row sm:flex-wrap sm:gap-x-16 sm:px-12">
-              {settings.phones.length > 0 && (
-                <div className="flex items-center gap-3">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Phone className="size-5" />
-                  </div>
-                  <div className="grid gap-0.5">
-                    {settings.phones.map((phone) => (
-                      <a key={phone} href={`tel:${phone}`} className="font-medium hover:underline">
-                        {phone}
-                      </a>
-                    ))}
-                  </div>
-                </div>
-              )}
-              {settings.email && (
-                <div className="flex items-center gap-3">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Mail className="size-5" />
-                  </div>
-                  <a href={`mailto:${settings.email}`} className="font-medium hover:underline">
-                    {settings.email}
-                  </a>
-                </div>
-              )}
-              {todayHours.isOpen && (
-                <div className="flex items-center gap-3">
-                  <div className="flex size-11 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-                    <Clock className="size-5" />
-                  </div>
-                  <p className="font-medium">
-                    {t("contact.responseHours", {
-                      opening: formatTime(todayHours.openTime),
-                      closing: formatTime(todayHours.closeTime),
-                    })}
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            <p className="text-center text-sm text-muted-foreground">{t("contact.noContactYet")}</p>
-          )}
+      <section id="contact" className="relative">
+        <div className="mx-auto max-w-6xl px-4 pt-8 pb-8 text-center sm:px-6">
+          <p className="text-sm font-semibold tracking-wide text-primary uppercase">{t("contact.eyebrow")}</p>
         </div>
+
+        {hasReachInfo ? (
+          <div className="relative">
+            <svg
+              viewBox="0 0 1440 100"
+              preserveAspectRatio="none"
+              className="block h-16 w-full sm:h-20"
+              aria-hidden
+            >
+              <path d="M0,70 C 360,10 1080,10 1440,70 L1440,100 L0,100 Z" fill="var(--color-blue-200)" />
+            </svg>
+            <div className="bg-blue-200">
+              <div className="mx-auto flex max-w-6xl flex-col items-center gap-8 px-4 py-10 sm:flex-row sm:items-center sm:justify-between sm:gap-6 sm:px-6">
+                {settings.phones.length > 0 && (
+                  <div className="flex items-center gap-3">
+                    <Phone className="size-5 shrink-0 text-foreground" />
+                    <div className="flex flex-wrap justify-center gap-x-2 gap-y-1 sm:justify-start">
+                      {settings.phones.map((phone) => (
+                        <a key={phone} href={`tel:${phone}`} className="font-medium text-foreground underline">
+                          {phone}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {settings.email && (
+                  <div className="flex items-center gap-3">
+                    <Mail className="size-5 shrink-0 text-foreground" />
+                    <a href={`mailto:${settings.email}`} className="font-medium text-foreground underline">
+                      {settings.email}
+                    </a>
+                  </div>
+                )}
+                {todayHours.isOpen && (
+                  <div className="flex items-center gap-3">
+                    <Clock className="size-5 shrink-0 text-foreground" />
+                    <p className="font-medium text-foreground">
+                      {t("contact.responseHours", {
+                        opening: formatTime(todayHours.openTime),
+                        closing: formatTime(todayHours.closeTime),
+                      })}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="pb-16 text-center text-sm text-muted-foreground">{t("contact.noContactYet")}</p>
+        )}
       </section>
 
       {/* Footer */}
