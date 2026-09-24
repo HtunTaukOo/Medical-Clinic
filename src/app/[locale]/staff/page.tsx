@@ -37,6 +37,8 @@ import { MONTH_NAMES } from "@/lib/reports";
 import { SolidStatCard } from "@/components/solid-stat-card";
 import { WeeklyAppointmentsChart } from "@/components/dashboard/weekly-appointments-chart";
 import { ProfitTrendChart } from "@/components/dashboard/profit-trend-chart";
+import { RevenueTrendChart } from "@/components/dashboard/revenue-trend-chart";
+import { RevenueCategoryDonut } from "@/components/dashboard/revenue-category-donut";
 import { checkInAppointment } from "@/actions/appointments";
 import { callWalkIn } from "@/actions/walk-ins";
 import { NewAnnouncementDialog } from "@/components/staff/new-announcement-dialog";
@@ -148,6 +150,7 @@ export default async function StaffDashboardPage({
     sixMonthExpenses,
     weekAppointments,
     recentActivity,
+    categoryInvoiceItems,
   ] = await Promise.all([
     prisma.invoice.count({ where: { status: { in: ["UNPAID", "PARTIAL"] } } }),
     prisma.medicine.findMany({
@@ -281,6 +284,18 @@ export default async function StaffDashboardPage({
     role === "ADMIN"
       ? prisma.activityLog.findMany({ orderBy: { createdAt: "desc" }, take: 5 })
       : Promise.resolve([]),
+    role === "ADMIN"
+      ? prisma.invoiceItem.findMany({
+          where: { invoice: { createdAt: { gte: sixMonthsAgo }, status: { not: "UNPAID" } } },
+          select: {
+            description: true,
+            quantity: true,
+            unitPrice: true,
+            clinicServiceId: true,
+            invoice: { select: { pharmacySaleId: true } },
+          },
+        })
+      : Promise.resolve([]),
   ]);
 
   const lowStockMedicines = medicines
@@ -340,6 +355,27 @@ export default async function StaffDashboardPage({
   const lastMonthProfit = lastMonthRevenue - lastMonthExpenses;
   const profitMonthChangePct =
     lastMonthProfit > 0 ? Math.round(((monthlyProfit - lastMonthProfit) / lastMonthProfit) * 1000) / 10 : null;
+
+  // Buckets each billed line item into a revenue category by how it was
+  // created (see ensureConsultationFeeBilled / billLabTestsToInvoice / the
+  // pharmacy sale flow for these exact description prefixes) rather than a
+  // dedicated category column, since none exists on InvoiceItem — negative
+  // lines (e.g. "Discount") are excluded, they're not revenue.
+  const categoryTotals = new Map<string, number>();
+  for (const item of categoryInvoiceItems) {
+    const amount = item.quantity * Number(item.unitPrice);
+    if (amount <= 0) continue;
+    let category: string;
+    if (item.description.startsWith("Consultation — ")) category = "Consultations";
+    else if (item.description.startsWith("Lab Test — ")) category = "Lab Tests";
+    else if (item.invoice.pharmacySaleId) category = "Pharmacy Sales";
+    else if (item.clinicServiceId) category = "Clinic Services";
+    else category = "Prescriptions";
+    categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + amount);
+  }
+  const revenueByCategory = [...categoryTotals.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
 
   const weeklyAppointmentCounts = WEEKDAY_LABELS_MON_FIRST.map(() => 0);
   for (const appt of weekAppointments) {
@@ -578,6 +614,26 @@ export default async function StaffDashboardPage({
                     </p>
                   )}
                 </div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue Trend</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RevenueTrendChart data={revenueByMonth} />
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle>Revenue by Category</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <RevenueCategoryDonut data={revenueByCategory} />
               </CardContent>
             </Card>
           </div>
