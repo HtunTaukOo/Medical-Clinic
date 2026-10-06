@@ -29,6 +29,7 @@ export function ExpenseForm({
     amount: number;
     vendor: string | null;
     paidAt: string;
+    recurringExpenseId?: string | null;
   };
   // Clinic-local "today" (YYYY-MM-DD), computed server-side — the client's
   // own clock isn't trustworthy enough to default a financial record's date.
@@ -109,6 +110,21 @@ export function ExpenseForm({
           />
         </div>
       </div>
+
+      <label className="flex cursor-pointer items-start gap-3 rounded-lg border p-3 hover:bg-muted/50">
+        <input
+          name="repeatsMonthly"
+          type="checkbox"
+          defaultChecked={!!expense?.recurringExpenseId}
+          className="mt-0.5 size-4 accent-primary"
+        />
+        <span className="grid gap-0.5">
+          <span className="text-sm font-medium">Repeat monthly</span>
+          <span className="text-xs text-muted-foreground">
+            Add this expense automatically each month on the selected date.
+          </span>
+        </span>
+      </label>
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 

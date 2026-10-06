@@ -97,19 +97,19 @@ export default async function InvoiceDetailPage({
           <CardTitle>{t("invoices")}</CardTitle>
         </CardHeader>
         <CardContent>
-          <Table>
+          <Table className="table-fixed">
             <TableHeader>
               <TableRow>
-                <TableHead>{t("description")}</TableHead>
-                <TableHead>{t("quantity")}</TableHead>
-                <TableHead>{t("unitPrice")}</TableHead>
+                <TableHead className="w-[60%]">{t("description")}</TableHead>
+                <TableHead className="w-20">{t("quantity")}</TableHead>
+                <TableHead className="w-28">{t("unitPrice")}</TableHead>
                 {canEditItems && <TableHead className="text-right" />}
               </TableRow>
             </TableHeader>
             <TableBody>
               {invoice.items.map((item) => (
                 <TableRow key={item.id}>
-                  <TableCell>{item.description}</TableCell>
+                  <TableCell className="whitespace-normal break-words">{item.description}</TableCell>
                   <TableCell>{item.quantity}</TableCell>
                   <TableCell>{Number(item.unitPrice).toFixed(2)}</TableCell>
                   {canEditItems && (

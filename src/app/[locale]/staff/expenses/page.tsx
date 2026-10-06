@@ -172,6 +172,7 @@ export default async function ExpensesPage({
                               amount: Number(expense.amount),
                               vendor: expense.vendor,
                               paidAt: expense.paidAt.toISOString().slice(0, 10),
+                              recurringExpenseId: expense.recurringExpenseId,
                             }}
                           />
                           <form action={deleteExpense.bind(null, expense.id)}>

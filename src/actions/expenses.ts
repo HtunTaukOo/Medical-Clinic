@@ -5,7 +5,9 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireRole } from "@/lib/authz";
 import { parseDateOnlyInput } from "@/lib/doctor-availability";
+import { clinicDateParts } from "@/lib/clinic-hours";
 import { EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES } from "@/lib/expenses";
+import { nextMonthlyDueDate } from "@/lib/recurring-expenses";
 
 function revalidateExpenseConsumers() {
   revalidatePath("/staff/expenses");
@@ -49,15 +51,36 @@ export async function createExpense(
     return { error: "Staff can only record Supplies, Equipment, Maintenance, or Other expenses." };
   }
 
-  await prisma.expense.create({
-    data: {
-      category: parsed.data.category,
-      description: parsed.data.description,
-      amount: parsed.data.amount,
-      vendor: parsed.data.vendor || null,
-      paidAt: parseDateOnlyInput(parsed.data.paidAt),
-      recordedById: session.user.id,
-    },
+  const paidAt = parseDateOnlyInput(parsed.data.paidAt);
+  const dayOfMonth = clinicDateParts(paidAt).day;
+  const repeatsMonthly = formData.get("repeatsMonthly") === "on";
+
+  await prisma.$transaction(async (tx) => {
+    const recurringExpense = repeatsMonthly
+      ? await tx.recurringExpense.create({
+          data: {
+            category: parsed.data.category,
+            description: parsed.data.description,
+            amount: parsed.data.amount,
+            vendor: parsed.data.vendor || null,
+            dayOfMonth,
+            nextDueAt: nextMonthlyDueDate(paidAt, dayOfMonth),
+            recordedById: session.user.id,
+          },
+        })
+      : null;
+
+    await tx.expense.create({
+      data: {
+        category: parsed.data.category,
+        description: parsed.data.description,
+        amount: parsed.data.amount,
+        vendor: parsed.data.vendor || null,
+        paidAt,
+        recordedById: session.user.id,
+        recurringExpenseId: recurringExpense?.id,
+      },
+    });
   });
 
   revalidateExpenseConsumers();
@@ -82,15 +105,61 @@ export async function updateExpense(
     return { error: parsed.error.issues[0]?.message ?? "Invalid input" };
   }
 
-  await prisma.expense.update({
-    where: { id: expenseId },
-    data: {
-      category: parsed.data.category,
-      description: parsed.data.description,
-      amount: parsed.data.amount,
-      vendor: parsed.data.vendor || null,
-      paidAt: parseDateOnlyInput(parsed.data.paidAt),
-    },
+  const existing = await prisma.expense.findUniqueOrThrow({ where: { id: expenseId } });
+  const paidAt = parseDateOnlyInput(parsed.data.paidAt);
+  const dayOfMonth = clinicDateParts(paidAt).day;
+  const repeatsMonthly = formData.get("repeatsMonthly") === "on";
+
+  await prisma.$transaction(async (tx) => {
+    let recurringExpenseId = existing.recurringExpenseId;
+
+    if (repeatsMonthly) {
+      if (recurringExpenseId) {
+        await tx.recurringExpense.update({
+          where: { id: recurringExpenseId },
+          data: {
+            category: parsed.data.category,
+            description: parsed.data.description,
+            amount: parsed.data.amount,
+            vendor: parsed.data.vendor || null,
+            dayOfMonth,
+            nextDueAt: nextMonthlyDueDate(paidAt, dayOfMonth),
+            active: true,
+          },
+        });
+      } else {
+        const schedule = await tx.recurringExpense.create({
+          data: {
+            category: parsed.data.category,
+            description: parsed.data.description,
+            amount: parsed.data.amount,
+            vendor: parsed.data.vendor || null,
+            dayOfMonth,
+            nextDueAt: nextMonthlyDueDate(paidAt, dayOfMonth),
+            recordedById: existing.recordedById,
+          },
+        });
+        recurringExpenseId = schedule.id;
+      }
+    } else if (recurringExpenseId) {
+      await tx.recurringExpense.update({
+        where: { id: recurringExpenseId },
+        data: { active: false },
+      });
+      recurringExpenseId = null;
+    }
+
+    await tx.expense.update({
+      where: { id: expenseId },
+      data: {
+        category: parsed.data.category,
+        description: parsed.data.description,
+        amount: parsed.data.amount,
+        vendor: parsed.data.vendor || null,
+        paidAt,
+        recurringExpenseId,
+      },
+    });
   });
 
   revalidateExpenseConsumers();

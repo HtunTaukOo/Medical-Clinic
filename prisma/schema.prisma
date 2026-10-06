@@ -61,6 +61,7 @@ model User {
   pharmacySales      PharmacySale[]
   staffNotifications StaffNotification[]
   expenses           Expense[]
+  recurringExpenses  RecurringExpense[]
 }
 
 enum Gender {
@@ -534,11 +535,33 @@ model Expense {
   paidAt       DateTime
   recordedById String
   recordedBy   User            @relation(fields: [recordedById], references: [id])
+  recurringExpenseId String?
+  recurringExpense   RecurringExpense? @relation(fields: [recurringExpenseId], references: [id], onDelete: SetNull)
   createdAt    DateTime        @default(now())
   updatedAt    DateTime        @updatedAt
 
   @@index([paidAt])
   @@index([category])
+  @@index([recurringExpenseId])
+  @@unique([recurringExpenseId, paidAt])
+}
+
+model RecurringExpense {
+  id           String          @id @default(cuid())
+  category     ExpenseCategory
+  description  String
+  amount       Decimal         @db.Decimal(10, 2)
+  vendor       String?
+  dayOfMonth   Int
+  nextDueAt    DateTime
+  active       Boolean         @default(true)
+  recordedById String
+  recordedBy   User            @relation(fields: [recordedById], references: [id])
+  expenses     Expense[]
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  @@index([active, nextDueAt])
 }
 
 model Announcement {

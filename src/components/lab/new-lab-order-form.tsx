@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categories";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 function formatKyat(value: number) {
   return `MMK ${Math.round(value).toLocaleString()}`;
@@ -47,6 +48,9 @@ export function NewLabOrderForm({
   const [patientQuery, setPatientQuery] = useState("");
   const [showResults, setShowResults] = useState(false);
   const [selectedTestIds, setSelectedTestIds] = useState<string[]>([]);
+  const [activeCategory, setActiveCategory] = useState<(typeof LAB_TEST_CATEGORIES)[number] | null>(
+    () => LAB_TEST_CATEGORIES.find((category) => tests.some((test) => test.category === category)) ?? null
+  );
 
   const [dismissed, setDismissed] = useState(false);
   const [handledState, setHandledState] = useState(state);
@@ -69,6 +73,10 @@ export function NewLabOrderForm({
 
   const selectedTests = tests.filter((t) => selectedTestIds.includes(t.id));
   const total = selectedTests.reduce((sum, t) => sum + t.price, 0);
+  const categories = LAB_TEST_CATEGORIES.filter((category) =>
+    tests.some((test) => test.category === category)
+  );
+  const activeTests = tests.filter((test) => test.category === activeCategory);
 
   function resetForm() {
     setSelectedPatient(null);
@@ -163,15 +171,26 @@ export function NewLabOrderForm({
                 No lab tests in the catalog yet.
               </p>
             ) : (
-              <div className="grid gap-5">
-                {LAB_TEST_CATEGORIES.map((category) => {
-                  const testsInCategory = tests.filter((t) => t.category === category);
-                  if (testsInCategory.length === 0) return null;
+              <Tabs value={activeCategory ?? undefined} onValueChange={(value) => setActiveCategory(value as typeof activeCategory)}>
+                <TabsList
+                  aria-label="Test categories"
+                  className="h-auto w-full justify-start overflow-x-auto rounded-lg p-1"
+                >
+                  {categories.map((category) => (
+                    <TabsTrigger
+                      key={category}
+                      value={category}
+                      className="shrink-0 px-3 py-1.5 data-active:bg-primary data-active:text-primary-foreground"
+                    >
+                      {LAB_TEST_CATEGORY_LABELS[category]}
+                    </TabsTrigger>
+                  ))}
+                </TabsList>
+
+                {categories.map((category) => {
+                  const testsInCategory = category === activeCategory ? activeTests : [];
                   return (
-                    <div key={category} className="grid gap-2">
-                      <h3 className="text-sm font-semibold text-foreground">
-                        {LAB_TEST_CATEGORY_LABELS[category]}
-                      </h3>
+                    <TabsContent key={category} value={category} className="mt-4">
                       <div className="grid gap-2 sm:grid-cols-2">
                         {testsInCategory.map((test) => (
                           <label
@@ -205,10 +224,10 @@ export function NewLabOrderForm({
                           </label>
                         ))}
                       </div>
-                    </div>
+                    </TabsContent>
                   );
                 })}
-              </div>
+              </Tabs>
             )}
           </CardContent>
         </Card>

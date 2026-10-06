@@ -85,11 +85,19 @@ export default async function BillingPage({
     const balanceDue = Math.max(0, Number(invoice.total) - netPaid);
     const hasRefund = totalRefunded > 0;
     const hasRejectedClaim = invoice.claims.length > 0 && balanceDue > 0;
-    const description = invoice.items.map((i) => i.description).join(" + ") || "—";
+    const itemDescriptions = invoice.items.map((i) => i.description);
+    const description =
+      itemDescriptions.length === 0
+        ? "—"
+        : itemDescriptions.length === 1
+          ? itemDescriptions[0]
+          : `${itemDescriptions[0]} + ${itemDescriptions.length - 1} more`;
     return {
       invoice,
       invoiceNumber: index + 1,
       description,
+      descriptionTitle: itemDescriptions.join(", "),
+      itemCount: itemDescriptions.length,
       grossPaid,
       netPaid,
       balanceDue,
@@ -174,12 +182,12 @@ export default async function BillingPage({
       ) : (
         <Card>
           <CardContent>
-            <Table>
+            <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
                   <TableHead>Invoice No</TableHead>
                   <TableHead>Patient</TableHead>
-                  <TableHead>Description</TableHead>
+                  <TableHead className="w-[28%]">Description</TableHead>
                   <TableHead>Date</TableHead>
                   <TableHead>Amount</TableHead>
                   <TableHead>Status</TableHead>
@@ -187,13 +195,26 @@ export default async function BillingPage({
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {visibleRows.map(({ invoice, invoiceNumber, description, grossPaid, netPaid, balanceDue, hasRefund, hasRejectedClaim }) => (
+                {visibleRows.map(({ invoice, invoiceNumber, description, descriptionTitle, itemCount, grossPaid, netPaid, balanceDue, hasRefund, hasRejectedClaim }) => (
                   <TableRow key={invoice.id}>
                     <TableCell className="font-medium">
                       INV-{String(invoiceNumber).padStart(4, "0")}
                     </TableCell>
                     <TableCell className="font-medium">{invoice.patient.name}</TableCell>
-                    <TableCell className="text-muted-foreground">{description}</TableCell>
+                    <TableCell className="whitespace-normal text-muted-foreground">
+                      <Link
+                        href={`/staff/billing/${invoice.id}`}
+                        title={descriptionTitle}
+                        className="block truncate hover:text-primary hover:underline"
+                      >
+                        {description}
+                      </Link>
+                      {itemCount > 1 && (
+                        <span className="text-xs text-muted-foreground">
+                          {itemCount} invoice items
+                        </span>
+                      )}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {invoice.createdAt.toLocaleDateString(undefined, {
                         month: "short",
@@ -228,8 +249,8 @@ export default async function BillingPage({
                         )}
                       </div>
                     </TableCell>
-                    <TableCell>
-                      <div className="flex flex-wrap items-center gap-3">
+                    <TableCell className="whitespace-normal">
+                      <div className="flex flex-wrap items-center gap-2">
                         {balanceDue > 0 && (
                           <Link
                             href={`/staff/billing/${invoice.id}`}

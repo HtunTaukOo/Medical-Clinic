@@ -20,6 +20,7 @@ export function ExpenseEditDialog({
     amount: number;
     vendor: string | null;
     paidAt: string;
+    recurringExpenseId: string | null;
   };
 }) {
   const [open, setOpen] = useState(false);
