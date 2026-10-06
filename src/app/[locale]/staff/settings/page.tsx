@@ -1,4 +1,5 @@
 import { DatabaseBackup, Plus } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { getClinicSettings, getClinicWeeklyHours } from "@/lib/clinic-hours";
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 import { StaffPermissionToggle } from "@/components/staff/staff-permission-toggle";
-import { getStaffPermissions, STAFF_PERMISSION_KEYS, STAFF_PERMISSION_LABELS } from "@/lib/permissions";
+import { getStaffPermissions, STAFF_PERMISSION_KEYS } from "@/lib/permissions";
 
 const PILL_TAB_LIST = "!h-auto w-full flex-wrap justify-start gap-2 bg-transparent p-0";
 const PILL_TAB_TRIGGER =
@@ -33,6 +34,18 @@ const PILL_TAB_TRIGGER =
 
 export default async function ClinicSettingsPage() {
   await requirePageRole(["ADMIN"]);
+  const t = await getTranslations("settings");
+  const permissionLabels = {
+    VIEW_APPOINTMENTS: t("viewAppointments"),
+    CREATE_APPOINTMENTS: t("createAppointments"),
+    CONFIRM_RESCHEDULE_APPOINTMENTS: t("confirmRescheduleAppointments"),
+    CANCEL_APPOINTMENTS: t("cancelAppointments"),
+    VIEW_PATIENTS: t("viewPatients"),
+    EDIT_PATIENTS: t("editPatients"),
+    VIEW_BILLING: t("viewBilling"),
+    MANAGE_BILLING: t("manageBilling"),
+    VIEW_REPORTS: t("viewReports"),
+  } as const;
 
   const [settings, weeklyHours, auditLog, specialties, staffPermissions] = await Promise.all([
     getClinicSettings(),
@@ -46,38 +59,38 @@ export default async function ClinicSettingsPage() {
   return (
     <div className="grid gap-4">
       <div>
-        <h1 className="text-2xl font-semibold">Settings</h1>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Manage clinic configuration and preferences.
+          {t("description")}
         </p>
       </div>
 
       <Tabs defaultValue="profile">
         <TabsList className={PILL_TAB_LIST}>
           <TabsTrigger value="profile" className={PILL_TAB_TRIGGER}>
-            Clinic Profile
+            {t("clinicProfile")}
           </TabsTrigger>
           <TabsTrigger value="hours" className={PILL_TAB_TRIGGER}>
-            Working Hours
+            {t("workingHours")}
           </TabsTrigger>
           <TabsTrigger value="notifications" className={PILL_TAB_TRIGGER}>
-            Notifications
+            {t("notifications")}
           </TabsTrigger>
           <TabsTrigger value="specialties" className={PILL_TAB_TRIGGER}>
-            Specialties
+            {t("specialties")}
           </TabsTrigger>
           <TabsTrigger value="permissions" className={PILL_TAB_TRIGGER}>
-            Staff Permission
+            {t("staffPermissions")}
           </TabsTrigger>
           <TabsTrigger value="audit" className={PILL_TAB_TRIGGER}>
-            Audit Log
+            {t("auditLog")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="profile" className="mt-4">
           <Card>
             <CardContent>
-              <p className="mb-4 text-lg font-semibold">Clinic Profile</p>
+              <p className="mb-4 text-lg font-semibold">{t("clinicProfile")}</p>
               <ClinicProfileForm
                 name={settings.name}
                 email={settings.email}
@@ -92,7 +105,7 @@ export default async function ClinicSettingsPage() {
         <TabsContent value="hours" className="mt-4">
           <Card>
             <CardContent>
-              <p className="mb-4 text-lg font-semibold">Working Hours</p>
+              <p className="mb-4 text-lg font-semibold">{t("workingHours")}</p>
               <WeeklyHoursForm days={weeklyHours} />
             </CardContent>
           </Card>
@@ -101,7 +114,7 @@ export default async function ClinicSettingsPage() {
         <TabsContent value="notifications" className="mt-4">
           <Card>
             <CardContent>
-              <p className="mb-4 text-lg font-semibold">Notifications</p>
+              <p className="mb-4 text-lg font-semibold">{t("notifications")}</p>
               <ClinicNotificationsForm staffTelegramChatId={settings.staffTelegramChatId} />
             </CardContent>
           </Card>
@@ -112,16 +125,16 @@ export default async function ClinicSettingsPage() {
             <CardContent>
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <p className="text-lg font-semibold">Specialties</p>
+                  <p className="text-lg font-semibold">{t("specialties")}</p>
                   <p className="text-sm text-muted-foreground">
-                    Used for doctor profiles, clinic services, and the patient booking wizard.
+                    {t("specialtiesDescription")}
                   </p>
                 </div>
                 <SpecialtyDialog
                   trigger={
                     <Button size="sm">
                       <Plus className="size-4" />
-                      Add Specialty
+                      {t("addSpecialty")}
                     </Button>
                   }
                 />
@@ -129,12 +142,12 @@ export default async function ClinicSettingsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Icon</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Description</TableHead>
-                    <TableHead>Booking</TableHead>
-                    <TableHead>Active</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("icon")}</TableHead>
+                    <TableHead>{t("name")}</TableHead>
+                    <TableHead>{t("descriptionLabel")}</TableHead>
+                    <TableHead>{t("booking")}</TableHead>
+                    <TableHead>{t("active")}</TableHead>
+                    <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -154,15 +167,15 @@ export default async function ClinicSettingsPage() {
                         <TableCell>
                           {s.bookingMode === "SERVICE_CAPACITY" ? (
                             <Badge variant="outline" className="bg-violet-100 text-violet-700">
-                              By Service · capacity {s.capacityPerSlot}
+                              {t("byServiceCapacity", { count: s.capacityPerSlot })}
                             </Badge>
                           ) : s.bookingMode === "BLOCK_CAPACITY" ? (
                             <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                              Time Blocks · capacity {s.capacityPerSlot}
+                              {t("timeBlocksCapacity", { count: s.capacityPerSlot })}
                             </Badge>
                           ) : (
                             <Badge variant="outline" className="bg-slate-100 text-slate-600">
-                              By Doctor
+                              {t("byDoctor")}
                             </Badge>
                           )}
                         </TableCell>
@@ -185,7 +198,7 @@ export default async function ClinicSettingsPage() {
                               }}
                               trigger={
                                 <button className="font-medium text-primary underline underline-offset-2">
-                                  Edit
+                                  {t("edit")}
                                 </button>
                               }
                             />
@@ -205,23 +218,22 @@ export default async function ClinicSettingsPage() {
           <Card>
             <CardContent>
               <div className="mb-4">
-                <p className="text-lg font-semibold">Staff Permission</p>
+                <p className="text-lg font-semibold">{t("staffPermissions")}</p>
                 <p className="text-sm text-muted-foreground">
-                  What the Staff role can do. Toggling one takes effect immediately for every staff
-                  account — Admin always has full access regardless of these.
+                  {t("staffPermissionsDescription")}
                 </p>
               </div>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Permission</TableHead>
-                    <TableHead className="text-center">Enabled</TableHead>
+                    <TableHead>{t("permission")}</TableHead>
+                    <TableHead className="text-center">{t("enabled")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {STAFF_PERMISSION_KEYS.map((key) => (
                     <TableRow key={key}>
-                      <TableCell className="font-medium">{STAFF_PERMISSION_LABELS[key]}</TableCell>
+                      <TableCell className="font-medium">{permissionLabels[key]}</TableCell>
                       <TableCell>
                         <StaffPermissionToggle
                           permKey={key}
@@ -239,16 +251,16 @@ export default async function ClinicSettingsPage() {
         <TabsContent value="audit" className="mt-4">
           <Card>
             <CardContent>
-              <p className="mb-4 text-lg font-semibold">Audit Log</p>
+              <p className="mb-4 text-lg font-semibold">{t("auditLog")}</p>
               {auditLog.length === 0 ? (
-                <EmptyState icon={DatabaseBackup} message="No activity recorded yet." />
+                <EmptyState icon={DatabaseBackup} message={t("noActivity")} />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>User</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Timestamp</TableHead>
+                      <TableHead>{t("user")}</TableHead>
+                      <TableHead>{t("action")}</TableHead>
+                      <TableHead>{t("timestamp")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

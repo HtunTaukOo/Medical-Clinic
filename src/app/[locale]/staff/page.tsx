@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { getTranslations } from "next-intl/server";
 import {
   Receipt,
   PackageX,
@@ -114,6 +115,7 @@ export default async function StaffDashboardPage({
   searchParams: Promise<{ schedule?: string }>;
 }) {
   const session = await auth();
+  const t = await getTranslations("staffDashboard");
   const role = session?.user.role;
   const { schedule: scheduleParam } = await searchParams;
   const scheduleTab: "today" | "upcoming" = scheduleParam === "upcoming" ? "upcoming" : "today";
@@ -479,7 +481,7 @@ export default async function StaffDashboardPage({
 
   const firstName = session?.user.name ? getDisplayFirstName(session.user.name) : "";
   const clinicHour = Math.floor(clinicLocalMinutes(now) / 60);
-  const greeting = clinicHour < 12 ? "Good morning" : clinicHour < 18 ? "Good afternoon" : "Good evening";
+  const greeting = clinicHour < 12 ? t("goodMorning") : clinicHour < 18 ? t("goodAfternoon") : t("goodEvening");
 
   return (
     <div className="grid gap-6">
@@ -521,31 +523,31 @@ export default async function StaffDashboardPage({
           <SolidStatCard
             icon={Clock}
             value={waitingTotal}
-            label="Patients Waiting"
+            label={t("patientsWaiting")}
             className="bg-amber-600"
           />
           <SolidStatCard
             icon={Receipt}
             value={unpaidInvoices}
-            label="Unpaid Bills"
+            label={t("unpaidBills")}
             className="bg-rose-600"
           />
           <SolidStatCard
             icon={Pill}
             value={pendingPrescriptionsCount}
-            label="Pending Prescriptions"
+            label={t("pendingPrescriptions")}
             className="bg-blue-600"
           />
           <SolidStatCard
             icon={PackageX}
             value={lowStock}
-            label="Low Stock Alerts"
+            label={t("lowStockAlerts")}
             className="bg-orange-600"
           />
           <SolidStatCard
             icon={FlaskConical}
             value={pendingLabOrders.length}
-            label="Lab Orders"
+            label={t("labOrders")}
             className="bg-purple-600"
           />
         </div>
@@ -556,25 +558,25 @@ export default async function StaffDashboardPage({
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <SolidStatCard
               icon={Users}
-              label="Total Patients"
+              label={t("totalPatients")}
               value={patientCount.toLocaleString()}
               className="bg-violet-600"
             />
             <SolidStatCard
               icon={CalendarDays}
-              label="Weekly Appointments"
+              label={t("weeklyAppointments")}
               value={weekAppointments.length}
               className="bg-blue-600"
             />
             <SolidStatCard
               icon={Stethoscope}
-              label="Active Doctors"
+              label={t("activeDoctors")}
               value={activeDoctorsCount}
               className="bg-[#D4A03A]"
             />
             <SolidStatCard
               icon={Wallet}
-              label="Monthly Profit"
+              label={t("monthlyProfit")}
               value={`MMK ${Math.round(monthlyProfit).toLocaleString()}`}
               className={monthlyProfit >= 0 ? "bg-orange-600" : "bg-rose-600"}
             />
@@ -583,7 +585,7 @@ export default async function StaffDashboardPage({
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle>Weekly Appointments</CardTitle>
+                <CardTitle>{t("weeklyAppointments")}</CardTitle>
                 <span className="text-sm text-muted-foreground">Mon – Sun</span>
               </CardHeader>
               <CardContent>
@@ -598,7 +600,7 @@ export default async function StaffDashboardPage({
 
             <Card>
               <CardHeader>
-                <CardTitle>Profit Trend</CardTitle>
+                <CardTitle>{t("profitTrend")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <ProfitTrendChart data={profitByMonth} />
@@ -621,7 +623,7 @@ export default async function StaffDashboardPage({
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader>
-                <CardTitle>Revenue Trend</CardTitle>
+                <CardTitle>{t("revenueTrend")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <RevenueTrendChart data={revenueByMonth} />
@@ -630,7 +632,7 @@ export default async function StaffDashboardPage({
 
             <Card>
               <CardHeader>
-                <CardTitle>Revenue by Category</CardTitle>
+                <CardTitle>{t("revenueByCategory")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <RevenueCategoryDonut data={revenueByCategory} />
@@ -640,14 +642,14 @@ export default async function StaffDashboardPage({
 
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle>Recent Activity</CardTitle>
+              <CardTitle>{t("recentActivity")}</CardTitle>
               <Link href="/staff/activity-log" className="text-sm underline">
-                View All
+                {t("viewAll")}
               </Link>
             </CardHeader>
             <CardContent>
               {recentActivity.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No activity recorded yet.</p>
+                <p className="text-sm text-muted-foreground">{t("noActivity")}</p>
               ) : (
                 <div className="grid gap-3">
                   {recentActivity.map((entry) => {
@@ -681,14 +683,14 @@ export default async function StaffDashboardPage({
         <div className="grid gap-6">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle>Queue Overview</CardTitle>
+              <CardTitle>{t("queueOverview")}</CardTitle>
               <Link href="/staff/queue" className="text-sm underline">
-                View All
+                {t("viewAll")}
               </Link>
             </CardHeader>
             <CardContent>
               {queueRows.length === 0 ? (
-                <EmptyState icon={ListOrdered} message="No one in the queue right now." />
+                <EmptyState icon={ListOrdered} message={t("noQueue")} />
               ) : (
                 <Table>
                   <TableHeader>
@@ -725,7 +727,7 @@ export default async function StaffDashboardPage({
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-wrap items-center justify-between gap-2 space-y-0">
-                <CardTitle>{scheduleTab === "today" ? "Today's Appointments" : "Upcoming Appointments"}</CardTitle>
+                <CardTitle>{scheduleTab === "today" ? t("todayAppointments") : t("upcomingAppointments")}</CardTitle>
                 <div className="flex items-center gap-2">
                   <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
                     <Link
@@ -750,7 +752,7 @@ export default async function StaffDashboardPage({
                     </Link>
                   </div>
                   <Link href="/staff/appointments" className="text-sm underline">
-                    View All
+                    {t("viewAll")}
                   </Link>
                 </div>
               </CardHeader>
@@ -799,7 +801,7 @@ export default async function StaffDashboardPage({
                     </Table>
                   )
                 ) : upcomingAppointments.length === 0 ? (
-                  <EmptyState icon={CalendarDays} message="No upcoming appointments booked yet." />
+                  <EmptyState icon={CalendarDays} message={t("noUpcomingAppointments")} />
                 ) : (
                   <Table>
                     <TableHeader>
@@ -850,7 +852,7 @@ export default async function StaffDashboardPage({
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <div className="flex items-center gap-2">
-                  <CardTitle>Laboratory Overview</CardTitle>
+                  <CardTitle>{t("laboratoryOverview")}</CardTitle>
                   {completedLabToday > 0 && (
                     <Badge variant="outline" className="bg-emerald-100 text-emerald-700">
                       {completedLabToday} today
@@ -858,7 +860,7 @@ export default async function StaffDashboardPage({
                   )}
                 </div>
                 <Link href="/staff/lab" className="text-sm underline">
-                  View All
+                  {t("viewAll")}
                 </Link>
               </CardHeader>
               <CardContent>
@@ -904,14 +906,14 @@ export default async function StaffDashboardPage({
           <div className="grid gap-6 lg:grid-cols-2">
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
-                <CardTitle>Pending Prescriptions</CardTitle>
+                <CardTitle>{t("pendingPrescriptionsTitle")}</CardTitle>
                 <Link href="/staff/inventory" className="text-sm underline">
-                  View all
+                  {t("viewAll")}
                 </Link>
               </CardHeader>
               <CardContent className="grid gap-2">
                 {pendingPrescriptions.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">No prescriptions pending.</p>
+                  <p className="text-sm text-muted-foreground">{t("noPendingPrescriptions")}</p>
                 ) : (
                   pendingPrescriptions.slice(0, 5).map((rx) => {
                     const isPaid = !rx.appointment || rx.appointment.invoice?.status === "PAID";
@@ -939,11 +941,11 @@ export default async function StaffDashboardPage({
 
             <Card>
               <CardHeader>
-                <CardTitle>Low Stock Alerts</CardTitle>
+                <CardTitle>{t("lowStockTitle")}</CardTitle>
               </CardHeader>
               <CardContent className="grid gap-2">
                 {lowStockMedicines.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Stock levels look fine.</p>
+                  <p className="text-sm text-muted-foreground">{t("stockFine")}</p>
                 ) : (
                   lowStockMedicines.slice(0, 5).map((medicine) => (
                     <Link
@@ -971,14 +973,14 @@ export default async function StaffDashboardPage({
         <div className="grid gap-6 lg:grid-cols-2">
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
-              <CardTitle>Insurance Claims</CardTitle>
+              <CardTitle>{t("insuranceClaims")}</CardTitle>
               <Link href="/staff/billing/claims" className="text-sm underline">
-                View all
+                {t("viewAll")}
               </Link>
             </CardHeader>
             <CardContent>
               {pendingClaims.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No claims pending review.</p>
+                <p className="text-sm text-muted-foreground">{t("noClaims")}</p>
               ) : (
                 <Table>
                   <TableHeader>

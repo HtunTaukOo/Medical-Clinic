@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { orderLabTestsByStaff, type StaffOrderLabTestsState } from "@/actions/lab";
 import { Link } from "@/i18n/navigation";
@@ -37,6 +38,7 @@ export function NewLabOrderForm({
   doctorId: string;
   tests: Test[];
 }) {
+  const t = useTranslations("lab");
   const [state, formAction, pending] = useActionState<StaffOrderLabTestsState, FormData>(
     orderLabTestsByStaff,
     {}
@@ -97,13 +99,13 @@ export function NewLabOrderForm({
     return (
       <Card>
         <CardContent className="grid justify-items-center gap-4 py-12 text-center">
-          <p className="text-lg font-semibold text-emerald-700">Lab order created successfully.</p>
+          <p className="text-lg font-semibold text-emerald-700">{t("orderCreated")}</p>
           <div className="flex items-center gap-2">
             <Button asChild>
-              <Link href={`/staff/lab/${state.orderId}`}>View Order</Link>
+              <Link href={`/staff/lab/${state.orderId}`}>{t("viewOrder")}</Link>
             </Button>
             <Button variant="outline" onClick={resetForm}>
-              New Order
+              {t("newOrder")}
             </Button>
           </div>
         </CardContent>
@@ -116,16 +118,16 @@ export function NewLabOrderForm({
       <div className="grid gap-4">
         <Card className="relative z-20 overflow-visible">
           <CardHeader>
-            <CardTitle className="text-base">Patient</CardTitle>
+            <CardTitle className="text-base">{t("patient")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid gap-2">
-              <Label>Patient</Label>
+              <Label>{t("patient")}</Label>
               <div className="relative">
                 <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                 <Input
                   className="pl-8"
-                  placeholder="Search patient..."
+                  placeholder={t("searchPatient")}
                   value={selectedPatient ? selectedPatient.name : patientQuery}
                   onChange={(e) => {
                     setPatientQuery(e.target.value);
@@ -160,15 +162,15 @@ export function NewLabOrderForm({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Select Tests</CardTitle>
+            <CardTitle className="text-base">{t("selectTests")}</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Grouped by the area that matches the patient&apos;s reason for visiting.
+              {t("selectTestsHelp")}
             </p>
           </CardHeader>
           <CardContent>
             {tests.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                No lab tests in the catalog yet.
+                {t("noTests")}
               </p>
             ) : (
               <Tabs value={activeCategory ?? undefined} onValueChange={(value) => setActiveCategory(value as typeof activeCategory)}>
@@ -209,7 +211,7 @@ export function NewLabOrderForm({
                                   {test.name}
                                   {test.requiresExternalLab && (
                                     <span className="ml-2 text-xs font-normal text-amber-700">
-                                      Sent externally
+                                      {t("sentExternally")}
                                     </span>
                                   )}
                                 </p>
@@ -235,15 +237,15 @@ export function NewLabOrderForm({
 
       <Card className="h-fit">
         <CardHeader>
-          <CardTitle className="text-base">Order Summary</CardTitle>
+          <CardTitle className="text-base">{t("orderSummary")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Patient</span>
+            <span className="text-muted-foreground">{t("patient")}</span>
             <span className="font-medium">{selectedPatient?.name ?? "—"}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Tests</span>
+            <span className="text-muted-foreground">{t("tests")}</span>
             <span>{selectedTests.length}</span>
           </div>
 
@@ -259,7 +261,7 @@ export function NewLabOrderForm({
           )}
 
           <div className="flex items-center justify-between border-t pt-3 text-lg font-bold">
-            <span>TOTAL</span>
+            <span>{t("total")}</span>
             <span className="text-primary">{formatKyat(total)}</span>
           </div>
 
@@ -270,7 +272,7 @@ export function NewLabOrderForm({
             size="lg"
             disabled={pending || !selectedPatient || !doctorId || selectedTestIds.length === 0}
           >
-            Create Order
+            {t("createOrder")}
           </Button>
         </CardContent>
       </Card>

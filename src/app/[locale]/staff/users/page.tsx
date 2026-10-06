@@ -1,4 +1,5 @@
 import { UserCog, Plus } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { toggleStaffActive } from "@/actions/staff";
@@ -56,19 +57,12 @@ const ROLE_BADGE_CLASS: Record<RowType, string> = {
   ADMIN: "bg-violet-100 text-violet-700",
 };
 
-const ROLE_LABEL: Record<RowType, string> = {
-  PATIENT: "Patient",
-  DOCTOR: "Doctor",
-  STAFF: "Staff",
-  ADMIN: "Admin",
-};
-
 const TABS = [
-  { value: "all", label: "All" },
-  { value: "patients", label: "Patients" },
-  { value: "doctors", label: "Doctors" },
-  { value: "staff", label: "Staff" },
-  { value: "admins", label: "Admins" },
+  { value: "all", labelKey: "all" },
+  { value: "patients", labelKey: "patients" },
+  { value: "doctors", labelKey: "doctors" },
+  { value: "staff", labelKey: "staff" },
+  { value: "admins", labelKey: "admins" },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
 
@@ -78,6 +72,13 @@ export default async function UserManagementPage({
   searchParams: Promise<{ tab?: string; q?: string }>;
 }) {
   const session = await requirePageRole(["ADMIN"]);
+  const t = await getTranslations("userManagement");
+  const roleLabels: Record<RowType, string> = {
+    PATIENT: t("patient"),
+    DOCTOR: t("doctor"),
+    STAFF: t("staff"),
+    ADMIN: t("admin"),
+  };
   const { tab: tabParam, q } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "all";
 
@@ -162,47 +163,47 @@ export default async function UserManagementPage({
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">User Management</h1>
-          <p className="text-sm text-muted-foreground">Manage all clinic users.</p>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("description")}</p>
         </div>
         <Button asChild>
           <Link href="/staff/users/new">
             <Plus className="size-4" />
-            Add User
+            {t("addUser")}
           </Link>
         </Button>
       </div>
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-2">
-          {TABS.map(({ value, label }) => (
+          {TABS.map(({ value, labelKey }) => (
             <TabButton key={value} href={`/staff/users?tab=${value}`} active={tab === value} size="sm">
-              {label}
+              {t(labelKey)}
             </TabButton>
           ))}
         </div>
         <div className="w-64 sm:w-80">
-          <SearchInput placeholder="Search name, email..." />
+          <SearchInput placeholder={t("search")} />
         </div>
       </div>
 
       <TabTransitionContent>
       {visibleRows.length === 0 ? (
-        <EmptyState icon={UserCog} message="No users match this view." />
+        <EmptyState icon={UserCog} message={t("noUsers")} />
       ) : (
         <Card>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Phone</TableHead>
-                  <TableHead>Specialty</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("name")}</TableHead>
+                  <TableHead>{t("role")}</TableHead>
+                  <TableHead>{t("email")}</TableHead>
+                  <TableHead>{t("phone")}</TableHead>
+                  <TableHead>{t("specialty")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead>{t("joined")}</TableHead>
+                  <TableHead className="text-right">{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -220,7 +221,7 @@ export default async function UserManagementPage({
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={ROLE_BADGE_CLASS[row.type]}>
-                        {ROLE_LABEL[row.type]}
+                        {roleLabels[row.type]}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-muted-foreground">{row.email}</TableCell>
@@ -250,19 +251,19 @@ export default async function UserManagementPage({
                             href={`/staff/patients/${row.patientId}`}
                             className="font-medium text-primary underline underline-offset-2"
                           >
-                            Edit
+                            {t("edit")}
                           </Link>
                         )}
                         {row.type === "DOCTOR" && (
                           <UserActionDialog
-                            title={`Edit ${row.name}`}
+                            title={t("editUser", { name: row.name })}
                             contentClassName="sm:max-w-lg"
                             trigger={
                               <button
                                 type="button"
                                 className="font-medium text-primary underline underline-offset-2"
                               >
-                                Edit
+                                {t("edit")}
                               </button>
                             }
                           >
@@ -281,20 +282,20 @@ export default async function UserManagementPage({
                               href={`/staff/users/${row.doctorProfileId}/availability`}
                               className="text-sm text-primary underline underline-offset-2"
                             >
-                              Manage availability
+                              {t("manageAvailability")}
                             </Link>
                           </UserActionDialog>
                         )}
                         {(row.type === "STAFF" || row.type === "ADMIN") && (
                           <UserActionDialog
-                            title={`Edit ${row.name}`}
+                            title={t("editUser", { name: row.name })}
                             contentClassName="sm:max-w-md"
                             trigger={
                               <button
                                 type="button"
                                 className="font-medium text-primary underline underline-offset-2"
                               >
-                                Edit
+                                {t("edit")}
                               </button>
                             }
                           >
@@ -311,13 +312,13 @@ export default async function UserManagementPage({
 
                         {row.userId && (
                           <UserActionDialog
-                            title={`Reset password — ${row.name}`}
+                            title={t("resetPassword", { name: row.name })}
                             trigger={
                               <button
                                 type="button"
                                 className="font-medium text-primary underline underline-offset-2"
                               >
-                                Reset PW
+                                {t("resetPasswordShort")}
                               </button>
                             }
                           >

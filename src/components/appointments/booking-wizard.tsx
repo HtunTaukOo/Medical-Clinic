@@ -133,6 +133,17 @@ export function BookingWizard({
   today: YMD;
 }) {
   const t = useTranslations("portal.booking");
+  const specialtyTranslations = {
+    "General Medicine": { name: t("specialtyGeneralMedicineName"), description: t("specialtyGeneralMedicineDescription") },
+    Cardiology: { name: t("specialtyCardiologyName"), description: t("specialtyCardiologyDescription") },
+    Pediatrics: { name: t("specialtyPediatricsName"), description: t("specialtyPediatricsDescription") },
+    Dermatology: { name: t("specialtyDermatologyName"), description: t("specialtyDermatologyDescription") },
+    Orthopedics: { name: t("specialtyOrthopedicsName"), description: t("specialtyOrthopedicsDescription") },
+    ENT: { name: t("specialtyEntName"), description: t("specialtyEntDescription") },
+    "Obs & Gynecology": { name: t("specialtyObsGynecologyName"), description: t("specialtyObsGynecologyDescription") },
+    Ophthalmology: { name: t("specialtyOphthalmologyName"), description: t("specialtyOphthalmologyDescription") },
+    "Lab Visit": { name: t("specialtyLabVisitName"), description: t("specialtyLabVisitDescription") },
+  };
   const router = useRouter();
   const REASON_OPTIONS = [
     t("reasonRoutine"),
@@ -456,6 +467,7 @@ export function BookingWizard({
               {specialties.map((s) => {
                 const selected = specialty === s.name;
                 const Icon = getSpecialtyIcon(s.icon);
+                const translated = specialtyTranslations[s.name as keyof typeof specialtyTranslations];
                 return (
                   <button
                     key={s.name}
@@ -476,8 +488,8 @@ export function BookingWizard({
                     <div className="flex size-10 items-center justify-center rounded-lg bg-blue-100 text-blue-600">
                       <Icon className="size-5" />
                     </div>
-                    <p className="mt-2 font-semibold">{s.name}</p>
-                    <p className="text-sm text-muted-foreground">{s.description}</p>
+                    <p className="mt-2 font-semibold">{translated?.name ?? s.name}</p>
+                    <p className="text-sm text-muted-foreground">{translated?.description ?? s.description}</p>
                   </button>
                 );
               })}

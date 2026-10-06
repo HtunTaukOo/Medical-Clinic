@@ -51,13 +51,13 @@ const LAB_STATUS_LABEL: Record<string, string> = {
 };
 
 const DOCTOR_TABS = [
-  { value: "overview", label: "Overview" },
-  { value: "history", label: "History" },
-  { value: "allergies", label: "Allergies" },
-  { value: "visits", label: "Visits" },
-  { value: "lab-results", label: "Lab Results" },
-  { value: "documents", label: "Documents" },
-];
+  { value: "overview", labelKey: "overview" },
+  { value: "history", labelKey: "history" },
+  { value: "allergies", labelKey: "allergies" },
+  { value: "visits", labelKey: "visits" },
+  { value: "lab-results", labelKey: "labResults" },
+  { value: "documents", labelKey: "documents" },
+] as const;
 
 export default async function DoctorPatientDetailPage({
   params,
@@ -71,6 +71,7 @@ export default async function DoctorPatientDetailPage({
   const { vitalsRange: vitalsRangeParam } = await searchParams;
   const vitalsRange: VitalsRangeKey = isVitalsRangeKey(vitalsRangeParam) ? vitalsRangeParam : "6m";
   const tAppt = await getTranslations("appointments");
+  const t = await getTranslations("patientDetail");
 
   const rangeBookingNames = await getRangeBookingSpecialtyNames();
 
@@ -175,15 +176,15 @@ export default async function DoctorPatientDetailPage({
   const metaLine = [
     age != null ? `${age}yo` : null,
     genderLabel,
-    patient.dob && `DOB: ${patient.dob.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`,
-    patient.bloodType && `Blood Type: ${patient.bloodType}`,
+    patient.dob && t("dateOfBirth", { date: patient.dob.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) }),
+    patient.bloodType && t("bloodType", { type: patient.bloodType }),
   ]
     .filter(Boolean)
     .join(" · ");
   const contactLine = [
     patient.phone,
     lastCompletedVisit &&
-      `Last Visit: ${lastCompletedVisit.scheduledAt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`,
+      t("lastVisit", { date: lastCompletedVisit.scheduledAt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) }),
   ]
     .filter(Boolean)
     .join(" · ");
@@ -264,7 +265,7 @@ export default async function DoctorPatientDetailPage({
           <CardContent className="grid gap-2">
             <div className="flex items-center gap-2 text-sm font-semibold text-red-700">
               <AlertTriangle className="size-4" />
-              KNOWN ALLERGIES
+              {t("knownAllergies")}
             </div>
             <div className="flex flex-wrap gap-2">
               {patient.allergyRecords.map((a) => (
@@ -286,7 +287,7 @@ export default async function DoctorPatientDetailPage({
               value={tab.value}
               className="data-active:bg-primary data-active:text-primary-foreground"
             >
-              {tab.label}
+              {t(tab.labelKey)}
             </TabsTrigger>
           ))}
         </TabsList>
@@ -316,12 +317,12 @@ export default async function DoctorPatientDetailPage({
           <Card>
             <CardHeader>
               <CardTitle className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Current Medications
+                {t("currentMedications")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {currentMedications.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No active prescriptions.</p>
+                <p className="text-sm text-muted-foreground">{t("noActivePrescriptions")}</p>
               ) : (
                 <ul className="grid gap-3 text-sm">
                   {currentMedications.map((item) => (
@@ -343,12 +344,12 @@ export default async function DoctorPatientDetailPage({
           <Card>
             <CardHeader>
               <CardTitle className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Vitals (Last Visit)
+                {t("vitalsLastVisit")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {!lastCompletedVisit ? (
-                <p className="text-sm text-muted-foreground">No completed visits yet.</p>
+                <p className="text-sm text-muted-foreground">{t("noCompletedVisits")}</p>
               ) : (
                 <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
                   {[
@@ -435,7 +436,7 @@ export default async function DoctorPatientDetailPage({
         <TabsContent value="history" className="grid gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Diagnosis History</CardTitle>
+              <CardTitle>{t("diagnosisHistory")}</CardTitle>
             </CardHeader>
             <CardContent>
               <DiagnosisList diagnoses={patient.diagnoses} showDoctor />
@@ -443,7 +444,7 @@ export default async function DoctorPatientDetailPage({
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle>Notes</CardTitle>
+              <CardTitle>{t("notes")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
               <MedicalRecordList records={notes} currentUserId={session.user.id} />
@@ -455,7 +456,7 @@ export default async function DoctorPatientDetailPage({
         <TabsContent value="allergies">
           <Card>
             <CardHeader>
-              <CardTitle>Allergies</CardTitle>
+              <CardTitle>{t("allergies")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-4">
               <AllergyList allergies={patient.allergyRecords} canDelete />
@@ -493,11 +494,11 @@ export default async function DoctorPatientDetailPage({
         <TabsContent value="lab-results">
           <Card>
             <CardHeader>
-              <CardTitle>Lab Results</CardTitle>
+              <CardTitle>{t("labResults")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-3">
               {patient.labOrders.length === 0 ? (
-                <EmptyState icon={FlaskConical} message="No lab orders yet." />
+                <EmptyState icon={FlaskConical} message={t("noLabOrders")} />
               ) : (
                 patient.labOrders.map((order) => (
                   <div key={order.id} className="rounded-md border p-3">

@@ -5,6 +5,7 @@ import { AppShell, type NavItem } from "@/components/app-shell";
 import { prisma } from "@/lib/prisma";
 import { todayRange } from "@/lib/queue";
 import { getUnreadStaffNotificationCount } from "@/lib/notifications";
+import { getTranslations } from "next-intl/server";
 
 const DOCTOR_NAV_ITEMS: NavItem[] = [
   { href: "/doctor", labelKey: "dashboard" },
@@ -26,6 +27,7 @@ export default async function DoctorLayout({
 }) {
   const { locale } = await params;
   const session = await auth();
+  const t = await getTranslations("nav");
 
   if (!session?.user) {
     redirect({ href: "/login", locale });
@@ -64,7 +66,7 @@ export default async function DoctorLayout({
     <AppShell
       locale={locale}
       userName={session.user.name ?? ""}
-      roleLabel="Doctor Console"
+      roleLabel={t("doctorConsole")}
       navItems={navItems}
       sidebarDark
       hideSectionLabels

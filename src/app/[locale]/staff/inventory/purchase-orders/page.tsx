@@ -17,6 +17,14 @@ const STATUS_VARIANT: Record<string, "default" | "outline" | "destructive"> = {
   CANCELLED: "destructive",
 };
 
+const STATUS_KEY: Record<string, "statusDraft" | "statusOrdered" | "statusPartiallyReceived" | "statusReceived" | "statusCancelled"> = {
+  DRAFT: "statusDraft",
+  ORDERED: "statusOrdered",
+  PARTIALLY_RECEIVED: "statusPartiallyReceived",
+  RECEIVED: "statusReceived",
+  CANCELLED: "statusCancelled",
+};
+
 export default async function PurchaseOrdersPage() {
   await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("inventory");
@@ -57,7 +65,7 @@ export default async function PurchaseOrdersPage() {
                   <CardContent className="grid gap-3">
                     <div className="flex items-center justify-between gap-2">
                       <p className="font-semibold">{order.supplier.name}</p>
-                      <Badge variant={STATUS_VARIANT[order.status]}>{order.status}</Badge>
+                      <Badge variant={STATUS_VARIANT[order.status]}>{t(STATUS_KEY[order.status])}</Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">
                       {t("total")}: {total.toFixed(2)}

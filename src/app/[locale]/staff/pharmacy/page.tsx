@@ -1,4 +1,5 @@
 import { ClipboardList, Pill, Receipt, Undo2, Bell } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { getExpiryStatus, getStockStatus, STOCK_STATUS_LABEL, STOCK_STATUS_CLASS } from "@/lib/inventory";
@@ -38,12 +39,12 @@ const STATUS_CLASS: Record<string, string> = {
 };
 
 const TABS = [
-  { value: "new", label: "New Sale" },
-  { value: "prescriptions", label: "Prescriptions" },
-  { value: "requests", label: "Patient Requests" },
-  { value: "products", label: "Products" },
-  { value: "history", label: "Sales History" },
-  { value: "returns", label: "Returns" },
+  { value: "new", labelKey: "newSale" },
+  { value: "prescriptions", labelKey: "prescriptions" },
+  { value: "requests", labelKey: "patientRequests" },
+  { value: "products", labelKey: "products" },
+  { value: "history", labelKey: "salesHistory" },
+  { value: "returns", labelKey: "returns" },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
 
@@ -67,6 +68,7 @@ export default async function PharmacyPage({
   }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
+  const t = await getTranslations("pharmacySale");
   const { tab: tabParam, rx, patientId, medicineId, requestId } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "new";
 
@@ -117,16 +119,16 @@ export default async function PharmacyPage({
     <TabTransitionScope>
       <div className="grid gap-6">
         <div>
-          <h1 className="text-2xl font-semibold">Pharmacy</h1>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Dispense prescriptions and sell over-the-counter medicine.
+            {t("description")}
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          {TABS.map(({ value, label }) => (
+          {TABS.map(({ value, labelKey }) => (
             <TabButton key={value} href={`/staff/pharmacy?tab=${value}`} active={tab === value} size="sm">
-              {label}
+              {t(labelKey)}
             </TabButton>
           ))}
         </div>
@@ -172,7 +174,7 @@ export default async function PharmacyPage({
 
       {tab === "prescriptions" &&
         (pendingPrescriptions.length === 0 ? (
-          <EmptyState icon={ClipboardList} message="Prescription queue — no pending prescriptions." />
+          <EmptyState icon={ClipboardList} message={t("noPendingPrescriptions")} />
         ) : (
           <div className="grid gap-3">
             {pendingPrescriptions.map((rxItem) => (
@@ -191,7 +193,7 @@ export default async function PharmacyPage({
                   </div>
                   <Button asChild size="sm">
                     <Link href={`/staff/pharmacy?tab=new&rx=${rxCode(rxItem.id, rxItem.createdAt)}`}>
-                      Dispense
+                      {t("dispense")}
                     </Link>
                   </Button>
                 </CardContent>
@@ -202,7 +204,7 @@ export default async function PharmacyPage({
 
       {tab === "requests" &&
         (pendingRequests.length === 0 ? (
-          <EmptyState icon={Bell} message="No pending patient requests." />
+          <EmptyState icon={Bell} message={t("noPatientRequests")} />
         ) : (
           <div className="grid gap-3">
             {pendingRequests.map((req) => {
@@ -217,34 +219,35 @@ export default async function PharmacyPage({
                       <div className="flex items-center gap-2">
                         <span className="font-medium">{req.patient.name}</span>
                         <Badge variant="outline" className="bg-cyan-100 text-cyan-700">
-                          {isRefill ? "Refill Request" : "Notify Pharmacy"}
+                          {isRefill ? t("refillRequest") : t("notifyPharmacy")}
                         </Badge>
                       </div>
                       <p className="text-sm text-muted-foreground">
                         {isRefill
                           ? req.prescription!.items.map((i) => i.medicine.name).join(", ")
-                          : `${req.medicine?.name ?? "Unknown medicine"}${req.quantity ? ` · qty ${req.quantity}` : ""}`}
+                          : `${req.medicine?.name ?? t("unknownMedicine")}${req.quantity ? ` · ${t("quantity", { count: req.quantity })}` : ""}`}
                       </p>
                       {req.note && <p className="text-sm text-muted-foreground">“{req.note}”</p>}
                       <p className="text-xs text-muted-foreground">
-                        Requested{" "}
-                        {req.createdAt.toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
+                        {t("requested", {
+                          date: req.createdAt.toLocaleDateString(undefined, {
+                            month: "short",
+                            day: "numeric",
+                            year: "numeric",
+                          }),
                         })}
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
                       <Button asChild size="sm">
-                        <Link href={sellHref}>{isRefill ? "Dispense" : "Sell"}</Link>
+                        <Link href={sellHref}>{isRefill ? t("dispense") : t("sell")}</Link>
                       </Button>
                       <form action={cancelMedicineRequest.bind(null, req.id)}>
                         <button
                           type="submit"
                           className="text-sm font-medium text-destructive hover:underline"
                         >
-                          Dismiss
+                          {t("dismiss")}
                         </button>
                       </form>
                     </div>
@@ -259,21 +262,21 @@ export default async function PharmacyPage({
         <Card>
           <CardContent>
             <div className="mb-3 flex items-center justify-between">
-              <p className="font-semibold">Product Catalogue</p>
-              <p className="text-sm text-muted-foreground">{allMedicines.length} items</p>
+              <p className="font-semibold">{t("productCatalogue")}</p>
+              <p className="text-sm text-muted-foreground">{t("itemsCount", { count: allMedicines.length })}</p>
             </div>
             {allMedicines.length === 0 ? (
-              <EmptyState icon={Pill} message="No medicines in catalogue." />
+              <EmptyState icon={Pill} message={t("noMedicines")} />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Category</TableHead>
-                    <TableHead>Stock</TableHead>
-                    <TableHead>Selling Price</TableHead>
-                    <TableHead>Expiry</TableHead>
-                    <TableHead>Status</TableHead>
+                    <TableHead>{t("name")}</TableHead>
+                    <TableHead>{t("category")}</TableHead>
+                    <TableHead>{t("stock")}</TableHead>
+                    <TableHead>{t("sellingPrice")}</TableHead>
+                    <TableHead>{t("expiry")}</TableHead>
+                    <TableHead>{t("status")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -317,20 +320,20 @@ export default async function PharmacyPage({
 
       {tab === "history" &&
         (sales.length === 0 ? (
-          <EmptyState icon={Receipt} message="No sales recorded yet." />
+          <EmptyState icon={Receipt} message={t("noSales")} />
         ) : (
           <Card>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Patient</TableHead>
-                    <TableHead>Rx #</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Method</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("date")}</TableHead>
+                    <TableHead>{t("patient")}</TableHead>
+                    <TableHead>{t("rxNumber")}</TableHead>
+                    <TableHead>{t("items")}</TableHead>
+                    <TableHead>{t("total")}</TableHead>
+                    <TableHead>{t("method")}</TableHead>
+                    <TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -366,7 +369,7 @@ export default async function PharmacyPage({
                             href={`/pharmacy-receipt/${sale.id}`}
                             className="font-medium text-primary underline underline-offset-2"
                           >
-                            Receipt
+                            {t("receipt")}
                           </Link>
                           {sale.status === "COMPLETED" ? (
                             <form action={processReturn.bind(null, sale.id)}>
@@ -374,12 +377,12 @@ export default async function PharmacyPage({
                                 type="submit"
                                 className="font-medium text-destructive underline underline-offset-2"
                               >
-                                Return
+                              {t("return")}
                               </button>
                             </form>
                           ) : (
                             <Badge variant="outline" className="bg-rose-100 text-rose-700">
-                              Returned
+                              {t("returned")}
                             </Badge>
                           )}
                         </div>
@@ -394,17 +397,17 @@ export default async function PharmacyPage({
 
       {tab === "returns" &&
         (returns.length === 0 ? (
-          <EmptyState icon={Undo2} message="No returns processed today." />
+          <EmptyState icon={Undo2} message={t("noReturns")} />
         ) : (
           <Card>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Time</TableHead>
-                    <TableHead>Patient</TableHead>
-                    <TableHead>Items</TableHead>
-                    <TableHead>Amount</TableHead>
+                    <TableHead>{t("time")}</TableHead>
+                    <TableHead>{t("patient")}</TableHead>
+                    <TableHead>{t("items")}</TableHead>
+                    <TableHead>{t("amount")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

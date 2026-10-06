@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   createClinicService,
   updateClinicService,
@@ -41,6 +42,7 @@ export function ClinicServiceForm({
   labTests: { id: string; name: string; price: number }[];
   onSaved?: () => void;
 }) {
+  const t = useTranslations("clinicServices");
   const router = useRouter();
   const action = service ? updateClinicService.bind(null, service.id) : createClinicService;
   const [state, formAction, pending] = useActionState<ClinicServiceFormState, FormData>(
@@ -62,18 +64,18 @@ export function ClinicServiceForm({
   return (
     <form action={formAction} className="grid gap-4">
       <div className="grid gap-2">
-        <Label htmlFor="name">Service Name</Label>
+        <Label htmlFor="name">{t("serviceName")}</Label>
         <Input id="name" name="name" defaultValue={service?.name} required />
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor="specialty">Specialty</Label>
+          <Label htmlFor="specialty">{t("specialty")}</Label>
           <Select value={specialty} onValueChange={setSpecialty}>
             <SelectTrigger id="specialty" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_SPECIALTY}>No specialty</SelectItem>
+              <SelectItem value={NO_SPECIALTY}>{t("noSpecialty")}</SelectItem>
               {specialties.map((s) => (
                 <SelectItem key={s.name} value={s.name}>
                   {s.name}
@@ -84,19 +86,19 @@ export function ClinicServiceForm({
           <input type="hidden" name="specialty" value={specialty === NO_SPECIALTY ? "" : specialty} />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="room">Room</Label>
-          <Input id="room" name="room" defaultValue={service?.room ?? ""} placeholder="e.g. Room 204" />
+          <Label htmlFor="room">{t("room")}</Label>
+          <Input id="room" name="room" defaultValue={service?.room ?? ""} placeholder={t("roomPlaceholder")} />
         </div>
       </div>
       {showLabTestPicker && (
         <div className="grid gap-2">
-          <Label htmlFor="labTestId">Linked Lab Test</Label>
+          <Label htmlFor="labTestId">{t("linkedLabTest")}</Label>
           <Select value={labTestId} onValueChange={setLabTestId}>
             <SelectTrigger id="labTestId" className="w-full">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_LAB_TEST}>Not linked to a lab test</SelectItem>
+              <SelectItem value={NO_LAB_TEST}>{t("notLinkedLabTest")}</SelectItem>
               {labTests.map((t) => (
                 <SelectItem key={t.id} value={t.id}>
                   {t.name}
@@ -106,14 +108,13 @@ export function ClinicServiceForm({
           </Select>
           <input type="hidden" name="labTestId" value={labTestId === NO_LAB_TEST ? "" : labTestId} />
           <p className="text-xs text-muted-foreground">
-            When linked, booking this service will automatically create a lab order for this test, and its price
-            stays synced with the lab test catalog.
+            {t("linkedLabHelp")}
           </p>
         </div>
       )}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor="durationMinutes">Duration (minutes)</Label>
+          <Label htmlFor="durationMinutes">{t("durationMinutes")}</Label>
           <Input
             id="durationMinutes"
             name="durationMinutes"
@@ -125,7 +126,7 @@ export function ClinicServiceForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="price">Price (MMK)</Label>
+          <Label htmlFor="price">{t("price")}</Label>
           <Input
             key={labTestId}
             id="price"
@@ -139,7 +140,7 @@ export function ClinicServiceForm({
             required
           />
           {linkedLabTest && (
-            <p className="text-xs text-muted-foreground">Synced with the linked lab test&apos;s price.</p>
+            <p className="text-xs text-muted-foreground">{t("linkedPriceHelp")}</p>
           )}
         </div>
       </div>
@@ -150,13 +151,13 @@ export function ClinicServiceForm({
           defaultChecked={service?.active ?? true}
           className="size-4"
         />
-        Available
+        {t("available")}
       </label>
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit">
-        {service ? "Save Changes" : "Add Service"}
+        {service ? t("saveChanges") : t("addService")}
       </Button>
     </form>
   );

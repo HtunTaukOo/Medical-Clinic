@@ -1,4 +1,5 @@
 import { Bell, CalendarClock, Package, Megaphone, Receipt, CalendarOff, Pill } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { markAllStaffNotificationsRead, markStaffNotificationRead } from "@/actions/notifications";
@@ -15,24 +16,20 @@ const PILL_TAB_TRIGGER =
 
 const CATEGORY_META: Record<
   StaffNotificationCategory,
-  { label: string; icon: typeof Bell; badgeClass: string }
+  { labelKey: "appointments" | "labResults" | "inventory" | "announcements" | "billing" | "leaveRequests" | "pharmacyRequests"; icon: typeof Bell; badgeClass: string }
 > = {
-  APPOINTMENT: { label: "Appointments", icon: CalendarClock, badgeClass: "bg-blue-100 text-blue-700" },
-  LAB_RESULT: { label: "Lab Results", icon: Bell, badgeClass: "bg-emerald-100 text-emerald-700" },
-  INVENTORY: { label: "Inventory", icon: Package, badgeClass: "bg-amber-100 text-amber-700" },
-  ANNOUNCEMENT: { label: "Announcements", icon: Megaphone, badgeClass: "bg-purple-100 text-purple-700" },
-  BILLING: { label: "Billing", icon: Receipt, badgeClass: "bg-rose-100 text-rose-700" },
-  LEAVE: { label: "Leave Requests", icon: CalendarOff, badgeClass: "bg-orange-100 text-orange-700" },
-  PHARMACY: { label: "Pharmacy Requests", icon: Pill, badgeClass: "bg-cyan-100 text-cyan-700" },
+  APPOINTMENT: { labelKey: "appointments", icon: CalendarClock, badgeClass: "bg-blue-100 text-blue-700" },
+  LAB_RESULT: { labelKey: "labResults", icon: Bell, badgeClass: "bg-emerald-100 text-emerald-700" },
+  INVENTORY: { labelKey: "inventory", icon: Package, badgeClass: "bg-amber-100 text-amber-700" },
+  ANNOUNCEMENT: { labelKey: "announcements", icon: Megaphone, badgeClass: "bg-purple-100 text-purple-700" },
+  BILLING: { labelKey: "billing", icon: Receipt, badgeClass: "bg-rose-100 text-rose-700" },
+  LEAVE: { labelKey: "leaveRequests", icon: CalendarOff, badgeClass: "bg-orange-100 text-orange-700" },
+  PHARMACY: { labelKey: "pharmacyRequests", icon: Pill, badgeClass: "bg-cyan-100 text-cyan-700" },
 };
-
-function cardMeta(category: StaffNotificationCategory) {
-  const { label, icon: Icon, badgeClass } = CATEGORY_META[category];
-  return { label, badgeClass, icon: <Icon className="size-4" /> };
-}
 
 export default async function StaffNotificationsPage() {
   const session = await requirePageRole(["ADMIN", "STAFF"]);
+  const t = await getTranslations("staffNotifications");
   const now = new Date();
 
   await ensureMedicineExpiryNotifications();
@@ -50,20 +47,24 @@ export default async function StaffNotificationsPage() {
   const categories = (Object.keys(CATEGORY_META) as StaffNotificationCategory[]).filter(
     (category) => category !== "LAB_RESULT"
   );
+  const cardMeta = (category: StaffNotificationCategory) => {
+    const { labelKey, icon: Icon, badgeClass } = CATEGORY_META[category];
+    return { label: t(labelKey), badgeClass, icon: <Icon className="size-4" /> };
+  };
 
   return (
     <div className="grid gap-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <div>
-          <h1 className="text-2xl font-semibold">Notifications</h1>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">
-            <span className="font-medium text-primary">{unreadCount} unread</span> notifications
+            <span className="font-medium text-primary">{t("unreadSummary", { count: unreadCount })}</span>
           </p>
         </div>
         {unreadCount > 0 && (
           <form action={markAllStaffNotificationsRead}>
             <Button type="submit" variant="link" className="h-auto p-0">
-              Mark all read
+              {t("markAllRead")}
             </Button>
           </form>
         )}
@@ -72,7 +73,7 @@ export default async function StaffNotificationsPage() {
       <Tabs defaultValue="all">
         <TabsList className={PILL_TAB_LIST}>
           <TabsTrigger value="all" className={PILL_TAB_TRIGGER}>
-            All
+            {t("all")}
             {unreadCount > 0 && (
               <span className="flex size-5 items-center justify-center rounded-full bg-destructive text-xs font-medium text-white">
                 {unreadCount}
@@ -81,14 +82,14 @@ export default async function StaffNotificationsPage() {
           </TabsTrigger>
           {categories.map((category) => (
             <TabsTrigger key={category} value={category} className={PILL_TAB_TRIGGER}>
-              {CATEGORY_META[category].label}
+              {t(CATEGORY_META[category].labelKey)}
             </TabsTrigger>
           ))}
         </TabsList>
 
         <TabsContent value="all" className="mt-4 grid gap-3">
           {notifications.length === 0 ? (
-            <EmptyState icon={Bell} message="No notifications right now." />
+            <EmptyState icon={Bell} message={t("noNotifications")} />
           ) : (
             notifications.map((n) => (
               <NotificationCard
@@ -105,7 +106,7 @@ export default async function StaffNotificationsPage() {
         {categories.map((category) => (
           <TabsContent key={category} value={category} className="mt-4 grid gap-3">
             {byCategory(category).length === 0 ? (
-              <EmptyState icon={CATEGORY_META[category].icon} message="Nothing here yet." />
+              <EmptyState icon={CATEGORY_META[category].icon} message={t("nothingHere")} />
             ) : (
               byCategory(category).map((n) => (
                 <NotificationCard

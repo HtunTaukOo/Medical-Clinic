@@ -1,11 +1,12 @@
 import { Receipt, Plus, HandCoins } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import type { ExpenseCategory, Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { clinicDateKey } from "@/lib/clinic-hours";
 import { resolveReportRange, formatRangeLabel } from "@/lib/reports";
 import { deleteExpense } from "@/actions/expenses";
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS, STAFF_EXPENSE_CATEGORIES } from "@/lib/expenses";
+import { EXPENSE_CATEGORIES, STAFF_EXPENSE_CATEGORIES } from "@/lib/expenses";
 import { ExpenseEditDialog } from "@/components/staff/expense-edit-dialog";
 import { ExpenseCategoryFilter } from "@/components/staff/expense-category-filter";
 import { DateRangeFilter } from "@/components/reports/date-range-filter";
@@ -45,6 +46,18 @@ export default async function ExpensesPage({
   searchParams: Promise<{ from?: string; to?: string; category?: string }>;
 }) {
   const session = await requirePageRole(["ADMIN", "STAFF"]);
+  const t = await getTranslations("expenses");
+  const categoryLabels: Record<ExpenseCategory, string> = {
+    RENT: t("categoryRent"),
+    UTILITIES: t("categoryUtilities"),
+    SALARIES: t("categorySalaries"),
+    SUPPLIES: t("categorySupplies"),
+    EQUIPMENT: t("categoryEquipment"),
+    MAINTENANCE: t("categoryMaintenance"),
+    MARKETING: t("categoryMarketing"),
+    INSURANCE: t("categoryInsurance"),
+    OTHER: t("categoryOther"),
+  };
   const isStaff = session.user.role === "STAFF";
   const allowedCategories: readonly string[] = isStaff ? STAFF_EXPENSE_CATEGORIES : EXPENSE_CATEGORIES;
 
@@ -83,13 +96,13 @@ export default async function ExpensesPage({
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Expenses</h1>
-          <p className="text-sm text-muted-foreground">Track clinic operating costs.</p>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("trackCosts")}</p>
         </div>
         <Button asChild>
           <Link href="/staff/expenses/new">
             <Plus className="size-4" />
-            Add Expense
+            {t("addExpense")}
           </Link>
         </Button>
       </div>
@@ -110,11 +123,11 @@ export default async function ExpensesPage({
         <div className="flex items-center justify-between gap-4 rounded-2xl bg-gradient-to-r from-rose-500 to-rose-600 p-6 text-white">
           <div>
             <p className="text-xs font-semibold tracking-wide text-rose-50 uppercase">
-              Total Expenses ({formatRangeLabel(range)})
+              {t("totalExpenses", { range: formatRangeLabel(range) })}
             </p>
             <p className="mt-1 text-3xl font-bold">{formatKyat(totalInRange)}</p>
             <p className="mt-1 text-sm text-rose-50">
-              {expenses.length} expense{expenses.length === 1 ? "" : "s"} recorded
+              {t("expensesRecorded", { count: expenses.length })}
             </p>
           </div>
           <div className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-white/20 text-white">
@@ -124,20 +137,20 @@ export default async function ExpensesPage({
       )}
 
       {expenses.length === 0 ? (
-        <EmptyState icon={Receipt} message="No expenses match these filters." />
+        <EmptyState icon={Receipt} message={t("noMatchingExpenses")} />
       ) : (
         <Card>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Category</TableHead>
-                  <TableHead>Description</TableHead>
-                  <TableHead>Vendor</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Recorded By</TableHead>
-                  {!isStaff && <TableHead className="text-right">Actions</TableHead>}
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("category")}</TableHead>
+                  <TableHead>{t("description")}</TableHead>
+                  <TableHead>{t("vendor")}</TableHead>
+                  <TableHead>{t("amount")}</TableHead>
+                  <TableHead>{t("recordedBy")}</TableHead>
+                  {!isStaff && <TableHead className="text-right">{t("actions")}</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -152,7 +165,7 @@ export default async function ExpensesPage({
                     </TableCell>
                     <TableCell>
                       <Badge variant="outline" className={CATEGORY_COLORS[expense.category]}>
-                        {EXPENSE_CATEGORY_LABELS[expense.category]}
+                        {categoryLabels[expense.category]}
                       </Badge>
                     </TableCell>
                     <TableCell className="font-medium">{expense.description}</TableCell>
@@ -180,7 +193,7 @@ export default async function ExpensesPage({
                               type="submit"
                               className="font-medium text-destructive hover:underline"
                             >
-                              Delete
+                              {t("delete")}
                             </button>
                           </form>
                         </div>

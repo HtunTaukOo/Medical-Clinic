@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import { orderLabTestsByStaff, type StaffOrderLabTestsState } from "@/actions/lab";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
@@ -36,6 +37,7 @@ export function CreateLabOrderForAppointmentForm({
   doctorId: string;
   tests: Test[];
 }) {
+  const t = useTranslations("lab");
   const [state, formAction, pending] = useActionState<StaffOrderLabTestsState, FormData>(
     orderLabTestsByStaff,
     {}
@@ -62,9 +64,9 @@ export function CreateLabOrderForAppointmentForm({
   if (state.success && state.orderId) {
     return (
       <p className="text-sm text-emerald-700">
-        Lab order created —{" "}
+        {t("orderCreatedInline")}{" "}
         <Link href={`/staff/lab/${state.orderId}`} className="font-medium underline underline-offset-2">
-          view order
+          {t("viewOrder")}
         </Link>
         .
       </p>
@@ -74,7 +76,7 @@ export function CreateLabOrderForAppointmentForm({
   return (
     <form action={handleSubmit} className="grid gap-3">
       {tests.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No tests in the catalog for this category yet.</p>
+        <p className="text-sm text-muted-foreground">{t("noTestsForCategory")}</p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2">
           {tests.map((test) => (
@@ -92,7 +94,7 @@ export function CreateLabOrderForAppointmentForm({
                 <div>
                   <p className="text-sm font-medium">{test.name}</p>
                   {test.normalRange && (
-                    <p className="text-xs text-muted-foreground">Normal: {test.normalRange}</p>
+                    <p className="text-xs text-muted-foreground">{t("normalLabel", { range: test.normalRange })}</p>
                   )}
                 </div>
               </div>
@@ -104,14 +106,14 @@ export function CreateLabOrderForAppointmentForm({
 
       {selectedTestIds.length > 0 && (
         <p className="text-sm text-muted-foreground">
-          {selectedTestIds.length} test{selectedTestIds.length === 1 ? "" : "s"} · {formatKyat(total)}
+          {t("testsSelected", { count: selectedTestIds.length, total: formatKyat(total) })}
         </p>
       )}
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending || selectedTestIds.length === 0} className="w-fit">
-        Create Lab Order
+        {t("createOrder")}
       </Button>
     </form>
   );

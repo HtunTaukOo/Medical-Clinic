@@ -1,4 +1,5 @@
 import { Calendar, CalendarOff, Clock, Pencil, Plus, Stethoscope } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { todayRange } from "@/lib/queue";
@@ -97,6 +98,16 @@ function isDoctorAvailableNow(
 
 export default async function DoctorsSchedulesPage() {
   await requirePageRole(["ADMIN"]);
+  const t = await getTranslations("doctorManagement");
+  const weekdayLabels = [
+    t("sunday"),
+    t("monday"),
+    t("tuesday"),
+    t("wednesday"),
+    t("thursday"),
+    t("friday"),
+    t("saturday"),
+  ];
 
   const { start: todayStart, end: todayEnd } = todayRange();
   const now = new Date();
@@ -166,21 +177,21 @@ export default async function DoctorsSchedulesPage() {
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Doctors &amp; Schedules</h1>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Manage doctor availability and schedules.
+            {t("description")}
           </p>
         </div>
         <Button asChild>
           <Link href="/staff/users/new?role=DOCTOR">
             <Plus className="size-4" />
-            Add Doctor
+            {t("addDoctor")}
           </Link>
         </Button>
       </div>
 
       {doctors.length === 0 ? (
-        <EmptyState icon={Stethoscope} message="No doctors on staff yet." />
+        <EmptyState icon={Stethoscope} message={t("noDoctors")} />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {doctors.map((doctor) => {
@@ -202,7 +213,7 @@ export default async function DoctorsSchedulesPage() {
                       </Avatar>
                       <div>
                         <p className="font-semibold">{doctor.user.name}</p>
-                        <p className="text-sm text-primary">{doctor.specialty ?? "General practice"}</p>
+                        <p className="text-sm text-primary">{doctor.specialty ?? t("generalPractice")}</p>
                       </div>
                     </div>
                     <Badge
@@ -215,7 +226,7 @@ export default async function DoctorsSchedulesPage() {
                             : "bg-slate-100 text-slate-600"
                       }
                     >
-                      {isOnLeave ? "On Leave" : isAvailableNow ? "Available" : "Unavailable"}
+                      {isOnLeave ? t("onLeave") : isAvailableNow ? t("available") : t("unavailable")}
                     </Badge>
                   </div>
 
@@ -230,13 +241,13 @@ export default async function DoctorsSchedulesPage() {
                     </div>
                     <span className="flex items-center gap-1.5">
                       <Calendar className="size-4" />
-                      {todayCount} today
+                      {t("todayAppointments", { count: todayCount })}
                     </span>
                   </div>
 
                   <div className="flex flex-wrap items-center gap-2">
                     <UserActionDialog
-                      title={`Edit Schedule — ${doctor.user.name}`}
+                      title={t("editScheduleFor", { name: doctor.user.name })}
                       trigger={
                         <Button
                           size="sm"
@@ -244,7 +255,7 @@ export default async function DoctorsSchedulesPage() {
                           className="gap-1.5 border-blue-200 text-blue-700 hover:bg-blue-50 hover:text-blue-700"
                         >
                           <Pencil className="size-3.5" />
-                          Edit Schedule
+                          {t("editSchedule")}
                         </Button>
                       }
                     >
@@ -256,7 +267,7 @@ export default async function DoctorsSchedulesPage() {
                     </UserActionDialog>
 
                     <UserActionDialog
-                      title={`Leave Request — ${doctor.user.name}`}
+                      title={t("leaveRequestFor", { name: doctor.user.name })}
                       trigger={
                         <Button
                           size="sm"
@@ -264,7 +275,7 @@ export default async function DoctorsSchedulesPage() {
                           className="gap-1.5 border-orange-200 text-orange-700 hover:bg-orange-50 hover:text-orange-700"
                         >
                           <CalendarOff className="size-3.5" />
-                          Leave Request
+                          {t("leaveRequest")}
                         </Button>
                       }
                     >
@@ -281,10 +292,10 @@ export default async function DoctorsSchedulesPage() {
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            Leave Requests
+            {t("leaveRequests")}
             {pendingLeaveCount > 0 && (
               <Badge variant="outline" className="bg-amber-100 text-amber-700">
-                {pendingLeaveCount} pending
+                {t("pending", { count: pendingLeaveCount })}
               </Badge>
             )}
           </CardTitle>
@@ -294,27 +305,27 @@ export default async function DoctorsSchedulesPage() {
             leaveDays={allLeaveRequests}
             showForm={false}
             canDecide
-            emptyMessage="No upcoming leave requests."
+            emptyMessage={t("noUpcomingLeave")}
           />
         </CardContent>
       </Card>
 
       <Card>
         <CardHeader>
-          <CardTitle>Schedule Overview</CardTitle>
+          <CardTitle>{t("scheduleOverview")}</CardTitle>
         </CardHeader>
         <CardContent>
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Doctor</TableHead>
-                <TableHead>Specialty</TableHead>
-                {WEEKDAY_LABELS.map((label) => (
+                <TableHead>{t("doctor")}</TableHead>
+                <TableHead>{t("specialty")}</TableHead>
+                {weekdayLabels.map((label) => (
                   <TableHead key={label} className="text-center">
                     {label}
                   </TableHead>
                 ))}
-                <TableHead>Hours</TableHead>
+                <TableHead>{t("hours")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { AlertTriangle, Search, X } from "lucide-react";
 import { completeSale, type CompleteSaleState } from "@/actions/pharmacy";
 import { rxCode } from "@/lib/pharmacy";
@@ -32,9 +33,9 @@ type SaleItem = {
 };
 
 const PAYMENT_METHODS = [
-  { value: "CASH", label: "Cash" },
-  { value: "CARD", label: "Card" },
-  { value: "INSURANCE", label: "Insurance" },
+  { value: "CASH", labelKey: "cash" },
+  { value: "CARD", labelKey: "card" },
+  { value: "INSURANCE", labelKey: "insurance" },
 ] as const;
 
 function findRx(list: PendingRx[], code: string) {
@@ -67,6 +68,7 @@ export function NewSaleForm({
   // both steps separately.
   initialRequestId?: string;
 }) {
+  const t = useTranslations("pharmacySale");
   const [state, formAction, pending] = useActionState<CompleteSaleState, FormData>(completeSale, {});
 
   const [rxInput, setRxInput] = useState(initialRxCode ?? "");
@@ -239,30 +241,30 @@ export function NewSaleForm({
         <CardContent className="grid justify-items-center gap-4 py-12 text-center">
           {state.saleId ? (
             <>
-              <p className="text-lg font-semibold text-emerald-700">Sale completed successfully.</p>
+              <p className="text-lg font-semibold text-emerald-700">{t("saleCompleted")}</p>
               <p className="text-sm text-muted-foreground">
                 {formatKyat(total)} charged to {patient?.name}.
               </p>
               <div className="flex items-center gap-2">
                 <Button asChild>
                   <Link href={`/pharmacy-receipt/${state.saleId}`} target="_blank">
-                    Print Receipt
+                    {t("printReceipt")}
                   </Link>
                 </Button>
                 <Button variant="outline" onClick={resetSale}>
-                  New Sale
+                  {t("newSale")}
                 </Button>
               </div>
             </>
           ) : (
             <>
-              <p className="text-lg font-semibold text-emerald-700">Prescription dispensed.</p>
+              <p className="text-lg font-semibold text-emerald-700">{t("prescriptionDispensed")}</p>
               <p className="text-sm text-muted-foreground">
                 {patient?.name}&rsquo;s prescribed medicines have been given out — already billed on
                 their visit invoice, so no new charge or sale was created.
               </p>
               <Button variant="outline" onClick={resetSale}>
-                New Sale
+                {t("newSale")}
               </Button>
             </>
           )}
@@ -276,7 +278,7 @@ export function NewSaleForm({
       <div className="grid gap-4">
         <Card className="relative z-20 overflow-visible">
           <CardHeader>
-            <CardTitle className="text-base">Prescription Reference</CardTitle>
+            <CardTitle className="text-base">{t("prescriptionReference")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <div className="flex items-center gap-2">
@@ -286,7 +288,7 @@ export function NewSaleForm({
                 onChange={(e) => setRxInput(e.target.value)}
               />
               <Button type="button" onClick={handleLookup}>
-                Look Up
+                {t("lookUp")}
               </Button>
             </div>
             {lookupError && <p className="text-sm text-destructive">{lookupError}</p>}
@@ -294,7 +296,7 @@ export function NewSaleForm({
             {resolvedRx && (
               <div className="grid gap-3 rounded-lg border border-primary/20 bg-primary/5 p-4">
                 <div className="flex items-center justify-between">
-                  <p className="text-sm font-semibold text-primary">Patient Information</p>
+                  <p className="text-sm font-semibold text-primary">{t("patientInformation")}</p>
                   <span className="text-xs text-muted-foreground">
                     Rx: {rxCode(resolvedRx.id, new Date(resolvedRx.createdAt))}
                   </span>
@@ -341,7 +343,7 @@ export function NewSaleForm({
 
             {!resolvedRx && (
               <div className="grid gap-2">
-                <Label>Patient</Label>
+                <Label>{t("patient")}</Label>
                 <div className="relative">
                   <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
@@ -382,7 +384,7 @@ export function NewSaleForm({
 
         <Card className="relative z-20 overflow-visible">
           <CardHeader>
-            <CardTitle className="text-base">Add OTC Item</CardTitle>
+            <CardTitle className="text-base">{t("addOtcItem")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="relative flex items-center gap-2">
@@ -423,7 +425,7 @@ export function NewSaleForm({
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-base">Sale Items</CardTitle>
+            <CardTitle className="text-base">{t("saleItems")}</CardTitle>
           </CardHeader>
           <CardContent>
             {items.length === 0 ? (
@@ -473,11 +475,11 @@ export function NewSaleForm({
 
       <Card className="h-fit">
         <CardHeader>
-          <CardTitle className="text-base">Sale Summary</CardTitle>
+          <CardTitle className="text-base">{t("saleSummary")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Patient</span>
+            <span className="text-muted-foreground">{t("patient")}</span>
             <span className="font-medium">{patient?.name ?? "—"}</span>
           </div>
           <div className="flex items-center justify-between">
@@ -530,7 +532,7 @@ export function NewSaleForm({
 
           {hasOtcItems && (
             <div className="grid gap-2 border-t pt-3">
-              <Label>Payment Method</Label>
+              <Label>{t("paymentMethod")}</Label>
               <div className="grid grid-cols-3 gap-2">
                 {PAYMENT_METHODS.map((m) => (
                   <button
@@ -543,7 +545,7 @@ export function NewSaleForm({
                         : "rounded-md border py-1.5 text-sm font-medium hover:bg-muted"
                     }
                   >
-                    {m.label}
+                    {t(m.labelKey)}
                   </button>
                 ))}
               </div>
@@ -553,10 +555,10 @@ export function NewSaleForm({
           {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
           <Button type="submit" size="lg" disabled={pending || !patient || items.length === 0}>
-            {hasOtcItems ? "Complete Sale" : "Dispense Prescription"}
+            {hasOtcItems ? t("completeSale") : t("dispensePrescription")}
           </Button>
           <Button type="button" variant="outline" disabled>
-            Print Receipt
+            {t("printReceipt")}
           </Button>
 
           <div className="flex items-start gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-xs text-amber-700">

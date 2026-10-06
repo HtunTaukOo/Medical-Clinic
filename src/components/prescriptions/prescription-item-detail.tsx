@@ -14,14 +14,13 @@ type Item = {
 };
 
 export function PrescriptionItemDetail({ item }: { item: Item }) {
-  const frequency = item.frequency ?? (item.timesPerDay ? `${item.timesPerDay}x daily` : null);
+  const t = useTranslations("clinical");
+  const frequency = item.frequency ?? (item.timesPerDay ? t("timesDaily", { count: item.timesPerDay }) : null);
   const details = [
-    item.quantity != null ? `Qty ${item.quantity}` : null,
+    item.quantity != null ? t("quantityDetail", { count: item.quantity }) : null,
     frequency,
-    item.durationDays != null ? `${item.durationDays} day${item.durationDays === 1 ? "" : "s"}` : null,
-    item.refillsLeft != null
-      ? `${item.refillsLeft} refill${item.refillsLeft === 1 ? "" : "s"} left`
-      : null,
+    item.durationDays != null ? t("durationDays", { count: item.durationDays }) : null,
+    item.refillsLeft != null ? t("refillsLeft", { count: item.refillsLeft }) : null,
   ].filter((v): v is string => v != null);
 
   if (details.length === 0 && !item.instructions) return null;
@@ -37,3 +36,4 @@ export function PrescriptionItemDetail({ item }: { item: Item }) {
     </>
   );
 }
+import { useTranslations } from "next-intl";

@@ -28,10 +28,10 @@ function getStockStatus(stockQty: number, reorderLevel: number): StockStatus {
   return "IN_STOCK";
 }
 
-const STOCK_STATUS_LABEL: Record<StockStatus, string> = {
-  OUT_OF_STOCK: "Out of stock",
-  LOW_STOCK: "Low stock",
-  IN_STOCK: "In stock",
+const STOCK_STATUS_KEY: Record<StockStatus, "outOfStock" | "lowStock" | "inStock"> = {
+  OUT_OF_STOCK: "outOfStock",
+  LOW_STOCK: "lowStock",
+  IN_STOCK: "inStock",
 };
 
 const STOCK_STATUS_CLASS: Record<StockStatus, string> = {
@@ -85,14 +85,14 @@ export default async function InventoryPage({
     <div className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Inventory Management</h1>
+          <h1 className="text-2xl font-semibold">{t("managementTitle")}</h1>
           <p className="text-sm text-muted-foreground">
-            Track stock levels, expiry dates, and medicine orders.
+            {t("managementDescription")}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline">
-            <Link href="/staff/inventory/stock-movement">Stock Movement</Link>
+            <Link href="/staff/inventory/stock-movement">{t("stockMovement")}</Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="/staff/inventory/purchase-orders">{t("purchaseOrders")}</Link>
@@ -107,13 +107,13 @@ export default async function InventoryPage({
         <Card className="border-border">
           <CardContent className="text-center">
             <p className="text-2xl font-bold">{totalItems}</p>
-            <p className="text-sm text-muted-foreground">Total Items</p>
+            <p className="text-sm text-muted-foreground">{t("totalItems")}</p>
           </CardContent>
         </Card>
         <Card className="border-emerald-200 bg-emerald-50">
           <CardContent className="text-center">
             <p className="text-2xl font-bold text-emerald-700">{inStockCount}</p>
-            <p className="text-sm text-emerald-700">In Stock</p>
+            <p className="text-sm text-emerald-700">{t("inStock")}</p>
           </CardContent>
         </Card>
         <Card className="border-amber-200 bg-amber-50">
@@ -137,27 +137,27 @@ export default async function InventoryPage({
         <Card className="border-rose-200 bg-rose-50">
           <CardContent className="text-center">
             <p className="text-2xl font-bold text-rose-700">{outOfStockCount}</p>
-            <p className="text-sm text-rose-700">Out of Stock</p>
+            <p className="text-sm text-rose-700">{t("outOfStock")}</p>
           </CardContent>
         </Card>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <SearchInput placeholder="Search medicine..." />
+        <SearchInput placeholder={t("searchMedicine")} />
         <InventoryFilterSelect
           paramName="category"
-          placeholder="All Categories"
+          placeholder={t("allCategories")}
           options={categories.map((c) => ({ value: c, label: c }))}
         />
         <InventoryFilterSelect
           paramName="status"
-          placeholder="All Statuses"
+          placeholder={t("allStatuses")}
           options={[
-            { value: "IN_STOCK", label: "In stock" },
-            { value: "LOW_STOCK", label: "Low stock" },
-            { value: "OUT_OF_STOCK", label: "Out of stock" },
-            { value: "EXPIRING", label: "Expiring soon" },
-            { value: "EXPIRED", label: "Expired" },
+            { value: "IN_STOCK", label: t("inStock") },
+            { value: "LOW_STOCK", label: t("lowStock") },
+            { value: "OUT_OF_STOCK", label: t("outOfStock") },
+            { value: "EXPIRING", label: t("expiringSoon") },
+            { value: "EXPIRED", label: t("expired") },
           ]}
         />
       </div>
@@ -171,13 +171,13 @@ export default async function InventoryPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("name")}</TableHead>
-                  <TableHead>Generic</TableHead>
+                  <TableHead>{t("generic")}</TableHead>
                   <TableHead>{t("price")}</TableHead>
                   <TableHead>{t("stockQty")}</TableHead>
                   <TableHead>{t("expiryDate")}</TableHead>
                   <TableHead>{t("reorderLevel")}</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead className="text-right">{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -208,7 +208,7 @@ export default async function InventoryPage({
                       <TableCell>
                         <div className="flex flex-col items-start gap-1">
                           <Badge variant="outline" className={STOCK_STATUS_CLASS[stockStatus]}>
-                            {STOCK_STATUS_LABEL[stockStatus]}
+                            {t(STOCK_STATUS_KEY[stockStatus])}
                           </Badge>
                           {expiryStatus === "expired" && (
                             <Badge variant="outline" className="bg-rose-100 text-rose-700">
@@ -228,20 +228,20 @@ export default async function InventoryPage({
                             href={`/staff/inventory/${medicine.id}/edit`}
                             className="font-medium text-primary underline"
                           >
-                            Edit
+                            {t("edit")}
                           </Link>
                           <Link
                             href={`/staff/inventory/${medicine.id}`}
                             className="font-medium text-primary underline"
                           >
-                            Restock
+                            {t("restock")}
                           </Link>
                           <form action={deleteMedicine.bind(null, medicine.id)}>
                             <button
                               type="submit"
                               className="font-medium text-destructive underline"
                             >
-                              Delete
+                              {t("delete")}
                             </button>
                           </form>
                         </div>

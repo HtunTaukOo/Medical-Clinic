@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { fetchBlockAvailability, fetchDoctorBlockEligibility } from "@/actions/booking";
 import type { BlockAvailability } from "@/lib/booking-slots";
 import { formatTimeLabel } from "@/lib/time-blocks";
@@ -31,6 +32,7 @@ export function BlockPicker({
   defaultDate?: string;
   defaultBlockId?: string;
 }) {
+  const t = useTranslations("appointments");
   const [date, setDate] = useState(defaultDate ?? "");
   const [blockId, setBlockId] = useState<string | null>(defaultBlockId ?? null);
   const [blocks, setBlocks] = useState<BlockAvailability[]>([]);
@@ -55,7 +57,7 @@ export function BlockPicker({
 
   return (
     <div className="grid gap-2">
-      <Label htmlFor="block-picker-date">Date</Label>
+      <Label htmlFor="block-picker-date">{t("date")}</Label>
       <Input
         id="block-picker-date"
         type="date"
@@ -71,11 +73,11 @@ export function BlockPicker({
 
       {date && (
         <div className="grid gap-2">
-          <Label>Time Block</Label>
+          <Label>{t("timeBlock")}</Label>
           {pending ? (
-            <p className="text-sm text-muted-foreground">Loading blocks…</p>
+            <p className="text-sm text-muted-foreground">{t("loadingBlocks")}</p>
           ) : visibleBlocks.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No blocks available this day.</p>
+            <p className="text-sm text-muted-foreground">{t("noBlocks")}</p>
           ) : (
             <div className="grid gap-2">
               {visibleBlocks.map((b) => {
@@ -100,7 +102,11 @@ export function BlockPicker({
                       {formatTimeLabel(b.startTime)} – {formatTimeLabel(b.endTime)}
                     </span>
                     <span className={selected ? "" : "text-muted-foreground"}>
-                      {!doctorOk ? "Doctor unavailable" : b.available ? `${b.occupied}/${b.capacity} booked` : "Full"}
+                      {!doctorOk
+                        ? t("doctorUnavailable")
+                        : b.available
+                          ? t("blockBooked", { occupied: b.occupied, capacity: b.capacity })
+                          : t("full")}
                     </span>
                   </button>
                 );

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import {
   adminUpdateStaffAccount,
   type AdminUpdateStaffAccountState,
@@ -32,6 +33,7 @@ export function StaffAccountForm({
   currentTitle?: string | null;
   showTitle: boolean;
 }) {
+  const t = useTranslations("staff");
   const boundAction = adminUpdateStaffAccount.bind(null, userId);
   const [state, formAction, pending] = useActionState<AdminUpdateStaffAccountState, FormData>(
     boundAction,
@@ -42,7 +44,7 @@ export function StaffAccountForm({
     <form action={formAction} className="grid gap-3">
       <div className="grid gap-1">
         <Label htmlFor={`name-${userId}`} className="text-xs">
-          Name
+          {t("name")}
         </Label>
         <Input id={`name-${userId}`} name="name" defaultValue={currentName} required />
       </div>
@@ -50,7 +52,7 @@ export function StaffAccountForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1">
           <Label htmlFor={`email-${userId}`} className="text-xs">
-            Email
+            {t("email")}
           </Label>
           <Input
             id={`email-${userId}`}
@@ -62,7 +64,7 @@ export function StaffAccountForm({
         </div>
         <div className="grid gap-1">
           <Label htmlFor={`phone-${userId}`} className="text-xs">
-            Phone
+            {t("phone")}
           </Label>
           <Input id={`phone-${userId}`} name="phone" defaultValue={currentPhone ?? ""} />
         </div>
@@ -71,11 +73,11 @@ export function StaffAccountForm({
       {showTitle && (
         <div className="grid gap-1">
           <Label htmlFor={`title-${userId}`} className="text-xs">
-            Job Title
+            {t("jobTitle")}
           </Label>
           <Select name="title" defaultValue={currentTitle ?? undefined}>
             <SelectTrigger id={`title-${userId}`} className="w-full">
-              <SelectValue placeholder="Set job title..." />
+              <SelectValue placeholder={t("setJobTitle")} />
             </SelectTrigger>
             <SelectContent>
               {STAFF_TITLES.map((t) => (
@@ -89,10 +91,10 @@ export function StaffAccountForm({
       )}
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-primary">Saved.</p>}
+      {state.success && <p className="text-sm text-primary">{t("saved")}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit justify-self-end">
-        Save Changes
+        {t("saveChanges")}
       </Button>
     </form>
   );

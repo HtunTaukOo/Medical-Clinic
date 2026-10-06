@@ -50,7 +50,7 @@ export function StaffForm({
         <Input id="email" name="email" type="email" required />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="password">Password</Label>
+        <Label htmlFor="password">{t("password")}</Label>
         <Input id="password" name="password" type="password" required minLength={8} />
       </div>
       {lockRole ? (
@@ -74,7 +74,7 @@ export function StaffForm({
       )}
       {role === "STAFF" && (
         <div className="grid gap-2">
-          <Label htmlFor="title">Job Title</Label>
+          <Label htmlFor="title">{t("jobTitle")}</Label>
           <Select name="title" defaultValue={STAFF_TITLES[0]}>
             <SelectTrigger id="title" className="w-full">
               <SelectValue />
@@ -92,10 +92,10 @@ export function StaffForm({
       {role === "DOCTOR" && (
         <>
           <div className="grid gap-2">
-            <Label htmlFor="specialty">Specialty</Label>
+            <Label htmlFor="specialty">{t("specialty")}</Label>
             <Select name="specialty">
               <SelectTrigger id="specialty" className="w-full">
-                <SelectValue placeholder="Select specialty" />
+                <SelectValue placeholder={t("selectSpecialty")} />
               </SelectTrigger>
               <SelectContent>
                 {specialties.map((s) => (
@@ -107,7 +107,7 @@ export function StaffForm({
             </Select>
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="consultationFee">Consultation fee</Label>
+            <Label htmlFor="consultationFee">{t("consultationFee")}</Label>
             <Input
               id="consultationFee"
               name="consultationFee"
@@ -121,7 +121,7 @@ export function StaffForm({
       )}
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        {lockRole === "DOCTOR" ? "Add Doctor" : t("new")}
+        {lockRole === "DOCTOR" ? t("addDoctor") : t("new")}
       </Button>
     </form>
   );

@@ -1,18 +1,20 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import { updateWeeklyHours, type ClinicSettingsFormState } from "@/actions/clinic-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 
-const DAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const DAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
 
 export function WeeklyHoursForm({
   days,
 }: {
   days: { weekday: number; isOpen: boolean; openTime: string; closeTime: string }[];
 }) {
+  const t = useTranslations("clinic");
   const [state, formAction, pending] = useActionState<ClinicSettingsFormState, FormData>(
     updateWeeklyHours,
     {}
@@ -25,17 +27,17 @@ export function WeeklyHoursForm({
     <form action={formAction} className="grid gap-4">
       <div className="grid gap-px overflow-hidden rounded-lg border bg-border">
         <div className="grid grid-cols-[1.2fr_1fr_1fr_auto] items-center gap-4 bg-muted px-3 py-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          <span>Day</span>
-          <span>Open Time</span>
-          <span>Close Time</span>
-          <span>Open</span>
+          <span>{t("day")}</span>
+          <span>{t("openTime")}</span>
+          <span>{t("closeTime")}</span>
+          <span>{t("open")}</span>
         </div>
         {days.map((day) => (
           <div
             key={day.weekday}
             className="grid grid-cols-[1.2fr_1fr_1fr_auto] items-center gap-4 bg-card px-3 py-2"
           >
-            <span className="text-sm font-medium">{DAY_LABELS[day.weekday]}</span>
+            <span className="text-sm font-medium">{t(DAY_KEYS[day.weekday])}</span>
             <Input
               type="time"
               name={`openTime-${day.weekday}`}
@@ -64,10 +66,10 @@ export function WeeklyHoursForm({
       </div>
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-primary">Saved.</p>}
+      {state.success && <p className="text-sm text-primary">{t("saved")}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit">
-        Save Working Hours
+        {t("saveWorkingHours")}
       </Button>
     </form>
   );

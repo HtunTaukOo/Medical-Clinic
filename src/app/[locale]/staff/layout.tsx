@@ -4,6 +4,7 @@ import { STAFF_ROLES, homeForRole } from "@/lib/authz";
 import { AppShell, type NavItem } from "@/components/app-shell";
 import { getUnreadStaffNotificationCount } from "@/lib/notifications";
 import { getStaffPermissions, type StaffPermissionKey } from "@/lib/permissions";
+import { getTranslations } from "next-intl/server";
 
 const ALL_NAV_ITEMS: (NavItem & { roles: string[]; staffPermission?: StaffPermissionKey })[] = [
   { href: "/staff", labelKey: "dashboard", roles: STAFF_ROLES, group: "sectionOverview" },
@@ -102,11 +103,6 @@ const ALL_NAV_ITEMS: (NavItem & { roles: string[]; staffPermission?: StaffPermis
   },
 ];
 
-const ROLE_LABELS: Record<string, string> = {
-  ADMIN: "Admin Console",
-  STAFF: "Staff Console",
-};
-
 export default async function StaffLayout({
   children,
   params,
@@ -116,6 +112,7 @@ export default async function StaffLayout({
 }) {
   const { locale } = await params;
   const session = await auth();
+  const t = await getTranslations("nav");
 
   if (!session?.user) {
     redirect({ href: "/login", locale });
@@ -149,7 +146,7 @@ export default async function StaffLayout({
     <AppShell
       locale={locale}
       userName={session.user.name ?? ""}
-      roleLabel={ROLE_LABELS[role] ?? "Staff"}
+      roleLabel={role === "ADMIN" ? t("adminConsole") : t("staffConsole")}
       navItems={navItems}
       sidebarDark
       hideSectionLabels

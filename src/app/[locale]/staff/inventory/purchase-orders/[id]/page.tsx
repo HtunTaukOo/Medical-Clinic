@@ -17,6 +17,14 @@ import {
 } from "@/components/ui/table";
 import { ReceiveStockForm } from "@/components/inventory/receive-stock-form";
 
+const STATUS_KEY: Record<string, "statusDraft" | "statusOrdered" | "statusPartiallyReceived" | "statusReceived" | "statusCancelled"> = {
+  DRAFT: "statusDraft",
+  ORDERED: "statusOrdered",
+  PARTIALLY_RECEIVED: "statusPartiallyReceived",
+  RECEIVED: "statusReceived",
+  CANCELLED: "statusCancelled",
+};
+
 export default async function PurchaseOrderDetailPage({
   params,
 }: {
@@ -52,7 +60,7 @@ export default async function PurchaseOrderDetailPage({
           </p>
         </div>
         <Badge variant={order.status === "RECEIVED" ? "success" : "outline"}>
-          {order.status}
+          {t(STATUS_KEY[order.status])}
         </Badge>
       </div>
 

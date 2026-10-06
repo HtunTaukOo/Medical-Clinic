@@ -1,4 +1,5 @@
 import { ArrowDownCircle, ArrowUpCircle, History } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
@@ -22,6 +23,7 @@ export default async function StockMovementPage({
   searchParams: Promise<{ q?: string; type?: string }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
+  const t = await getTranslations("inventory");
   const { q, type } = await searchParams;
 
   const transactions = await prisma.stockTransaction.findMany({
@@ -38,16 +40,16 @@ export default async function StockMovementPage({
     <div className="grid gap-6">
       <BackLink href="/staff/inventory" />
 
-      <h1 className="text-2xl font-semibold">Stock Movement</h1>
+      <h1 className="text-2xl font-semibold">{t("stockMovement")}</h1>
 
       <div className="flex flex-wrap items-center gap-2">
-        <SearchInput placeholder="Search medicine..." />
+        <SearchInput placeholder={t("searchMedicine")} />
         <InventoryFilterSelect
           paramName="type"
-          placeholder="All Types"
+          placeholder={t("allTypes")}
           options={[
-            { value: "IN", label: "Stock In" },
-            { value: "OUT", label: "Stock Out" },
+            { value: "IN", label: t("stockIn") },
+            { value: "OUT", label: t("stockOut") },
           ]}
         />
       </div>
@@ -55,16 +57,16 @@ export default async function StockMovementPage({
       <Card>
         <CardContent>
           {transactions.length === 0 ? (
-            <EmptyState icon={History} message="No stock movements recorded yet." />
+            <EmptyState icon={History} message={t("noStockMovements")} />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Medicine</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Reason</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("medicine")}</TableHead>
+                  <TableHead>{t("type")}</TableHead>
+                  <TableHead>{t("quantity")}</TableHead>
+                  <TableHead>{t("reason")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -92,7 +94,7 @@ export default async function StockMovementPage({
                         ) : (
                           <ArrowDownCircle className="size-4" />
                         )}
-                        {txn.type}
+                        {txn.type === "IN" ? t("stockIn") : t("stockOut")}
                       </span>
                     </TableCell>
                     <TableCell>

@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { ChevronLeft, ChevronRight, CalendarCheck2, CalendarClock, CalendarX2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Link } from "@/i18n/navigation";
@@ -26,7 +27,7 @@ import { QuickBookSlotForm } from "@/components/appointments/quick-book-slot-for
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 
-const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const DAY_LABEL_KEYS = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"] as const;
 const ONE_DAY_MS = 24 * 60 * 60 * 1000;
 
 // Same amber/blue/emerald status palette the other appointment calendars
@@ -100,8 +101,8 @@ export async function DoctorWeekSchedule({
   basePath,
   linkParams = {},
   appointmentHref,
-  title = "Schedule",
-  subtitle = "Your weekly calendar and availability.",
+  title,
+  subtitle,
 }: {
   doctorId: string;
   weekParam?: string;
@@ -116,6 +117,9 @@ export async function DoctorWeekSchedule({
   title?: string;
   subtitle?: string;
 }) {
+  const t = await getTranslations("doctorSchedule");
+  const scheduleTitle = title ?? t("schedule");
+  const scheduleSubtitle = subtitle ?? t("weeklyCalendar");
   const weekStart = parseWeekStart(weekParam);
   const weekEnd = new Date(weekStart.getTime() + 6 * ONE_DAY_MS);
   const prevWeek = new Date(weekStart.getTime() - 7 * ONE_DAY_MS);
@@ -165,8 +169,7 @@ export async function DoctorWeekSchedule({
     <div className="grid gap-2">
       <BackLink href="/doctor/appointments" />
       <div className="rounded-lg border border-orange-200 bg-orange-50 px-4 py-3 text-sm text-orange-900">
-        Booking a follow-up for <span className="font-medium">{followUpPatient.name}</span> — click an{" "}
-        <span className="font-medium">Available</span> slot below to schedule it.
+        {t("followUpNotice", { name: followUpPatient.name })}
       </div>
     </div>
   ) : null;
@@ -203,8 +206,8 @@ export async function DoctorWeekSchedule({
   const header = (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-semibold">{title}</h1>
-        <p className="text-muted-foreground">{subtitle}</p>
+        <h1 className="text-2xl font-semibold">{scheduleTitle}</h1>
+        <p className="text-muted-foreground">{scheduleSubtitle}</p>
       </div>
       {canRequestLeave && <RequestLeaveDialog doctorId={doctor.id} />}
     </div>
@@ -223,7 +226,7 @@ export async function DoctorWeekSchedule({
     type BlockOccupant = { id: string; patientName: string; reason: string | null; status: string };
 
     const dayBlocks = await Promise.all(
-      DAY_LABELS.map((_, offset) => getBlocksForDate(new Date(weekStart.getTime() + offset * ONE_DAY_MS)))
+      DAY_LABEL_KEYS.map((_, offset) => getBlocksForDate(new Date(weekStart.getTime() + offset * ONE_DAY_MS)))
     );
     const rowStartTimes = Array.from(new Set(dayBlocks.flat().map((b) => b.startTime))).sort();
 
@@ -253,7 +256,7 @@ export async function DoctorWeekSchedule({
       | { type: "none" };
 
     const blockGrid: BlockCell[][] = rowStartTimes.map((startTime) =>
-      DAY_LABELS.map((_, dayOffset) => {
+      DAY_LABEL_KEYS.map((_, dayOffset) => {
         const block = dayBlocks[dayOffset].find((b) => b.startTime === startTime);
         if (!block) return { type: "none" };
 
@@ -321,7 +324,7 @@ export async function DoctorWeekSchedule({
               </div>
               <div>
                 <p className="text-2xl font-semibold">{bookedCount}</p>
-                <p className="text-sm text-muted-foreground">Booked</p>
+                <p className="text-sm text-muted-foreground">{t("booked")}</p>
               </div>
             </CardContent>
           </Card>
@@ -332,7 +335,7 @@ export async function DoctorWeekSchedule({
               </div>
               <div>
                 <p className="text-2xl font-semibold">{availableCount}</p>
-                <p className="text-sm text-muted-foreground">Available Blocks</p>
+                <p className="text-sm text-muted-foreground">{t("availableBlocks")}</p>
               </div>
             </CardContent>
           </Card>
@@ -343,7 +346,7 @@ export async function DoctorWeekSchedule({
               </div>
               <div>
                 <p className="text-2xl font-semibold">{blockedCount}</p>
-                <p className="text-sm text-muted-foreground">Blocked</p>
+                <p className="text-sm text-muted-foreground">{t("blocked")}</p>
               </div>
             </CardContent>
           </Card>
@@ -358,7 +361,7 @@ export async function DoctorWeekSchedule({
               >
                 <ChevronLeft className="size-4" />
               </Link>
-              <p className="font-semibold">Week of {rangeLabel}</p>
+              <p className="font-semibold">{t("weekOf", { date: rangeLabel })}</p>
               <Link
                 href={weekHref(nextWeek)}
                 className="flex size-8 items-center justify-center rounded-full border text-muted-foreground hover:bg-muted"
@@ -371,7 +374,7 @@ export async function DoctorWeekSchedule({
               <div className="min-w-[960px]">
                 <div className="grid grid-cols-[110px_repeat(7,1fr)] gap-1">
                   <div />
-                  {DAY_LABELS.map((label, dayOffset) => {
+                  {DAY_LABEL_KEYS.map((label, dayOffset) => {
                     const dayKey = weekKeyFor(new Date(weekStart.getTime() + dayOffset * ONE_DAY_MS));
                     const isToday = dayKey === todayKey;
                     const dayDate = new Date(weekStart.getTime() + dayOffset * ONE_DAY_MS);
@@ -383,7 +386,7 @@ export async function DoctorWeekSchedule({
                           isToday && "bg-primary/10 text-primary"
                         )}
                       >
-                        <p>{label.toUpperCase()}</p>
+                        <p>{t(label).toUpperCase()}</p>
                         <p className="text-sm font-semibold text-foreground">
                           {dayDate.toLocaleDateString(undefined, {
                             timeZone: "Asia/Yangon",
@@ -392,7 +395,7 @@ export async function DoctorWeekSchedule({
                           })}
                         </p>
                         {pendingLeaveDayKeys.has(dayKey) && (
-                          <p className="text-[10px] font-medium text-amber-600">Leave pending</p>
+                          <p className="text-[10px] font-medium text-amber-600">{t("leavePending")}</p>
                         )}
                       </div>
                     );
@@ -440,13 +443,13 @@ export async function DoctorWeekSchedule({
                           )}
                           {cell.type === "available" && (
                             <UserActionDialog
-                              title={`Book Follow-up — ${cell.timeLabel}`}
+                              title={t("bookFollowUp", { time: cell.timeLabel })}
                               trigger={
                                 <button
                                   type="button"
                                   className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-blue-200 bg-blue-50/40 text-[11px] font-medium text-blue-500 transition-colors hover:bg-blue-100/60"
                                 >
-                                  Available
+                                  {t("available")}
                                 </button>
                               }
                             >
@@ -462,7 +465,7 @@ export async function DoctorWeekSchedule({
                           )}
                           {cell.type === "blocked" && (
                             <div className="flex h-full items-center justify-center rounded-lg bg-muted/40 text-[11px] text-muted-foreground/60">
-                              Blocked
+                              {t("blocked")}
                             </div>
                           )}
                           {cell.type === "none" && <div className="h-full" />}
@@ -478,7 +481,7 @@ export async function DoctorWeekSchedule({
 
         <Card>
           <CardHeader>
-            <CardTitle>Blocked time &amp; leave requests</CardTitle>
+            <CardTitle>{t("blockedTimeLeave")}</CardTitle>
           </CardHeader>
           <CardContent>
             <DoctorLeaveManager doctorId={doctor.id} leaveDays={upcomingLeaveDays} showForm={false} />
@@ -531,7 +534,7 @@ export async function DoctorWeekSchedule({
     | { type: "blocked" };
 
   const grid: Cell[][] = rowMinutes.map((minutes) =>
-    DAY_LABELS.map((_, dayOffset) => {
+    DAY_LABEL_KEYS.map((_, dayOffset) => {
       const occupant = apptByCell.get(`${dayOffset}-${minutes}`);
       if (occupant) {
         return occupant.isStart
@@ -599,7 +602,7 @@ export async function DoctorWeekSchedule({
             </div>
             <div>
               <p className="text-2xl font-semibold">{bookedCount}</p>
-              <p className="text-sm text-muted-foreground">Booked</p>
+              <p className="text-sm text-muted-foreground">{t("booked")}</p>
             </div>
           </CardContent>
         </Card>
@@ -610,7 +613,7 @@ export async function DoctorWeekSchedule({
             </div>
             <div>
               <p className="text-2xl font-semibold">{availableCount}</p>
-              <p className="text-sm text-muted-foreground">Available Slots</p>
+              <p className="text-sm text-muted-foreground">{t("availableSlots")}</p>
             </div>
           </CardContent>
         </Card>
@@ -621,7 +624,7 @@ export async function DoctorWeekSchedule({
             </div>
             <div>
               <p className="text-2xl font-semibold">{blockedCount}</p>
-              <p className="text-sm text-muted-foreground">Blocked</p>
+              <p className="text-sm text-muted-foreground">{t("blocked")}</p>
             </div>
           </CardContent>
         </Card>
@@ -636,7 +639,7 @@ export async function DoctorWeekSchedule({
             >
               <ChevronLeft className="size-4" />
             </Link>
-            <p className="font-semibold">Week of {rangeLabel}</p>
+            <p className="font-semibold">{t("weekOf", { date: rangeLabel })}</p>
             <Link
               href={weekHref(nextWeek)}
               className="flex size-8 items-center justify-center rounded-full border text-muted-foreground hover:bg-muted"
@@ -649,7 +652,7 @@ export async function DoctorWeekSchedule({
             <div className="min-w-[840px]">
               <div className="grid grid-cols-[80px_repeat(7,1fr)] gap-1">
                 <div />
-                {DAY_LABELS.map((label, dayOffset) => {
+                {DAY_LABEL_KEYS.map((label, dayOffset) => {
                   const dayKey = weekKeyFor(new Date(weekStart.getTime() + dayOffset * ONE_DAY_MS));
                   const isToday = dayKey === todayKey;
                   const dayDate = new Date(weekStart.getTime() + dayOffset * ONE_DAY_MS);
@@ -661,7 +664,7 @@ export async function DoctorWeekSchedule({
                         isToday && "bg-primary/10 text-primary"
                       )}
                     >
-                      <p>{label.toUpperCase()}</p>
+                      <p>{t(label).toUpperCase()}</p>
                       <p className="text-sm font-semibold text-foreground">
                         {dayDate.toLocaleDateString(undefined, {
                           timeZone: "Asia/Yangon",
@@ -670,7 +673,7 @@ export async function DoctorWeekSchedule({
                         })}
                       </p>
                       {pendingLeaveDayKeys.has(dayKey) && (
-                        <p className="text-[10px] font-medium text-amber-600">Leave pending</p>
+                        <p className="text-[10px] font-medium text-amber-600">{t("leavePending")}</p>
                       )}
                     </div>
                   );
@@ -717,13 +720,13 @@ export async function DoctorWeekSchedule({
                           )}
                           {cell.type === "available" && (
                             <UserActionDialog
-                              title={`Book Follow-up — ${cell.timeLabel}`}
+                              title={t("bookFollowUp", { time: cell.timeLabel })}
                               trigger={
                                 <button
                                   type="button"
                                   className="flex h-full w-full items-center justify-center rounded-lg border border-dashed border-blue-200 bg-blue-50/40 text-[11px] font-medium text-blue-500 transition-colors hover:bg-blue-100/60"
                                 >
-                                  Available
+                                  {t("available")}
                                 </button>
                               }
                             >
@@ -738,7 +741,7 @@ export async function DoctorWeekSchedule({
                           )}
                           {cell.type === "blocked" && (
                             <div className="flex h-full items-center justify-center rounded-lg bg-muted/40 text-[11px] text-muted-foreground/60">
-                              Blocked
+                              {t("blocked")}
                             </div>
                           )}
                         </div>
@@ -754,7 +757,7 @@ export async function DoctorWeekSchedule({
 
       <Card>
         <CardHeader>
-          <CardTitle>Blocked time &amp; leave requests</CardTitle>
+          <CardTitle>{t("blockedTimeLeave")}</CardTitle>
         </CardHeader>
         <CardContent>
           <DoctorLeaveManager doctorId={doctor.id} leaveDays={upcomingLeaveDays} showForm={false} />

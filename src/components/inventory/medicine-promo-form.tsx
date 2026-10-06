@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import { updateMedicinePromo, type MedicinePromoState } from "@/actions/inventory";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ export function MedicinePromoForm({
   category: string | null;
   description: string | null;
 }) {
+  const t = useTranslations("inventory");
   const boundAction = updateMedicinePromo.bind(null, medicineId);
   const [state, formAction, pending] = useActionState<MedicinePromoState, FormData>(
     boundAction,
@@ -45,15 +47,15 @@ export function MedicinePromoForm({
           checked={isFeatured}
           onChange={(e) => setIsFeatured(e.target.checked)}
         />
-        Feature in the &quot;From the Pharmacy&quot; section of the patient portal
+        {t("featureInPortal")}
       </label>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor={`brand-${medicineId}`}>Brand</Label>
+          <Label htmlFor={`brand-${medicineId}`}>{t("brand")}</Label>
           <Input id={`brand-${medicineId}`} name="brand" defaultValue={brand ?? ""} />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor={`category-${medicineId}`}>Category</Label>
+          <Label htmlFor={`category-${medicineId}`}>{t("category")}</Label>
           <Input
             id={`category-${medicineId}`}
             name="category"
@@ -68,7 +70,7 @@ export function MedicinePromoForm({
         </div>
       </div>
       <div className="grid gap-2">
-        <Label htmlFor={`description-${medicineId}`}>Description</Label>
+        <Label htmlFor={`description-${medicineId}`}>{t("description")}</Label>
         <Textarea
           id={`description-${medicineId}`}
           name="description"
@@ -77,9 +79,9 @@ export function MedicinePromoForm({
         />
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-muted-foreground">Saved.</p>}
+      {state.success && <p className="text-sm text-muted-foreground">{t("saved")}</p>}
       <Button type="submit" disabled={pending} className="w-fit" size="sm">
-        Save
+        {t("save")}
       </Button>
     </form>
   );

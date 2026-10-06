@@ -80,15 +80,15 @@ export function AppointmentForm({
     return (
       <div className="grid max-w-lg gap-3">
         <p className="text-sm text-emerald-600">
-          Booked {state.createdCount} weekly appointment{state.createdCount === 1 ? "" : "s"}.
+          {t("weeklyBooked", { count: state.createdCount ?? 0 })}
         </p>
         {state.skippedDates.length > 0 && (
           <p className="text-sm text-muted-foreground">
-            Skipped (conflict or leave day): {state.skippedDates.join(", ")}
+            {t("skippedDates", { dates: state.skippedDates.join(", ") })}
           </p>
         )}
         <Button asChild size="sm" variant="outline" className="w-fit">
-          <Link href={redirectOnSuccess}>Done</Link>
+          <Link href={redirectOnSuccess}>{t("done")}</Link>
         </Button>
       </div>
     );
@@ -116,7 +116,7 @@ export function AppointmentForm({
       )}
       {hasServiceOption && (
         <div className="grid gap-2">
-          <Label>Booking Type</Label>
+          <Label>{t("bookingType")}</Label>
           <div className="flex gap-2">
             <Button
               type="button"
@@ -124,7 +124,7 @@ export function AppointmentForm({
               variant={bookingKind === "doctor" ? "default" : "outline"}
               onClick={() => setBookingKind("doctor")}
             >
-              Doctor Consultation
+              {t("doctorConsultation")}
             </Button>
             <Button
               type="button"
@@ -132,7 +132,7 @@ export function AppointmentForm({
               variant={bookingKind === "service" ? "default" : "outline"}
               onClick={() => setBookingKind("service")}
             >
-              Lab Visit / Service
+              {t("labVisitService")}
             </Button>
           </div>
         </div>
@@ -141,7 +141,7 @@ export function AppointmentForm({
       {isServiceBooking ? (
         <>
           <div className="grid gap-2">
-            <Label htmlFor="clinicServiceId">Service</Label>
+            <Label htmlFor="clinicServiceId">{t("service")}</Label>
             <Select
               name="clinicServiceId"
               required
@@ -149,7 +149,7 @@ export function AppointmentForm({
               onValueChange={setClinicServiceId}
             >
               <SelectTrigger id="clinicServiceId" className="w-full">
-                <SelectValue placeholder="Select service" />
+                <SelectValue placeholder={t("selectService")} />
               </SelectTrigger>
               <SelectContent>
                 {eligibleServices.map((s) => (
@@ -211,11 +211,11 @@ export function AppointmentForm({
               checked={repeatWeekly}
               onChange={(e) => setRepeatWeekly(e.target.checked)}
             />
-            Repeat weekly
+            {t("repeatWeekly")}
           </label>
           {repeatWeekly && (
             <div className="grid gap-2">
-              <Label htmlFor="occurrences">Number of occurrences</Label>
+              <Label htmlFor="occurrences">{t("numberOfOccurrences")}</Label>
               <Input
                 id="occurrences"
                 name="occurrences"
@@ -225,8 +225,7 @@ export function AppointmentForm({
                 defaultValue={4}
               />
               <p className="text-xs text-muted-foreground">
-                Any occurrence that conflicts or falls on a leave day is skipped rather than
-                blocking the rest of the series.
+                {t("recurringBookingHelp")}
               </p>
             </div>
           )}

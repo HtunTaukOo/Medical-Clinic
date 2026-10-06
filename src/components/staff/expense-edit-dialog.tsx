@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ export function ExpenseEditDialog({
     recurringExpenseId: string | null;
   };
 }) {
+  const t = useTranslations("expenses");
   const [open, setOpen] = useState(false);
 
   return (
@@ -34,7 +36,7 @@ export function ExpenseEditDialog({
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit Expense</DialogTitle>
+          <DialogTitle>{t("editExpense")}</DialogTitle>
         </DialogHeader>
         <ExpenseForm expense={expense} onSaved={() => setOpen(false)} />
       </DialogContent>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { createAppointment, type AppointmentFormState } from "@/actions/appointments";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -34,6 +35,7 @@ export function QuickBookSlotForm({
   | { blockDate: string; blockId: string; scheduledAt?: undefined }
   | { blockDate?: undefined; blockId?: undefined; scheduledAt: string }
 )) {
+  const t = useTranslations("appointments");
   const [state, formAction, pending] = useActionState<AppointmentFormState, FormData>(
     createAppointment,
     {}
@@ -42,9 +44,9 @@ export function QuickBookSlotForm({
   if (state.success) {
     return (
       <div className="grid gap-4">
-        <p className="text-sm text-emerald-600">Follow-up booked for {timeLabel}.</p>
+        <p className="text-sm text-emerald-600">{t("followUpBooked", { time: timeLabel })}</p>
         <DialogClose asChild>
-          <Button className="w-full">Done</Button>
+          <Button className="w-full">{t("done")}</Button>
         </DialogClose>
       </div>
     );
@@ -62,18 +64,18 @@ export function QuickBookSlotForm({
         <input type="hidden" name="scheduledAt" value={scheduledAt} />
       )}
 
-      <p className="text-sm text-muted-foreground">Booking a follow-up for {timeLabel}.</p>
+      <p className="text-sm text-muted-foreground">{t("bookingFollowUp", { time: timeLabel })}</p>
 
       {patients.length === 0 ? (
         <p className="text-sm text-muted-foreground">
-          You don&apos;t have any existing patients yet — book from the New Appointment page instead.
+          {t("noExistingPatients")}
         </p>
       ) : (
         <div className="grid gap-2">
-          <Label htmlFor="quick-book-patientId">Patient</Label>
+          <Label htmlFor="quick-book-patientId">{t("patient")}</Label>
           <Select name="patientId" required defaultValue={defaultPatientId}>
             <SelectTrigger id="quick-book-patientId" className="w-full">
-              <SelectValue placeholder="Select patient" />
+              <SelectValue placeholder={t("selectPatient")} />
             </SelectTrigger>
             <SelectContent>
               {patients.map((p) => (
@@ -87,11 +89,11 @@ export function QuickBookSlotForm({
       )}
 
       <div className="grid gap-2">
-        <Label htmlFor="quick-book-reason">Reason</Label>
+        <Label htmlFor="quick-book-reason">{t("reason")}</Label>
         <Textarea
           id="quick-book-reason"
           name="reason"
-          placeholder="e.g. Follow-up visit"
+          placeholder={t("followUpReasonPlaceholder")}
           rows={3}
         />
       </div>
@@ -99,7 +101,7 @@ export function QuickBookSlotForm({
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending || patients.length === 0} className="w-full">
-        Book Follow-up
+        {t("bookFollowUp")}
       </Button>
     </form>
   );

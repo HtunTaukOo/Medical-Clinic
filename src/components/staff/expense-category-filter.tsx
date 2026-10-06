@@ -1,8 +1,9 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useRouter, usePathname } from "@/i18n/navigation";
-import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
+import { EXPENSE_CATEGORIES } from "@/lib/expenses";
 import {
   Select,
   SelectContent,
@@ -20,6 +21,7 @@ export function ExpenseCategoryFilter({
   // allowed categories) — defaults to every category, for the admin view.
   categories?: readonly string[];
 }) {
+  const t = useTranslations("expenses");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -33,17 +35,17 @@ export function ExpenseCategoryFilter({
   }
 
   const options = [
-    { value: "all", label: "All Categories" },
+    { value: "all", label: t("allCategories") },
     ...(categories ?? EXPENSE_CATEGORIES).map((value) => ({
       value,
-      label: EXPENSE_CATEGORY_LABELS[value as keyof typeof EXPENSE_CATEGORY_LABELS],
+      label: t(`category${value.charAt(0)}${value.slice(1).toLowerCase()}`),
     })),
   ];
 
   return (
     <Select value={category} onValueChange={update}>
       <SelectTrigger className="w-48">
-        <SelectValue placeholder="All Categories" />
+        <SelectValue placeholder={t("allCategories")} />
       </SelectTrigger>
       <SelectContent>
         {options.map((opt) => (

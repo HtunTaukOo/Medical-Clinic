@@ -2,6 +2,7 @@ import { Building2, Plus } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { getActiveSpecialties } from "@/lib/specialties-data";
+import { getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -41,6 +42,7 @@ function specialtyColorClass(specialty: string | null) {
 
 export default async function ClinicServicesPage() {
   await requirePageRole(["ADMIN"]);
+  const t = await getTranslations("clinicServices");
 
   const [services, specialties, labTests] = await Promise.all([
     prisma.clinicService.findMany({ orderBy: { name: "asc" } }),
@@ -54,32 +56,32 @@ export default async function ClinicServicesPage() {
     <div className="grid gap-4">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Clinic Services</h1>
-          <p className="text-sm text-muted-foreground">Manage all clinic services and pricing.</p>
+          <h1 className="text-2xl font-semibold">{t("title")}</h1>
+          <p className="text-sm text-muted-foreground">{t("manageServices")}</p>
         </div>
         <Button asChild>
           <Link href="/staff/clinic-services/new">
             <Plus className="size-4" />
-            Add Service
+            {t("addService")}
           </Link>
         </Button>
       </div>
 
       {services.length === 0 ? (
-        <EmptyState icon={Building2} message="No clinic services yet." />
+        <EmptyState icon={Building2} message={t("noServices")} />
       ) : (
         <Card>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Service Name</TableHead>
-                  <TableHead>Specialty</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead>Price</TableHead>
-                  <TableHead>Room</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t("serviceName")}</TableHead>
+                  <TableHead>{t("specialty")}</TableHead>
+                  <TableHead>{t("duration")}</TableHead>
+                  <TableHead>{t("price")}</TableHead>
+                  <TableHead>{t("room")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead className="text-right">{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -96,7 +98,7 @@ export default async function ClinicServicesPage() {
                       )}
                     </TableCell>
                     <TableCell className="text-muted-foreground">
-                      {service.durationMinutes} min
+                      {t("minutes", { count: service.durationMinutes })}
                     </TableCell>
                     <TableCell>{formatKyat(Number(service.price))}</TableCell>
                     <TableCell className="text-muted-foreground">{service.room ?? "—"}</TableCell>
@@ -109,7 +111,7 @@ export default async function ClinicServicesPage() {
                             : "bg-slate-100 text-slate-600"
                         }
                       >
-                        {service.active ? "Available" : "Unavailable"}
+                        {service.active ? t("available") : t("unavailable")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">

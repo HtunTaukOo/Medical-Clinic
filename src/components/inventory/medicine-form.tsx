@@ -30,10 +30,10 @@ export function MedicineForm({
 
   useEffect(() => {
     if (state.success) {
-      toast.success(medicine ? "Medicine updated" : "Medicine added");
+      toast.success(medicine ? t("medicineUpdated") : t("medicineAdded"));
       router.push("/staff/inventory");
     }
-  }, [state.success, router, medicine]);
+  }, [state.success, router, medicine, t]);
 
   return (
     <form action={formAction} className="grid max-w-md gap-4">
@@ -47,7 +47,7 @@ export function MedicineForm({
           id="unit"
           name="unit"
           required
-          placeholder="tablet, bottle, ..."
+          placeholder={t("unitPlaceholder")}
           defaultValue={medicine?.unit}
         />
       </div>
@@ -88,7 +88,7 @@ export function MedicineForm({
       )}
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        {medicine ? "Save changes" : t("newMedicine")}
+        {medicine ? t("saveChanges") : t("newMedicine")}
       </Button>
     </form>
   );

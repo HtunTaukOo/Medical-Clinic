@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter, usePathname } from "@/i18n/navigation";
 import { Input } from "@/components/ui/input";
@@ -27,6 +28,7 @@ export function DateRangeFilter({
   // than whatever timezone the viewer's browser happens to be in.
   todayKey: string;
 }) {
+  const t = useTranslations("reports");
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -78,7 +80,7 @@ export function DateRangeFilter({
           variant={isToday ? "default" : "outline"}
           onClick={() => setRange(todayKey, todayKey)}
         >
-          Day
+          {t("day")}
         </Button>
         <Button
           type="button"
@@ -86,7 +88,7 @@ export function DateRangeFilter({
           variant={isThisMonth ? "default" : "outline"}
           onClick={() => setRange(monthStart, todayKey)}
         >
-          Month
+          {t("month")}
         </Button>
         <Button
           type="button"
@@ -94,12 +96,12 @@ export function DateRangeFilter({
           variant={isThisYear ? "default" : "outline"}
           onClick={() => setRange(yearStart, todayKey)}
         >
-          Year
+          {t("year")}
         </Button>
       </div>
       <div className="flex items-center gap-2">
         <Label htmlFor="report-from" className="text-sm text-muted-foreground">
-          From
+          {t("from")}
         </Label>
         <Input
           id="report-from"
@@ -111,7 +113,7 @@ export function DateRangeFilter({
       </div>
       <div className="flex items-center gap-2">
         <Label htmlFor="report-to" className="text-sm text-muted-foreground">
-          To
+          {t("to")}
         </Label>
         <Input
           id="report-to"

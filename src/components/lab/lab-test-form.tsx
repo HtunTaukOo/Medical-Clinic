@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import { createLabTest, updateLabTest, type LabTestFormState } from "@/actions/lab";
 import { useRouter } from "@/i18n/navigation";
 import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categories";
@@ -26,6 +27,7 @@ type ExistingTest = {
 };
 
 export function LabTestForm({ test }: { test?: ExistingTest }) {
+  const t = useTranslations("lab");
   const router = useRouter();
   const action = test ? updateLabTest.bind(null, test.id) : createLabTest;
   const [state, formAction, pending] = useActionState<LabTestFormState, FormData>(action, {});
@@ -38,14 +40,14 @@ export function LabTestForm({ test }: { test?: ExistingTest }) {
   return (
     <form action={formAction} className="grid max-w-md gap-4">
       <div className="grid gap-2">
-        <Label htmlFor="name">Test name</Label>
+        <Label htmlFor="name">{t("testName")}</Label>
         <Input id="name" name="name" defaultValue={test?.name} required />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="category">Category</Label>
+        <Label htmlFor="category">{t("category")}</Label>
         <Select value={category} onValueChange={setCategory}>
           <SelectTrigger id="category" className="w-full">
-            <SelectValue placeholder="Select category" />
+            <SelectValue placeholder={t("selectCategory")} />
           </SelectTrigger>
           <SelectContent>
             {LAB_TEST_CATEGORIES.map((key) => (
@@ -58,11 +60,11 @@ export function LabTestForm({ test }: { test?: ExistingTest }) {
         <input type="hidden" name="category" value={category} />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="unit">Unit</Label>
+        <Label htmlFor="unit">{t("unit")}</Label>
         <Input id="unit" name="unit" defaultValue={test?.unit ?? undefined} placeholder="e.g. mg/dL" />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="normalRange">Normal range</Label>
+        <Label htmlFor="normalRange">{t("normalRange")}</Label>
         <Input
           id="normalRange"
           name="normalRange"
@@ -71,7 +73,7 @@ export function LabTestForm({ test }: { test?: ExistingTest }) {
         />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="price">Price</Label>
+        <Label htmlFor="price">{t("price")}</Label>
         <Input
           id="price"
           name="price"
@@ -89,11 +91,11 @@ export function LabTestForm({ test }: { test?: ExistingTest }) {
           defaultChecked={test?.requiresExternalLab ?? false}
           className="size-4"
         />
-        Requires sending to an external lab
+        {t("requiresExternalLab")}
       </label>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        {test ? "Save changes" : "Create test"}
+        {test ? t("saveChanges") : t("createTest")}
       </Button>
     </form>
   );

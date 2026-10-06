@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 function formatKyat(value: number) {
   return `MMK ${Math.round(value).toLocaleString()}`;
 }
@@ -16,12 +18,13 @@ type Test = { id: string; name: string; unit: string | null; normalRange: string
 // CreateLabOrderForAppointmentForm's picker. Picking is optional; leaving
 // all unchecked just falls back to that follow-up prompt as before.
 export function InlineLabTestPicker({ tests }: { tests: Test[] }) {
+  const t = useTranslations("lab");
   if (tests.length === 0) return null;
 
   return (
     <div className="grid gap-2">
       <p className="text-sm font-medium">
-        Lab Test(s) <span className="font-normal text-muted-foreground">(optional — pick now, or leave for later)</span>
+        {t("labTestsOptional")} <span className="font-normal text-muted-foreground">{t("pickTestsNow")}</span>
       </p>
       <div className="grid max-h-64 gap-2 overflow-y-auto rounded-lg border p-2 sm:grid-cols-2">
         {tests.map((test) => (

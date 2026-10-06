@@ -25,10 +25,10 @@ function formatKyat(value: number) {
 }
 
 const TABS = [
-  { value: "all", label: "All Invoices" },
-  { value: "UNPAID", label: "Unpaid" },
-  { value: "PAID", label: "Paid" },
-  { value: "REFUNDED", label: "Refunded" },
+  { value: "all", labelKey: "allInvoices" },
+  { value: "UNPAID", labelKey: "unpaid" },
+  { value: "PAID", labelKey: "paid" },
+  { value: "REFUNDED", labelKey: "refunded" },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
 
@@ -122,7 +122,7 @@ export default async function BillingPage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
-          <p className="text-sm text-muted-foreground">Manage invoices and payments.</p>
+          <p className="text-sm text-muted-foreground">{t("manageInvoices")}</p>
         </div>
         <div className="flex items-center gap-2">
           <Button asChild variant="outline" size="sm">
@@ -134,7 +134,7 @@ export default async function BillingPage({
           <Button asChild>
             <Link href="/staff/billing/new">
               <Plus />
-              New Invoice
+              {t("newInvoice")}
             </Link>
           </Button>
         </div>
@@ -162,7 +162,7 @@ export default async function BillingPage({
       </div>
 
       <div className="inline-flex w-fit items-center gap-1 rounded-xl bg-muted p-1">
-        {TABS.map(({ value, label }) => (
+        {TABS.map(({ value, labelKey }) => (
           <TabLink
             key={value}
             href={`/staff/billing?tab=${value}${dateQuery}`}
@@ -171,7 +171,7 @@ export default async function BillingPage({
             activeClassName="bg-card text-primary shadow-sm"
             inactiveClassName="text-muted-foreground hover:text-foreground"
           >
-            {label}
+            {t(labelKey)}
           </TabLink>
         ))}
       </div>
@@ -185,13 +185,13 @@ export default async function BillingPage({
             <Table className="table-fixed">
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice No</TableHead>
-                  <TableHead>Patient</TableHead>
-                  <TableHead className="w-[28%]">Description</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Amount</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("invoiceNo")}</TableHead>
+                  <TableHead>{t("patient")}</TableHead>
+                  <TableHead className="w-[28%]">{t("description")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("amount")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -211,7 +211,7 @@ export default async function BillingPage({
                       </Link>
                       {itemCount > 1 && (
                         <span className="text-xs text-muted-foreground">
-                          {itemCount} invoice items
+                          {t("itemsCount", { count: itemCount })}
                         </span>
                       )}
                     </TableCell>
@@ -227,14 +227,14 @@ export default async function BillingPage({
                       <div className="flex flex-wrap items-center gap-1">
                         <Badge variant="outline" className={STATUS_STYLES[invoice.status]}>
                           {invoice.status === "PAID"
-                            ? "Paid"
+                            ? t("paid")
                             : invoice.status === "PARTIAL"
-                              ? "Partial"
-                              : "Unpaid"}
+                              ? t("partial")
+                              : t("unpaid")}
                         </Badge>
                         {invoice.pharmacySaleId && (
                           <Badge variant="outline" className="bg-cyan-100 text-cyan-700">
-                            Pharmacy
+                            {t("pharmacy")}
                           </Badge>
                         )}
                         {hasRefund && (
@@ -244,7 +244,7 @@ export default async function BillingPage({
                         )}
                         {hasRejectedClaim && (
                           <Badge variant="outline" className="bg-rose-100 text-rose-700">
-                            Claim Rejected
+                            {t("claimRejected")}
                           </Badge>
                         )}
                       </div>
@@ -256,7 +256,7 @@ export default async function BillingPage({
                             href={`/staff/billing/${invoice.id}`}
                             className="font-medium text-emerald-600 hover:underline"
                           >
-                            Receive Payment
+                            {t("receivePayment")}
                           </Link>
                         )}
                         {grossPaid > 0 && (
@@ -270,7 +270,7 @@ export default async function BillingPage({
                               target={invoice.pharmacySaleId ? "_blank" : undefined}
                               className="font-medium text-primary hover:underline"
                             >
-                              View Receipt
+                              {t("viewReceipt")}
                             </Link>
                             {netPaid > 0 &&
                               (invoice.pharmacySaleId ? (
@@ -278,7 +278,7 @@ export default async function BillingPage({
                                   href="/staff/pharmacy?tab=history"
                                   className="font-medium text-rose-600 hover:underline"
                                 >
-                                  Process Return
+                                  {t("processReturn")}
                                 </Link>
                               ) : (
                                 <Link

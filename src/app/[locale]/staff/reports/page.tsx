@@ -1,4 +1,5 @@
 import { Download, FileBarChart2 } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { requireStaffPermissionPage } from "@/lib/authz";
 import { clinicDateKey } from "@/lib/clinic-hours";
 import {
@@ -42,6 +43,7 @@ export default async function ReportsPage({
   searchParams: Promise<{ tab?: string; from?: string; to?: string }>;
 }) {
   await requireStaffPermissionPage("VIEW_REPORTS");
+  const t = await getTranslations("reports");
 
   const { tab: tabParam, from, to } = await searchParams;
   const tab: ReportTab = REPORT_TABS.some((t) => t.value === tabParam)
@@ -56,12 +58,12 @@ export default async function ReportsPage({
     <TabTransitionScope>
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Reports</h1>
-        <p className="text-sm text-muted-foreground">Generate and view clinic analytics.</p>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("description")}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {REPORT_TABS.map(({ value, label }) => (
+        {REPORT_TABS.map(({ value }) => (
           <TabButton
             key={value}
             href={`/staff/reports?tab=${value}&from=${range.from}&to=${range.to}`}
@@ -69,7 +71,7 @@ export default async function ReportsPage({
             size="sm"
             className="rounded-full"
           >
-            {label}
+            {t(value === "services" ? "serviceUsage" : value)}
           </TabButton>
         ))}
       </div>
@@ -83,7 +85,7 @@ export default async function ReportsPage({
         <Button asChild size="sm">
           <a href={exportHref}>
             <Download />
-            Export CSV
+            {t("exportCsv")}
           </a>
         </Button>
       </div>
@@ -101,7 +103,7 @@ export default async function ReportsPage({
         <Card>
           <CardContent>
             <p className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-              Growth
+              {t("growth")}
             </p>
             <p className="mt-1 text-2xl font-semibold">
               <GrowthText value={data.growthPercent} />
@@ -124,17 +126,17 @@ export default async function ReportsPage({
         <CardContent>
           {data.kind === "appointments" &&
             (data.rows.every((r) => r.total === 0) ? (
-              <EmptyState icon={FileBarChart2} message="No appointments in this date range." />
+              <EmptyState icon={FileBarChart2} message={t("noAppointments")} />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Completed</TableHead>
-                    <TableHead>Cancelled</TableHead>
-                    <TableHead>Scheduled</TableHead>
-                    <TableHead>Growth</TableHead>
+                    <TableHead>{t("date")}</TableHead>
+                    <TableHead>{t("total")}</TableHead>
+                    <TableHead>{t("completed")}</TableHead>
+                    <TableHead>{t("cancelled")}</TableHead>
+                    <TableHead>{t("scheduled")}</TableHead>
+                    <TableHead>{t("growth")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -156,14 +158,14 @@ export default async function ReportsPage({
 
           {data.kind === "patients" &&
             (data.rows.every((r) => r.newPatients === 0) ? (
-              <EmptyState icon={FileBarChart2} message="No new patients in this date range." />
+              <EmptyState icon={FileBarChart2} message={t("noPatients")} />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>New Patients</TableHead>
-                    <TableHead>Growth</TableHead>
+                    <TableHead>{t("date")}</TableHead>
+                    <TableHead>{t("newPatients")}</TableHead>
+                    <TableHead>{t("growth")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -182,16 +184,16 @@ export default async function ReportsPage({
 
           {data.kind === "doctors" &&
             (data.rows.length === 0 ? (
-              <EmptyState icon={FileBarChart2} message="No doctor activity in this date range." />
+              <EmptyState icon={FileBarChart2} message={t("noDoctorActivity")} />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Doctor</TableHead>
-                    <TableHead>Completed</TableHead>
-                    <TableHead>No-shows</TableHead>
-                    <TableHead>No-show Rate</TableHead>
-                    <TableHead>Revenue</TableHead>
+                    <TableHead>{t("doctor")}</TableHead>
+                    <TableHead>{t("completed")}</TableHead>
+                    <TableHead>{t("noShows")}</TableHead>
+                    <TableHead>{t("noShowRate")}</TableHead>
+                    <TableHead>{t("revenue")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -215,14 +217,14 @@ export default async function ReportsPage({
 
           {data.kind === "revenue" &&
             (data.rows.every((r) => r.revenue === 0) ? (
-              <EmptyState icon={FileBarChart2} message="No revenue in this date range." />
+              <EmptyState icon={FileBarChart2} message={t("noRevenue")} />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Revenue</TableHead>
-                    <TableHead>Growth</TableHead>
+                    <TableHead>{t("date")}</TableHead>
+                    <TableHead>{t("revenue")}</TableHead>
+                    <TableHead>{t("growth")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -243,15 +245,15 @@ export default async function ReportsPage({
             (data.rows.length === 0 ? (
               <EmptyState
                 icon={FileBarChart2}
-                message="No clinic services billed in this date range."
+                message={t("noServices")}
               />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Service</TableHead>
-                    <TableHead>Times Billed</TableHead>
-                    <TableHead>Revenue</TableHead>
+                    <TableHead>{t("service")}</TableHead>
+                    <TableHead>{t("timesBilled")}</TableHead>
+                    <TableHead>{t("revenue")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -268,14 +270,14 @@ export default async function ReportsPage({
 
           {data.kind === "expenses" &&
             (data.rows.every((r) => r.total === 0) ? (
-              <EmptyState icon={FileBarChart2} message="No expenses in this date range." />
+              <EmptyState icon={FileBarChart2} message={t("noExpenses")} />
             ) : (
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Growth</TableHead>
+                    <TableHead>{t("date")}</TableHead>
+                    <TableHead>{t("total")}</TableHead>
+                    <TableHead>{t("growth")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>

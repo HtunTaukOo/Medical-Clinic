@@ -24,13 +24,21 @@ const STATUS_STYLES: Record<string, string> = {
   NO_SHOW: "bg-amber-100 text-amber-800",
 };
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_KEYS = [
+  "sundayShort",
+  "mondayShort",
+  "tuesdayShort",
+  "wednesdayShort",
+  "thursdayShort",
+  "fridayShort",
+  "saturdayShort",
+] as const;
 
 const DOCTOR_TABS = [
-  { value: "today", label: "Today" },
-  { value: "upcoming", label: "Upcoming" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
+  { value: "today", labelKey: "today" },
+  { value: "upcoming", labelKey: "upcoming" },
+  { value: "completed", labelKey: "completed" },
+  { value: "cancelled", labelKey: "cancelled" },
 ] as const;
 type DoctorTab = (typeof DOCTOR_TABS)[number]["value"];
 
@@ -38,12 +46,12 @@ function getRowDisplay(
   status: string,
   { isInProgress, isWaiting }: { isInProgress: boolean; isWaiting: boolean }
 ) {
-  if (status === "COMPLETED") return { label: "Completed", className: "bg-indigo-100 text-indigo-700" };
-  if (status === "CANCELLED") return { label: "Cancelled", className: "bg-rose-100 text-rose-700" };
-  if (status === "NO_SHOW") return { label: "No-show", className: "bg-rose-100 text-rose-700" };
-  if (isInProgress) return { label: "In Progress", className: "bg-blue-100 text-blue-700" };
-  if (isWaiting) return { label: "Waiting", className: "bg-amber-100 text-amber-700" };
-  return { label: "Scheduled", className: "bg-slate-100 text-slate-700" };
+  if (status === "COMPLETED") return { labelKey: "completed", className: "bg-indigo-100 text-indigo-700" };
+  if (status === "CANCELLED") return { labelKey: "cancelled", className: "bg-rose-100 text-rose-700" };
+  if (status === "NO_SHOW") return { labelKey: "noShow", className: "bg-rose-100 text-rose-700" };
+  if (isInProgress) return { labelKey: "inProgress", className: "bg-blue-100 text-blue-700" };
+  if (isWaiting) return { labelKey: "waiting", className: "bg-amber-100 text-amber-700" };
+  return { labelKey: "scheduled", className: "bg-slate-100 text-slate-700" };
 }
 
 export default async function DoctorAppointmentsPage({
@@ -146,24 +154,24 @@ export default async function DoctorAppointmentsPage({
       <div>
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Manage your patient appointments and consultations.
+          {t("manageDoctorAppointments")}
         </p>
       </div>
 
       <div className="flex items-center gap-2">
         <TabButton href={`/doctor/appointments?view=list&tab=${tab}`} active={view === "list"} size="sm">
-          List
+          {t("list")}
         </TabButton>
         <TabButton href="/doctor/appointments?view=calendar" active={view === "calendar"} size="sm">
-          Calendar
+          {t("calendar")}
         </TabButton>
       </div>
 
       {view === "list" && (
         <div className="flex flex-wrap items-center gap-2">
-          {DOCTOR_TABS.map(({ value, label }) => (
+          {DOCTOR_TABS.map(({ value, labelKey }) => (
             <TabButton key={value} href={`/doctor/appointments?tab=${value}`} active={tab === value}>
-              {label}
+              {t(labelKey)}
               <Badge variant="secondary" className={tab === value ? "bg-white/20 text-white" : undefined}>
                 {tabCounts[value]}
               </Badge>
@@ -182,19 +190,19 @@ export default async function DoctorAppointmentsPage({
             <div className="flex items-center gap-2">
               <Button asChild variant="outline" size="sm">
                 <Link href={`/doctor/appointments?view=calendar&year=${prev.year}&month=${prev.month}`}>
-                  ← Prev
+                  ← {t("previous")}
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link
                   href={`/doctor/appointments?view=calendar&year=${clinicToday.year}&month=${clinicToday.month}`}
                 >
-                  Today
+                  {t("today")}
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link href={`/doctor/appointments?view=calendar&year=${next.year}&month=${next.month}`}>
-                  Next →
+                  {t("next")} →
                 </Link>
               </Button>
             </div>
@@ -202,27 +210,27 @@ export default async function DoctorAppointmentsPage({
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-blue-400" /> Confirmed
+              <span className="size-2.5 rounded-full bg-blue-400" /> {t("confirmed")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-purple-400" /> Checked-in
+              <span className="size-2.5 rounded-full bg-purple-400" /> {t("checkedIn")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-emerald-400" /> Completed
+              <span className="size-2.5 rounded-full bg-emerald-400" /> {t("completed")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-rose-400" /> Cancelled
+              <span className="size-2.5 rounded-full bg-rose-400" /> {t("cancelled")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-amber-400" /> No-show
+              <span className="size-2.5 rounded-full bg-amber-400" /> {t("noShow")}
             </span>
           </div>
 
           <div className="overflow-x-auto">
             <div className="grid min-w-[840px] grid-cols-7 gap-px rounded-lg border bg-border text-sm">
-              {WEEKDAY_LABELS.map((label) => (
-                <div key={label} className="bg-muted p-2 text-center font-medium">
-                  {label}
+              {WEEKDAY_KEYS.map((key) => (
+                <div key={key} className="bg-muted p-2 text-center font-medium">
+                  {t(key)}
                 </div>
               ))}
               {weeks.flat().map((day) => {
@@ -254,7 +262,7 @@ export default async function DoctorAppointmentsPage({
                       ))}
                       {dayAppointments.length > 4 && (
                         <span className="text-xs text-muted-foreground">
-                          +{dayAppointments.length - 4} more
+                          {t("more", { count: dayAppointments.length - 4 })}
                         </span>
                       )}
                     </div>
@@ -272,7 +280,7 @@ export default async function DoctorAppointmentsPage({
             visibleAppointments.map((appt, index) => {
               const isInProgress = tab === "today" && appt.id === inProgressApptId;
               const isWaiting = tab === "today" && waitingApptIds.has(appt.id);
-              const { label, className } = getRowDisplay(appt.status, { isInProgress, isWaiting });
+              const { labelKey, className } = getRowDisplay(appt.status, { isInProgress, isWaiting });
               const isUrgent = tab === "today" && isAppointmentUrgent(appt);
               const age = calculateAge(appt.patient.dob);
               const genderLetter = appt.patient.gender ? GENDER_LETTER[appt.patient.gender] : null;
@@ -298,7 +306,7 @@ export default async function DoctorAppointmentsPage({
                   genderLetter={genderLetter}
                   reason={appt.reason ?? ""}
                   isUrgent={isUrgent}
-                  statusLabel={label}
+                  statusLabel={t(labelKey)}
                   statusClassName={className}
                 />
               );

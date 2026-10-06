@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { updateClinicNotifications, type ClinicSettingsFormState } from "@/actions/clinic-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ export function ClinicNotificationsForm({
 }: {
   staffTelegramChatId: string | null;
 }) {
+  const t = useTranslations("clinic");
   const [state, formAction, pending] = useActionState<ClinicSettingsFormState, FormData>(
     updateClinicNotifications,
     {}
@@ -19,23 +21,21 @@ export function ClinicNotificationsForm({
   return (
     <form action={formAction} className="grid gap-4">
       <div className="grid gap-2">
-        <Label htmlFor="staffTelegramChatId">Staff Telegram chat ID</Label>
+        <Label htmlFor="staffTelegramChatId">{t("staffTelegramChatId")}</Label>
         <Input
           id="staffTelegramChatId"
           name="staffTelegramChatId"
-          placeholder="e.g. 123456789 or -1001234567890 for a group"
+          placeholder={t("telegramPlaceholder")}
           defaultValue={staffTelegramChatId ?? ""}
         />
         <p className="text-xs text-muted-foreground">
-          Message your bot directly (or add it to a staff group), then find the chat ID via
-          @userinfobot or @getidsbot on Telegram and paste it here. New booking requests and
-          low-stock alerts are sent there.
+          {t("telegramHelp")}
         </p>
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-primary">Saved.</p>}
+      {state.success && <p className="text-sm text-primary">{t("saved")}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        Save Changes
+        {t("saveChanges")}
       </Button>
     </form>
   );

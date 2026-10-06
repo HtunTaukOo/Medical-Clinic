@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   createAnnouncement,
   type AnnouncementFormState,
@@ -19,6 +20,7 @@ import {
 } from "@/components/ui/select";
 
 export function AnnouncementForm({ onPosted }: { onPosted?: () => void }) {
+  const t = useTranslations("staff");
   const [state, formAction, pending] = useActionState<
     AnnouncementFormState,
     FormData
@@ -40,11 +42,11 @@ export function AnnouncementForm({ onPosted }: { onPosted?: () => void }) {
       className="grid max-w-md gap-4"
     >
       <div className="grid gap-2">
-        <Label htmlFor="announcement-title">Title</Label>
+        <Label htmlFor="announcement-title">{t("announcementTitle")}</Label>
         <Input id="announcement-title" name="title" required />
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="announcement-category">Category</Label>
+        <Label htmlFor="announcement-category">{t("announcementCategory")}</Label>
         <Select name="category" defaultValue="General">
           <SelectTrigger id="announcement-category" className="w-full">
             <SelectValue />
@@ -59,12 +61,12 @@ export function AnnouncementForm({ onPosted }: { onPosted?: () => void }) {
         </Select>
       </div>
       <div className="grid gap-2">
-        <Label htmlFor="announcement-body">Message</Label>
+        <Label htmlFor="announcement-body">{t("announcementMessage")}</Label>
         <Textarea id="announcement-body" name="body" rows={3} required />
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        Post announcement
+        {t("postAnnouncement")}
       </Button>
     </form>
   );

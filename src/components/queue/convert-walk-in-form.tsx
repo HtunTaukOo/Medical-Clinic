@@ -114,7 +114,7 @@ export function ConvertWalkInForm({
 
       {hasServiceOption && (
         <div className="grid gap-2">
-          <Label>Visit Type</Label>
+          <Label>{t("visitType")}</Label>
           <div className="flex gap-2">
             <Button
               type="button"
@@ -122,7 +122,7 @@ export function ConvertWalkInForm({
               variant={bookingKind === "doctor" ? "default" : "outline"}
               onClick={() => setBookingKind("doctor")}
             >
-              Doctor Visit
+              {t("doctorVisit")}
             </Button>
             <Button
               type="button"
@@ -130,7 +130,7 @@ export function ConvertWalkInForm({
               variant={bookingKind === "service" ? "default" : "outline"}
               onClick={() => setBookingKind("service")}
             >
-              Lab Visit / Service
+              {t("labVisitService")}
             </Button>
           </div>
         </div>
@@ -156,20 +156,20 @@ export function ConvertWalkInForm({
 
       {isBlockDoctor && !isServiceBooking && (
         <p className="rounded-lg border border-dashed bg-muted/40 p-3 text-sm text-muted-foreground">
-          This will register the patient into the current time block for {selectedDoctor?.specialty}.
+          {t("currentTimeBlock", { specialty: selectedDoctor?.specialty ?? "" })}
         </p>
       )}
 
       {isServiceBooking && selectedService && (
         <p className="rounded-lg border border-dashed bg-muted/40 p-3 text-sm text-muted-foreground">
-          This will register the patient into the current time block for {selectedService.specialty}.
+          {t("currentTimeBlock", { specialty: selectedService.specialty ?? "" })}
         </p>
       )}
 
       {isServiceBooking && (
         <>
           <div className="grid gap-2">
-            <Label htmlFor="clinicServiceId">Lab Category / Service</Label>
+            <Label htmlFor="clinicServiceId">{t("labCategoryService")}</Label>
             <Select
               name="clinicServiceId"
               required
@@ -177,7 +177,7 @@ export function ConvertWalkInForm({
               onValueChange={setClinicServiceId}
             >
               <SelectTrigger id="clinicServiceId" className="w-full">
-                <SelectValue placeholder="Select the category or service" />
+                <SelectValue placeholder={t("selectCategoryService")} />
               </SelectTrigger>
               <SelectContent>
                 {eligibleServices.map((s) => (

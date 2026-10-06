@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import {
   updateDoctorAvailability,
   type DoctorAvailabilityFormState,
@@ -20,6 +21,8 @@ import {
 
 type ShiftRow = { key: string; weekday: number; startTime: string; endTime: string };
 
+const WEEKDAY_KEYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"] as const;
+
 export function DoctorAvailabilityForm({
   doctorId,
   workingDays,
@@ -29,6 +32,7 @@ export function DoctorAvailabilityForm({
   workingDays: number[];
   shifts: { weekday: number; startTime: string; endTime: string }[];
 }) {
+  const t = useTranslations("doctorSchedule");
   const boundAction = updateDoctorAvailability.bind(null, doctorId);
   const [state, formAction, pending] = useActionState<
     DoctorAvailabilityFormState,
@@ -56,9 +60,9 @@ export function DoctorAvailabilityForm({
   return (
     <form action={formAction} className="grid gap-4">
       <div className="grid gap-2">
-        <Label>Working days</Label>
+        <Label>{t("workingDays")}</Label>
         <div className="flex flex-wrap gap-3">
-          {WEEKDAY_LABELS.map((label, day) => (
+          {WEEKDAY_LABELS.map((_, day) => (
             <label key={day} className="flex items-center gap-1.5 text-sm">
               <input
                 type="checkbox"
@@ -69,17 +73,16 @@ export function DoctorAvailabilityForm({
                   setDays((d) => (e.target.checked ? [...d, day] : d.filter((x) => x !== day)))
                 }
               />
-              {label}
+              {t(WEEKDAY_KEYS[day])}
             </label>
           ))}
         </div>
       </div>
 
       <div className="grid gap-2">
-        <Label>Time ranges</Label>
+        <Label>{t("timeRanges")}</Label>
         <p className="text-xs text-muted-foreground">
-          Add one or more ranges per day (e.g. a morning and an evening shift with a break
-          between). A working day with no ranges uses the clinic&apos;s default opening hours.
+          {t("timeRangesHelp")}
         </p>
 
         {rows.length > 0 && (
@@ -89,7 +92,7 @@ export function DoctorAvailabilityForm({
                 <input type="hidden" name="shiftWeekday" value={row.weekday} />
                 <input type="hidden" name="shiftStart" value={row.startTime} />
                 <input type="hidden" name="shiftEnd" value={row.endTime} />
-                <span className="w-9 shrink-0 font-medium">{WEEKDAY_LABELS[row.weekday]}</span>
+                <span className="w-9 shrink-0 font-medium">{t(WEEKDAY_KEYS[row.weekday])}</span>
                 <span className="flex-1 text-muted-foreground">
                   {row.startTime} – {row.endTime}
                 </span>
@@ -98,7 +101,7 @@ export function DoctorAvailabilityForm({
                   onClick={() => removeRow(row.key)}
                   className="text-xs font-medium text-destructive underline underline-offset-2"
                 >
-                  Remove
+                  {t("remove")}
                 </button>
               </div>
             ))}
@@ -111,27 +114,27 @@ export function DoctorAvailabilityForm({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {WEEKDAY_LABELS.map((label, day) => (
+              {WEEKDAY_LABELS.map((_, day) => (
                 <SelectItem key={day} value={String(day)}>
-                  {label}
+                  {t(WEEKDAY_KEYS[day])}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <Input type="time" value={newStart} onChange={(e) => setNewStart(e.target.value)} className="w-32" />
-          <span className="text-sm text-muted-foreground">to</span>
+          <span className="text-sm text-muted-foreground">{t("to")}</span>
           <Input type="time" value={newEnd} onChange={(e) => setNewEnd(e.target.value)} className="w-32" />
           <Button type="button" variant="outline" size="sm" onClick={addRow}>
-            + Add range
+            + {t("addRange")}
           </Button>
         </div>
       </div>
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-emerald-600">Saved.</p>}
+      {state.success && <p className="text-sm text-emerald-600">{t("saved")}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit">
-        Save schedule
+        {t("saveSchedule")}
       </Button>
     </form>
   );

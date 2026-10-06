@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { updateOwnPersonalInfo, type UpdateOwnPersonalInfoState } from "@/actions/staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -34,6 +35,7 @@ export function DoctorPersonalInfoForm({
   nrcNumber: string;
   emergencyContact: string;
 }) {
+  const t = useTranslations("staff");
   const [state, formAction, pending] = useActionState<UpdateOwnPersonalInfoState, FormData>(
     updateOwnPersonalInfo,
     {}
@@ -44,13 +46,13 @@ export function DoctorPersonalInfoForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="name" className={FIELD_LABEL}>
-            Full Name
+            {t("fullName")}
           </Label>
           <Input id="name" name="name" defaultValue={name} required />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="dob" className={FIELD_LABEL}>
-            Date of Birth
+            {t("dateOfBirth")}
           </Label>
           <Input id="dob" name="dob" type="date" defaultValue={dob} />
         </div>
@@ -59,22 +61,22 @@ export function DoctorPersonalInfoForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="gender" className={FIELD_LABEL}>
-            Gender
+            {t("gender")}
           </Label>
           <Select name="gender" defaultValue={gender || undefined}>
             <SelectTrigger id="gender" className="w-full">
-              <SelectValue placeholder="Select gender..." />
+              <SelectValue placeholder={t("selectGender")} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="MALE">Male</SelectItem>
-              <SelectItem value="FEMALE">Female</SelectItem>
-              <SelectItem value="OTHER">Other</SelectItem>
+              <SelectItem value="MALE">{t("male")}</SelectItem>
+              <SelectItem value="FEMALE">{t("female")}</SelectItem>
+              <SelectItem value="OTHER">{t("other")}</SelectItem>
             </SelectContent>
           </Select>
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="phone" className={FIELD_LABEL}>
-            Phone
+            {t("phone")}
           </Label>
           <Input id="phone" name="phone" defaultValue={phone} placeholder="09 987654321" />
         </div>
@@ -82,14 +84,14 @@ export function DoctorPersonalInfoForm({
 
       <div className="grid gap-1.5">
         <Label htmlFor="email" className={FIELD_LABEL}>
-          Email Address
+          {t("emailAddress")}
         </Label>
         <Input id="email" value={email} disabled />
       </div>
 
       <div className="grid gap-1.5">
         <Label htmlFor="address" className={FIELD_LABEL}>
-          Home Address
+          {t("homeAddress")}
         </Label>
         <Input id="address" name="address" defaultValue={address} />
       </div>
@@ -97,28 +99,28 @@ export function DoctorPersonalInfoForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="nrcNumber" className={FIELD_LABEL}>
-            NRC / ID
+            {t("nrcId")}
           </Label>
           <Input id="nrcNumber" name="nrcNumber" defaultValue={nrcNumber} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="emergencyContact" className={FIELD_LABEL}>
-            Emergency Contact
+            {t("emergencyContact")}
           </Label>
           <Input
             id="emergencyContact"
             name="emergencyContact"
             defaultValue={emergencyContact}
-            placeholder="Name · Phone"
+            placeholder={t("emergencyContactPlaceholder")}
           />
         </div>
       </div>
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-blue-600">Saved.</p>}
+      {state.success && <p className="text-sm text-blue-600">{t("saved")}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit justify-self-end">
-        Save Changes
+        {t("saveChanges")}
       </Button>
     </form>
   );

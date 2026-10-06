@@ -2,6 +2,7 @@
 
 import type { ReactNode } from "react";
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { updateConsultation, type ConsultationFormState } from "@/actions/appointments";
 import { SymptomPicker } from "@/components/consultations/symptom-picker";
 import { Input } from "@/components/ui/input";
@@ -46,6 +47,7 @@ export function ConsultationForm({
   defaultValues: Defaults;
   diagnosisSlot: ReactNode;
 }) {
+  const t = useTranslations("clinical");
   const boundAction = updateConsultation.bind(null, appointmentId);
   const [state, formAction] = useActionState<ConsultationFormState, FormData>(boundAction, {});
 
@@ -55,11 +57,11 @@ export function ConsultationForm({
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <SectionHeading number={1} title="Vital Signs" />
+        <SectionHeading number={1} title={t("vitalSigns")} />
         <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
           <div className="grid gap-1.5">
             <Label htmlFor="c-bp" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Blood Pressure (mmHg)
+              {t("bloodPressure")}
             </Label>
             <div className="flex items-center gap-1">
               <Input
@@ -82,7 +84,7 @@ export function ConsultationForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="c-temp" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Temperature (°C)
+              {t("temperature")}
             </Label>
             <Input
               id="c-temp"
@@ -96,7 +98,7 @@ export function ConsultationForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="c-pulse" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Pulse Rate (bpm)
+              {t("pulseRate")}
             </Label>
             <Input
               id="c-pulse"
@@ -109,7 +111,7 @@ export function ConsultationForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="c-rr" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Respiratory Rate (breaths/min)
+              {t("respiratoryRate")}
             </Label>
             <Input
               id="c-rr"
@@ -135,7 +137,7 @@ export function ConsultationForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="c-weight" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Weight (kg)
+              {t("weight")}
             </Label>
             <Input
               id="c-weight"
@@ -149,7 +151,7 @@ export function ConsultationForm({
           </div>
           <div className="grid gap-1.5">
             <Label htmlFor="c-height" className="text-xs tracking-wide text-muted-foreground uppercase">
-              Height (cm)
+              {t("height")}
             </Label>
             <Input
               id="c-height"
@@ -165,27 +167,27 @@ export function ConsultationForm({
       </section>
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <SectionHeading number={2} title="Chief Complaint" />
+        <SectionHeading number={2} title={t("chiefComplaint")} />
         <Textarea
           name="chiefComplaint"
           rows={2}
-          placeholder="Describe the patient's primary complaint in their own words..."
+          placeholder={t("chiefComplaintPlaceholder")}
           defaultValue={defaultValues.chiefComplaint ?? ""}
           form={CONSULTATION_FORM_ID}
         />
       </section>
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <SectionHeading number={3} title="Symptoms" />
+        <SectionHeading number={3} title={t("symptoms")} />
         <SymptomPicker formId={CONSULTATION_FORM_ID} defaultValues={defaultValues.symptoms} />
       </section>
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <SectionHeading number={4} title="Physical Examination" />
+        <SectionHeading number={4} title={t("physicalExamination")} />
         <Textarea
           name="physicalExam"
           rows={3}
-          placeholder="General appearance, HEENT, cardiovascular, respiratory, abdomen, extremities..."
+          placeholder={t("physicalExaminationPlaceholder")}
           defaultValue={defaultValues.physicalExam ?? ""}
           form={CONSULTATION_FORM_ID}
         />
@@ -194,22 +196,22 @@ export function ConsultationForm({
       {diagnosisSlot}
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <SectionHeading number={6} title="Clinical Notes" />
+        <SectionHeading number={6} title={t("clinicalNotes")} />
         <Textarea
           name="clinicalNotes"
           rows={3}
-          placeholder="Assessment, reasoning, differential diagnoses, additional clinical observations..."
+          placeholder={t("clinicalNotesPlaceholder")}
           defaultValue={defaultValues.clinicalNotes ?? ""}
           form={CONSULTATION_FORM_ID}
         />
       </section>
 
       <section className="rounded-xl border bg-card p-5 shadow-sm">
-        <SectionHeading number={7} title="Treatment Plan" />
+        <SectionHeading number={7} title={t("treatmentPlan")} />
         <Textarea
           name="treatmentPlan"
           rows={3}
-          placeholder="Medications, lifestyle advice, investigations, referrals, follow-up schedule..."
+          placeholder={t("treatmentPlanPlaceholder")}
           defaultValue={defaultValues.treatmentPlan ?? ""}
           form={CONSULTATION_FORM_ID}
         />

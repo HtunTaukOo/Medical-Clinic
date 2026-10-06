@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   createSpecialty,
   updateSpecialty,
@@ -21,20 +22,20 @@ import {
 
 type BookingMode = "DOCTOR_CALENDAR" | "SERVICE_CAPACITY" | "BLOCK_CAPACITY";
 
-const BOOKING_MODE_COPY: Record<BookingMode, { label: string; hint: string }> = {
+const BOOKING_MODE_KEYS = {
   DOCTOR_CALENDAR: {
-    label: "Doctor calendar",
-    hint: "Patients pick a doctor directly, then an exact time from that doctor's own calendar.",
+    label: "doctorCalendar",
+    hint: "doctorCalendarHelp",
   },
   SERVICE_CAPACITY: {
-    label: "Book by service",
-    hint: "Patients pick a service (e.g. \"Blood Work\") instead of a doctor — for services like Laboratory where the specific doctor doesn't matter. Availability is checked against clinic hours and the capacity below instead of any one doctor's calendar. A doctor is still assigned behind the scenes for record-keeping, so at least one doctor profile needs this specialty set.",
+    label: "bookByService",
+    hint: "bookByServiceHelp",
   },
   BLOCK_CAPACITY: {
-    label: "Time blocks",
-    hint: "Patients pick a date and one of 5 fixed daily time blocks (shared capacity below, pooled across every doctor with this specialty), then pick a specific doctor.",
+    label: "timeBlocks",
+    hint: "timeBlocksHelp",
   },
-};
+} as const;
 
 export function SpecialtyForm({
   specialty,
@@ -50,6 +51,7 @@ export function SpecialtyForm({
   };
   onSaved?: () => void;
 }) {
+  const t = useTranslations("clinicServices");
   const action = specialty ? updateSpecialty.bind(null, specialty.id) : createSpecialty;
   const [state, formAction, pending] = useActionState<SpecialtyFormState, FormData>(action, {});
   const [icon, setIcon] = useState(specialty?.icon ?? SPECIALTY_ICON_NAMES[0]);
@@ -64,35 +66,34 @@ export function SpecialtyForm({
   return (
     <form action={formAction} className="grid gap-4">
       <div className="grid gap-2">
-        <Label htmlFor="name">Specialty Name</Label>
+        <Label htmlFor="name">{t("specialtyName")}</Label>
         <Input
           id="name"
           name="name"
           required
           defaultValue={specialty?.name}
-          placeholder="e.g. Psychiatry"
+          placeholder={t("specialtyPlaceholder")}
         />
         {specialty && (
           <p className="text-xs text-muted-foreground">
-            Renaming updates every doctor and clinic service currently set to &quot;
-            {specialty.name}&quot; to the new name automatically.
+            {t("specialtyRenameHelp", { name: specialty.name })}
           </p>
         )}
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="description">Description</Label>
+        <Label htmlFor="description">{t("description")}</Label>
         <Textarea
           id="description"
           name="description"
           rows={2}
           defaultValue={specialty?.description ?? ""}
-          placeholder="Shown under the specialty in the booking wizard"
+          placeholder={t("specialtyDescriptionPlaceholder")}
         />
       </div>
 
       <div className="grid gap-2">
-        <Label>Icon</Label>
+        <Label>{t("icon")}</Label>
         <div className="grid grid-cols-6 gap-2">
           {SPECIALTY_ICON_NAMES.map((name) => {
             const Icon = getSpecialtyIcon(name);
@@ -119,27 +120,27 @@ export function SpecialtyForm({
       </div>
 
       <div className="grid gap-2">
-        <Label htmlFor="bookingMode">Booking Mode</Label>
+        <Label htmlFor="bookingMode">{t("bookingMode")}</Label>
         <Select value={bookingMode} onValueChange={(v) => setBookingMode(v as BookingMode)}>
           <SelectTrigger id="bookingMode" className="w-full">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {(Object.keys(BOOKING_MODE_COPY) as BookingMode[]).map((mode) => (
+            {(Object.keys(BOOKING_MODE_KEYS) as BookingMode[]).map((mode) => (
               <SelectItem key={mode} value={mode}>
-                {BOOKING_MODE_COPY[mode].label}
+                {t(BOOKING_MODE_KEYS[mode].label)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <input type="hidden" name="bookingMode" value={bookingMode} />
-        <p className="text-xs text-muted-foreground">{BOOKING_MODE_COPY[bookingMode].hint}</p>
+        <p className="text-xs text-muted-foreground">{t(BOOKING_MODE_KEYS[bookingMode].hint)}</p>
       </div>
 
       {bookingMode !== "DOCTOR_CALENDAR" && (
         <div className="grid gap-2">
           <Label htmlFor="capacityPerSlot">
-            {bookingMode === "BLOCK_CAPACITY" ? "Capacity per time block" : "Capacity per 30-min slot"}
+            {bookingMode === "BLOCK_CAPACITY" ? t("capacityPerTimeBlock") : t("capacityPerSlot")}
           </Label>
           <Input
             id="capacityPerSlot"
@@ -151,9 +152,7 @@ export function SpecialtyForm({
             className="w-32"
           />
           <p className="text-xs text-muted-foreground">
-            How many patients this specialty can handle at the same time (e.g. 10 patients per
-            time block, or 3 lab stations). Once a slot reaches this many bookings, patients see
-            it as full.
+            {t("capacityHelp")}
           </p>
         </div>
       )}
@@ -161,7 +160,7 @@ export function SpecialtyForm({
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit">
-        {specialty ? "Save Changes" : "Add Specialty"}
+        {specialty ? t("saveChanges") : t("addSpecialty")}
       </Button>
     </form>
   );

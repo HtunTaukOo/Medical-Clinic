@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { createInvoice, type InvoiceFormState } from "@/actions/billing";
 import { useRouter } from "@/i18n/navigation";
@@ -22,6 +23,7 @@ function formatKyat(value: number) {
 }
 
 const PAYMENT_METHODS = ["CASH", "CARD", "MOBILE_BANKING", "OTHER"] as const;
+const PAYMENT_METHOD_KEYS = { CASH: "cash", CARD: "card", MOBILE_BANKING: "mobileBanking", OTHER: "other" } as const;
 
 export function InvoiceForm({
   patients,
@@ -40,6 +42,7 @@ export function InvoiceForm({
   nextInvoiceNumber?: number;
   packages?: { id: string; name: string; price: number }[];
 }) {
+  const t = useTranslations("billing");
   const router = useRouter();
   const [state, formAction, pending] = useActionState<InvoiceFormState, FormData>(
     createInvoice,
@@ -118,14 +121,14 @@ export function InvoiceForm({
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <Card className="relative z-20 overflow-visible">
         <CardHeader>
-          <CardTitle>New Invoice</CardTitle>
+          <CardTitle>{t("newInvoice")}</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={handleSubmit} className="grid gap-4">
             {appointmentId && <input type="hidden" name="appointmentId" value={appointmentId} />}
 
             <div className="grid gap-2">
-              <Label>Patient</Label>
+              <Label>{t("patient")}</Label>
               {lockedPatient ? (
                 <p className="font-medium">{lockedPatient.name}</p>
               ) : (
@@ -133,7 +136,7 @@ export function InvoiceForm({
                   <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
                   <Input
                     className="pl-8"
-                    placeholder="Search patient..."
+                    placeholder={t("patient")}
                     value={patientQuery}
                     onChange={(e) => {
                       setPatientQuery(e.target.value);
@@ -166,7 +169,7 @@ export function InvoiceForm({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="consultationFee">Consultation Fee</Label>
+              <Label htmlFor="consultationFee">{t("consultationFee")}</Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">K</span>
                 <Input
@@ -181,7 +184,7 @@ export function InvoiceForm({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="medicineCharges">Medicine Charges</Label>
+              <Label htmlFor="medicineCharges">{t("medicineCharges")}</Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">K</span>
                 <Input
@@ -196,7 +199,7 @@ export function InvoiceForm({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="labCharges">Lab / Service Charges</Label>
+              <Label htmlFor="labCharges">{t("labServiceCharges")}</Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">K</span>
                 <Input
@@ -212,7 +215,7 @@ export function InvoiceForm({
 
             {packages && packages.length > 0 && (
               <div className="grid gap-2">
-                <Label htmlFor="packageSelect">Package</Label>
+                <Label htmlFor="packageSelect">{t("packages")}</Label>
                 <Select
                   value=""
                   onValueChange={(id) => {
@@ -223,7 +226,7 @@ export function InvoiceForm({
                   }}
                 >
                   <SelectTrigger id="packageSelect" className="w-full">
-                    <SelectValue placeholder="Add a package..." />
+                    <SelectValue placeholder={t("addPackagePlaceholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {packages.map((p) => (
@@ -250,7 +253,7 @@ export function InvoiceForm({
             )}
 
             <div className="grid gap-2">
-              <Label htmlFor="discount">Discount</Label>
+              <Label htmlFor="discount">{t("discount")}</Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">K</span>
                 <Input
@@ -266,21 +269,21 @@ export function InvoiceForm({
 
             <div className="grid gap-1 border-t pt-4 text-sm">
               <div className="flex items-center justify-between text-muted-foreground">
-                <span>Subtotal</span>
+                <span>{t("subtotal")}</span>
                 <span>{formatKyat(subtotal)}</span>
               </div>
               <div className="flex items-center justify-between text-muted-foreground">
-                <span>Tax</span>
+                <span>{t("tax")}</span>
                 <span>0%</span>
               </div>
               <div className="flex items-center justify-between text-lg font-bold">
-                <span>Total</span>
+                <span>{t("total")}</span>
                 <span className="text-orange-600">{formatKyat(total)}</span>
               </div>
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="amountPaid">Amount Paid</Label>
+              <Label htmlFor="amountPaid">{t("amountPaid")}</Label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground">K</span>
                 <Input
@@ -295,7 +298,7 @@ export function InvoiceForm({
             </div>
 
             <div className="grid gap-2">
-              <Label htmlFor="paymentMethod">Payment Method</Label>
+              <Label htmlFor="paymentMethod">{t("paymentMethod")}</Label>
               <Select
                 value={paymentMethod}
                 onValueChange={(v) => setPaymentMethod(v as (typeof PAYMENT_METHODS)[number])}
@@ -306,7 +309,7 @@ export function InvoiceForm({
                 <SelectContent>
                   {PAYMENT_METHODS.map((m) => (
                     <SelectItem key={m} value={m}>
-                      {m}
+                      {t(PAYMENT_METHOD_KEYS[m])}
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -315,7 +318,7 @@ export function InvoiceForm({
 
             {state.error && <p className="text-sm text-destructive">{state.error}</p>}
             <Button type="submit" disabled={pending || !selectedPatient} className="w-fit">
-              Create Invoice
+              {t("newInvoice")}
             </Button>
           </form>
         </CardContent>
@@ -323,72 +326,72 @@ export function InvoiceForm({
 
       <Card className="h-fit">
         <CardHeader>
-          <CardTitle>Invoice Preview</CardTitle>
+          <CardTitle>{t("invoicePreview")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Invoice #</span>
+            <span className="text-muted-foreground">{t("invoiceNo")}</span>
             <span className="font-medium text-primary">
               INV-{String(nextInvoiceNumber ?? 0).padStart(4, "0")}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Date</span>
+            <span className="text-muted-foreground">{t("date")}</span>
             <span>
               {today.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
             </span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Patient</span>
+            <span className="text-muted-foreground">{t("patient")}</span>
             <span>{selectedPatient?.name ?? "—"}</span>
           </div>
 
           <div className="grid gap-1 border-t pt-3">
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Consultation</span>
+              <span className="text-muted-foreground">{t("consultation")}</span>
               <span>{formatKyat(fee)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Medicine</span>
+              <span className="text-muted-foreground">{t("medicine")}</span>
               <span>{formatKyat(medicine)}</span>
             </div>
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Lab</span>
+              <span className="text-muted-foreground">{t("lab")}</span>
               <span>{formatKyat(lab)}</span>
             </div>
             {pkg > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">{packageName ?? "Package"}</span>
+                <span className="text-muted-foreground">{packageName ?? t("packages")}</span>
                 <span>{formatKyat(pkg)}</span>
               </div>
             )}
             {discountValue > 0 && (
               <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Discount</span>
+                <span className="text-muted-foreground">{t("discount")}</span>
                 <span>-{formatKyat(discountValue)}</span>
               </div>
             )}
           </div>
 
           <div className="flex items-center justify-between border-t pt-3 font-bold">
-            <span>Total</span>
+            <span>{t("total")}</span>
             <span>{formatKyat(total)}</span>
           </div>
           <div className="flex items-center justify-between font-semibold text-rose-600">
-            <span>Balance Due</span>
+            <span>{t("balanceDue")}</span>
             <span>{formatKyat(balanceDue)}</span>
           </div>
 
           <div className="flex items-center justify-between border-t pt-3">
-            <span className="text-muted-foreground">Status</span>
+            <span className="text-muted-foreground">{t("status")}</span>
             <Badge variant="outline" className={STATUS_STYLES[invoiceStatus]}>
-              {invoiceStatus === "PAID" ? "Paid" : invoiceStatus === "PARTIAL" ? "Partial" : "Unpaid"}
+              {invoiceStatus === "PAID" ? t("paid") : invoiceStatus === "PARTIAL" ? t("partial") : t("unpaid")}
             </Badge>
           </div>
           {paid > 0 && (
             <div className="flex items-center justify-between">
-              <span className="text-muted-foreground">Payment</span>
-              <span>{paymentMethod}</span>
+              <span className="text-muted-foreground">{t("payment")}</span>
+              <span>{t(PAYMENT_METHOD_KEYS[paymentMethod])}</span>
             </div>
           )}
         </CardContent>

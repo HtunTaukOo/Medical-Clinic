@@ -45,14 +45,22 @@ const STATUS_STYLES: Record<string, string> = {
   NO_SHOW: "bg-amber-100 text-amber-800",
 };
 
-const WEEKDAY_LABELS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+const WEEKDAY_KEYS = [
+  "sundayShort",
+  "mondayShort",
+  "tuesdayShort",
+  "wednesdayShort",
+  "thursdayShort",
+  "fridayShort",
+  "saturdayShort",
+] as const;
 
 const TABS = [
-  { value: "all", label: "All" },
-  { value: "today", label: "Today" },
-  { value: "upcoming", label: "Upcoming" },
-  { value: "completed", label: "Completed" },
-  { value: "cancelled", label: "Cancelled" },
+  { value: "all", labelKey: "all" },
+  { value: "today", labelKey: "today" },
+  { value: "upcoming", labelKey: "upcoming" },
+  { value: "completed", labelKey: "completed" },
+  { value: "cancelled", labelKey: "cancelled" },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
 
@@ -63,17 +71,17 @@ type Tab = (typeof TABS)[number]["value"];
 // "Waiting" (that's reserved for someone actually checked in and not yet
 // with the doctor).
 function getRowDisplay(status: string, consultationStartedAt: Date | null) {
-  if (status === "COMPLETED") return { label: "Completed", className: "bg-emerald-100 text-emerald-700" };
-  if (status === "CANCELLED") return { label: "Cancelled", className: "bg-rose-100 text-rose-700" };
-  if (status === "NO_SHOW") return { label: "No-show", className: "bg-rose-100 text-rose-700" };
+  if (status === "COMPLETED") return { labelKey: "completed", className: "bg-emerald-100 text-emerald-700" };
+  if (status === "CANCELLED") return { labelKey: "cancelled", className: "bg-rose-100 text-rose-700" };
+  if (status === "NO_SHOW") return { labelKey: "noShow", className: "bg-rose-100 text-rose-700" };
   if (status === "CHECKED_IN") {
     return consultationStartedAt
-      ? { label: "In Progress", className: "bg-purple-100 text-purple-700" }
-      : { label: "Waiting", className: "bg-amber-100 text-amber-700" };
+      ? { labelKey: "inProgress", className: "bg-purple-100 text-purple-700" }
+      : { labelKey: "waiting", className: "bg-amber-100 text-amber-700" };
   }
-  if (status === "CONFIRMED") return { label: "Confirmed", className: "bg-blue-100 text-blue-700" };
-  if (status === "REQUESTED") return { label: "Requested", className: "bg-amber-100 text-amber-700" };
-  return { label: "Scheduled", className: "bg-blue-100 text-blue-700" };
+  if (status === "CONFIRMED") return { labelKey: "confirmed", className: "bg-blue-100 text-blue-700" };
+  if (status === "REQUESTED") return { labelKey: "requested", className: "bg-amber-100 text-amber-700" };
+  return { labelKey: "scheduled", className: "bg-blue-100 text-blue-700" };
 }
 
 export default async function AppointmentsPage({
@@ -187,14 +195,14 @@ export default async function AppointmentsPage({
         <div>
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Manage patient appointments, confirmations, and check-ins.
+            {t("manageAppointments")}
           </p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline">
             <Link href="/staff/appointments/schedule">
               <CalendarDays className="size-4" />
-              Schedule
+              {t("schedule")}
             </Link>
           </Button>
           <Button asChild>
@@ -212,32 +220,32 @@ export default async function AppointmentsPage({
           active={view === "list"}
           size="sm"
         >
-          List
+          {t("list")}
         </TabButton>
         <TabButton href="/staff/appointments?view=calendar" active={view === "calendar"} size="sm">
-          Calendar
+          {t("calendar")}
         </TabButton>
       </div>
 
       {view === "list" && (
         <>
           <div className="flex flex-wrap items-center gap-2">
-            {TABS.map(({ value, label }) => (
+            {TABS.map(({ value, labelKey }) => (
               <TabButton
                 key={value}
                 href={`/staff/appointments?tab=${value}${filterQuery ? `&${filterQuery}` : ""}`}
                 active={tab === value}
               >
-                {label}
+                {t(labelKey)}
               </TabButton>
             ))}
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
-            <SearchInput placeholder="Search patient, doctor..." />
+            <SearchInput placeholder={t("searchPatientDoctor")} />
             <InventoryFilterSelect
               paramName="specialty"
-              placeholder="All Specialties"
+              placeholder={t("allSpecialties")}
               options={specialties.map((s) => ({ value: s, label: s }))}
             />
             <DateFilterInput />
@@ -255,19 +263,19 @@ export default async function AppointmentsPage({
             <div className="flex items-center gap-2">
               <Button asChild variant="outline" size="sm">
                 <Link href={`/staff/appointments?view=calendar&year=${prev.year}&month=${prev.month}`}>
-                  ← Prev
+                  ← {t("previous")}
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link
                   href={`/staff/appointments?view=calendar&year=${clinicToday.year}&month=${clinicToday.month}`}
                 >
-                  Today
+                  {t("today")}
                 </Link>
               </Button>
               <Button asChild variant="outline" size="sm">
                 <Link href={`/staff/appointments?view=calendar&year=${next.year}&month=${next.month}`}>
-                  Next →
+                  {t("next")} →
                 </Link>
               </Button>
             </div>
@@ -275,27 +283,27 @@ export default async function AppointmentsPage({
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-blue-400" /> Confirmed
+              <span className="size-2.5 rounded-full bg-blue-400" /> {t("confirmed")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-purple-400" /> Checked-in
+              <span className="size-2.5 rounded-full bg-purple-400" /> {t("checkedIn")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-emerald-400" /> Completed
+              <span className="size-2.5 rounded-full bg-emerald-400" /> {t("completed")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-rose-400" /> Cancelled
+              <span className="size-2.5 rounded-full bg-rose-400" /> {t("cancelled")}
             </span>
             <span className="flex items-center gap-1.5">
-              <span className="size-2.5 rounded-full bg-amber-400" /> No-show
+              <span className="size-2.5 rounded-full bg-amber-400" /> {t("noShow")}
             </span>
           </div>
 
           <div className="overflow-x-auto">
             <div className="grid min-w-[840px] grid-cols-7 gap-px rounded-lg border bg-border text-sm">
-              {WEEKDAY_LABELS.map((label) => (
-                <div key={label} className="bg-muted p-2 text-center font-medium">
-                  {label}
+              {WEEKDAY_KEYS.map((key) => (
+                <div key={key} className="bg-muted p-2 text-center font-medium">
+                  {t(key)}
                 </div>
               ))}
               {weeks.flat().map((day) => {
@@ -327,7 +335,7 @@ export default async function AppointmentsPage({
                       ))}
                       {dayAppointments.length > 4 && (
                         <span className="text-xs text-muted-foreground">
-                          +{dayAppointments.length - 4} more
+                          {t("more", { count: dayAppointments.length - 4 })}
                         </span>
                       )}
                     </div>
@@ -346,19 +354,19 @@ export default async function AppointmentsPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>#</TableHead>
-                  <TableHead>Patient</TableHead>
-                  <TableHead>Doctor</TableHead>
-                  <TableHead>Specialty</TableHead>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Time</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
+                  <TableHead>{t("patient")}</TableHead>
+                  <TableHead>{t("doctor")}</TableHead>
+                  <TableHead>{t("specialty")}</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("time")}</TableHead>
+                  <TableHead>{t("type")}</TableHead>
+                  <TableHead>{t("status")}</TableHead>
+                  <TableHead>{t("actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {visibleAppointments.map((appt, index) => {
-                  const { label, className } = getRowDisplay(appt.status, appt.consultationStartedAt);
+                  const { labelKey, className } = getRowDisplay(appt.status, appt.consultationStartedAt);
                   return (
                     <TableRow key={appt.id}>
                       <TableCell className="text-muted-foreground">{index + 1}</TableCell>
@@ -388,11 +396,11 @@ export default async function AppointmentsPage({
                         })}
                       </TableCell>
                       <TableCell className="text-muted-foreground">
-                        {appt.reason || "Consultation"}
+                        {appt.reason || t("consultation")}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className={className}>
-                          {label}
+                          {t(labelKey)}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -401,7 +409,7 @@ export default async function AppointmentsPage({
                             href={`/staff/appointments/${appt.id}`}
                             className="font-medium text-primary underline underline-offset-2"
                           >
-                            View
+                            {t("view")}
                           </Link>
                           {appt.status === "REQUESTED" && (
                             <>
@@ -410,7 +418,7 @@ export default async function AppointmentsPage({
                                   type="submit"
                                   className="font-medium text-primary underline underline-offset-2"
                                 >
-                                  Confirm
+                                  {t("confirm")}
                                 </button>
                               </form>
                               <RescheduleDialog
@@ -421,7 +429,7 @@ export default async function AppointmentsPage({
                                     type="button"
                                     className="font-medium text-primary underline underline-offset-2"
                                   >
-                                    Reschedule
+                                    {t("reschedule")}
                                   </button>
                                 }
                               />
@@ -430,7 +438,7 @@ export default async function AppointmentsPage({
                                   type="submit"
                                   className="font-medium text-destructive underline underline-offset-2"
                                 >
-                                  Cancel
+                                  {t("cancel")}
                                 </button>
                               </form>
                             </>
@@ -453,7 +461,7 @@ export default async function AppointmentsPage({
                                     type="button"
                                     className="font-medium text-primary underline underline-offset-2"
                                   >
-                                    Reschedule
+                                    {t("reschedule")}
                                   </button>
                                 }
                               />
@@ -462,7 +470,7 @@ export default async function AppointmentsPage({
                                   type="submit"
                                   className="font-medium text-destructive underline underline-offset-2"
                                 >
-                                  Cancel
+                                  {t("cancel")}
                                 </button>
                               </form>
                             </>
@@ -482,14 +490,14 @@ export default async function AppointmentsPage({
                                   type="submit"
                                   className="font-medium text-destructive underline underline-offset-2"
                                 >
-                                  Cancel
+                                  {t("cancel")}
                                 </button>
                               </form>
                             </>
                           )}
                           {appt.status === "COMPLETED" &&
                             (appt.staffCompletedAt ? (
-                              <span className="text-emerald-600">Checked out</span>
+                              <span className="text-emerald-600">{t("checkedOut")}</span>
                             ) : (
                               <CompleteCheckoutButton appointmentId={appt.id} />
                             ))}

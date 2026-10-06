@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useId, useState } from "react";
+import { useTranslations } from "next-intl";
 import { registerAndCheckIn, type RegisterAndCheckInState } from "@/actions/check-in";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ export function RegisterWalkInForm({
   // fields entirely and submits their existing patientId instead.
   existingPatient?: { id: string; name: string };
 }) {
+  const t = useTranslations("appointments");
   const [state, formAction, pending] = useActionState<RegisterAndCheckInState, FormData>(
     registerAndCheckIn,
     {}
@@ -68,12 +70,12 @@ export function RegisterWalkInForm({
         <>
           <input type="hidden" name="patientId" value={existingPatient.id} />
           <p className="rounded-lg border border-dashed bg-muted/40 p-3 text-sm">
-            Registering a walk-in visit for <span className="font-medium">{existingPatient.name}</span>.
+            {t("registeringWalkIn", { name: existingPatient.name })}
           </p>
         </>
       ) : (
         <div className="grid gap-2">
-          <Label htmlFor={`${uid}-name`}>Full Name</Label>
+          <Label htmlFor={`${uid}-name`}>{t("fullName")}</Label>
           <Input id={`${uid}-name`} name="name" placeholder="e.g. Ko Tun Aung" required />
         </div>
       )}
@@ -81,11 +83,11 @@ export function RegisterWalkInForm({
       {!existingPatient && (
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label htmlFor={`${uid}-phone`}>Phone Number</Label>
+            <Label htmlFor={`${uid}-phone`}>{t("phoneNumber")}</Label>
             <Input id={`${uid}-phone`} name="phone" placeholder="09 420000000" />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor={`${uid}-dob`}>Date of Birth</Label>
+            <Label htmlFor={`${uid}-dob`}>{t("dateOfBirth")}</Label>
             <Input id={`${uid}-dob`} name="dob" type="date" />
           </div>
         </div>
@@ -94,25 +96,25 @@ export function RegisterWalkInForm({
       <div className="grid gap-4 sm:grid-cols-2">
         {!existingPatient && (
           <div className="grid gap-2">
-            <Label htmlFor={`${uid}-gender`}>Gender</Label>
+            <Label htmlFor={`${uid}-gender`}>{t("gender")}</Label>
             <Select name="gender">
               <SelectTrigger id={`${uid}-gender`} className="w-full">
-                <SelectValue placeholder="Select gender" />
+                <SelectValue placeholder={t("selectGender")} />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="MALE">Male</SelectItem>
-                <SelectItem value="FEMALE">Female</SelectItem>
-                <SelectItem value="OTHER">Other</SelectItem>
+                <SelectItem value="MALE">{t("male")}</SelectItem>
+                <SelectItem value="FEMALE">{t("female")}</SelectItem>
+                <SelectItem value="OTHER">{t("other")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
         )}
         {!isServiceBooking && (
           <div className="grid gap-2">
-            <Label htmlFor={`${uid}-doctorId`}>Preferred Doctor</Label>
+            <Label htmlFor={`${uid}-doctorId`}>{t("preferredDoctor")}</Label>
             <Select name="doctorId" required value={doctorId} onValueChange={setDoctorId}>
               <SelectTrigger id={`${uid}-doctorId`} className="w-full">
-                <SelectValue placeholder="Select doctor" />
+                <SelectValue placeholder={t("selectDoctor")} />
               </SelectTrigger>
               <SelectContent>
                 {doctors.map((d) => (
@@ -129,7 +131,7 @@ export function RegisterWalkInForm({
 
       {hasServiceOption && (
         <div className="grid gap-2">
-          <Label>Visit Type</Label>
+          <Label>{t("visitType")}</Label>
           <div className="flex gap-2">
             <Button
               type="button"
@@ -137,7 +139,7 @@ export function RegisterWalkInForm({
               variant={bookingKind === "doctor" ? "default" : "outline"}
               onClick={() => setBookingKind("doctor")}
             >
-              Doctor Visit
+              {t("doctorVisit")}
             </Button>
             <Button
               type="button"
@@ -145,7 +147,7 @@ export function RegisterWalkInForm({
               variant={bookingKind === "service" ? "default" : "outline"}
               onClick={() => setBookingKind("service")}
             >
-              Lab Visit / Service
+              {t("labVisitService")}
             </Button>
           </div>
         </div>
@@ -153,20 +155,20 @@ export function RegisterWalkInForm({
 
       {isBlockDoctor && !isServiceBooking && (
         <p className="rounded-lg border border-dashed bg-muted/40 p-3 text-sm text-muted-foreground">
-          This will register the patient into the current time block for {selectedDoctor?.specialty}.
+          {t("currentTimeBlock", { specialty: selectedDoctor?.specialty ?? "" })}
         </p>
       )}
 
       {isServiceBooking && selectedService && (
         <p className="rounded-lg border border-dashed bg-muted/40 p-3 text-sm text-muted-foreground">
-          This will register the patient into the current time block for {selectedService.specialty}.
+          {t("currentTimeBlock", { specialty: selectedService.specialty ?? "" })}
         </p>
       )}
 
       {isServiceBooking && (
         <>
           <div className="grid gap-2">
-            <Label htmlFor={`${uid}-clinicServiceId`}>Lab Category / Service</Label>
+            <Label htmlFor={`${uid}-clinicServiceId`}>{t("labCategoryService")}</Label>
             <Select
               name="clinicServiceId"
               required
@@ -174,7 +176,7 @@ export function RegisterWalkInForm({
               onValueChange={setClinicServiceId}
             >
               <SelectTrigger id={`${uid}-clinicServiceId`} className="w-full">
-                <SelectValue placeholder="Select the category or service" />
+                <SelectValue placeholder={t("selectCategoryService")} />
               </SelectTrigger>
               <SelectContent>
                 {eligibleServices.map((s) => (
@@ -194,11 +196,11 @@ export function RegisterWalkInForm({
       )}
 
       <div className="grid gap-2">
-        <Label htmlFor={`${uid}-reason`}>Reason for Visit</Label>
+        <Label htmlFor={`${uid}-reason`}>{t("reasonForVisit")}</Label>
         <Textarea
           id={`${uid}-reason`}
           name="reason"
-          placeholder="Brief description of symptoms or visit reason..."
+          placeholder={t("reasonPlaceholder")}
           rows={3}
         />
       </div>
@@ -206,7 +208,7 @@ export function RegisterWalkInForm({
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="w-full" size="lg">
-        {existingPatient ? "Register Walk-in" : "Register & Check In"}
+        {existingPatient ? t("registerWalkIn") : t("registerAndCheckIn")}
       </Button>
     </form>
   );

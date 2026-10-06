@@ -46,13 +46,12 @@ export default async function PatientsPage({
         <div>
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">
-            <span className="font-semibold text-primary">{patients.length}</span> patient
-            {patients.length === 1 ? "" : "s"} on record.
+            {t("patientsOnRecord", { count: patients.length })}
           </p>
         </div>
         <div className="flex items-center gap-2">
           <div className="w-64 sm:w-80">
-            <SearchInput placeholder="Search patients or conditions..." />
+            <SearchInput placeholder={t("searchPatientsOrConditions")} />
           </div>
           <Button asChild>
             <Link href="/staff/patients/new">{t("new")}</Link>
@@ -61,7 +60,7 @@ export default async function PatientsPage({
       </div>
 
       {patients.length === 0 ? (
-        <EmptyState icon={Users} message={q ? `No patients match "${q}".` : t("noResults")} />
+        <EmptyState icon={Users} message={q ? t("noPatientsMatch", { query: q }) : t("noResults")} />
       ) : (
         <div className="grid gap-2">
           {patients.map((patient, index) => {
@@ -70,7 +69,7 @@ export default async function PatientsPage({
             const allergyCount = patient.allergyRecords.length;
             const lastVisit = patient.appointments[0]?.scheduledAt ?? null;
             const metaParts = [
-              age != null ? `${age}yo` : null,
+              age != null ? t("yearsOld", { age }) : null,
               genderLetter,
               patient.bloodType,
             ].filter(Boolean);
@@ -104,7 +103,7 @@ export default async function PatientsPage({
                         ))}
                       </div>
                     ) : (
-                      <p className="text-sm text-muted-foreground">No active conditions</p>
+                      <p className="text-sm text-muted-foreground">{t("noActiveConditions")}</p>
                     )}
                   </div>
                 </div>
@@ -113,13 +112,13 @@ export default async function PatientsPage({
                     {allergyCount > 0 && (
                       <Badge variant="destructive" className="gap-1">
                         <AlertTriangle className="size-3" />
-                        {allergyCount} {allergyCount === 1 ? "allergy" : "allergies"}
+                        {t("allergyCount", { count: allergyCount })}
                       </Badge>
                     )}
                     <p className="text-xs text-muted-foreground">
                       {lastVisit
-                        ? `Last: ${lastVisit.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}`
-                        : "No visits yet"}
+                        ? t("lastVisit", { date: lastVisit.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) })
+                        : t("noVisitsYet")}
                     </p>
                   </div>
                   <ChevronRight className="size-4 text-muted-foreground" />

@@ -1,4 +1,5 @@
 import { ArrowLeft, History } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
 import { Link } from "@/i18n/navigation";
@@ -15,6 +16,7 @@ import {
 
 export default async function ActivityLogPage() {
   await requirePageRole(["ADMIN"]);
+  const t = await getTranslations("activityLog");
 
   const entries = await prisma.activityLog.findMany({
     orderBy: { createdAt: "desc" },
@@ -29,24 +31,24 @@ export default async function ActivityLogPage() {
           className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
-          Back
+          {t("back")}
         </Link>
-        <h1 className="text-2xl font-semibold">Activity Log</h1>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">
-          A record of recent actions taken across the clinic.
+          {t("description")}
         </p>
       </div>
 
       {entries.length === 0 ? (
-        <EmptyState icon={History} message="No activity recorded yet." />
+        <EmptyState icon={History} message={t("empty")} />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Date</TableHead>
-              <TableHead>Actor</TableHead>
-              <TableHead>Action</TableHead>
-              <TableHead>Target</TableHead>
+              <TableHead>{t("date")}</TableHead>
+              <TableHead>{t("actor")}</TableHead>
+              <TableHead>{t("action")}</TableHead>
+              <TableHead>{t("target")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>

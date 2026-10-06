@@ -28,12 +28,12 @@ export function AdjustStockForm({ medicineId }: { medicineId: string }) {
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="IN">IN</SelectItem>
-          <SelectItem value="OUT">OUT</SelectItem>
+          <SelectItem value="IN">{t("stockIn")}</SelectItem>
+          <SelectItem value="OUT">{t("stockOut")}</SelectItem>
         </SelectContent>
       </Select>
-      <Input name="quantity" type="number" min={1} required className="w-20" placeholder="Qty" />
-      <Input name="reason" className="w-40" placeholder="Reason" />
+      <Input name="quantity" type="number" min={1} required className="w-20" placeholder={t("quantityPlaceholder")} />
+      <Input name="reason" className="w-40" placeholder={t("reasonPlaceholder")} />
       <Button type="submit" size="sm" disabled={pending}>
         {t("adjustStock")}
       </Button>

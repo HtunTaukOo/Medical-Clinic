@@ -1,4 +1,5 @@
 import { AlertTriangle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/ui/badge";
 import { PrescriptionItemDetail } from "@/components/prescriptions/prescription-item-detail";
 
@@ -29,13 +30,14 @@ export function ConsultationSidebar({
   }[];
   lastVisitNote: { note: string; date: Date } | null;
 }) {
+  const t = useTranslations("clinical");
   return (
     <div className="grid gap-4">
       {allergies.length > 0 && (
         <div className="rounded-xl border border-red-200 bg-red-50 p-3">
           <div className="mb-2 flex items-center gap-1.5 text-xs font-semibold tracking-wide text-red-700 uppercase">
             <AlertTriangle className="size-3.5" />
-            Allergy Alert
+            {t("allergyAlert")}
           </div>
           <div className="grid gap-1.5">
             {allergies.map((a) => (
@@ -53,10 +55,10 @@ export function ConsultationSidebar({
 
       <div>
         <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Active Conditions
+          {t("activeConditions")}
         </p>
         {activeConditions.length === 0 ? (
-          <p className="text-sm text-muted-foreground">None on file.</p>
+          <p className="text-sm text-muted-foreground">{t("noneOnFile")}</p>
         ) : (
           <div className="flex flex-wrap gap-1.5">
             {activeConditions.map((d) => (
@@ -70,10 +72,10 @@ export function ConsultationSidebar({
 
       <div>
         <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Current Medications
+          {t("currentMedications")}
         </p>
         {currentMedications.length === 0 ? (
-          <p className="text-sm text-muted-foreground">None active.</p>
+          <p className="text-sm text-muted-foreground">{t("noneActive")}</p>
         ) : (
           <ul className="grid gap-2 text-sm">
             {currentMedications.map((item) => (
@@ -94,7 +96,7 @@ export function ConsultationSidebar({
       {lastVisitNote && (
         <div>
           <p className="mb-1.5 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Last Visit Note
+            {t("lastVisitNote")}
           </p>
           <p className="text-sm text-muted-foreground italic">&ldquo;{lastVisitNote.note}&rdquo;</p>
           <p className="mt-1 text-xs text-muted-foreground">

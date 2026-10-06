@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import {
   adminUpdateDoctorAccount,
   type AdminUpdateDoctorAccountState,
@@ -37,6 +38,7 @@ export function DoctorAccountForm({
   currentQualifications?: string | null;
   specialties: { name: string }[];
 }) {
+  const t = useTranslations("staff");
   const boundAction = adminUpdateDoctorAccount.bind(null, doctorId);
   const [state, formAction, pending] = useActionState<AdminUpdateDoctorAccountState, FormData>(
     boundAction,
@@ -48,13 +50,13 @@ export function DoctorAccountForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1">
           <Label htmlFor={`name-${doctorId}`} className="text-xs">
-            Name
+            {t("name")}
           </Label>
           <Input id={`name-${doctorId}`} name="name" defaultValue={currentName} required />
         </div>
         <div className="grid gap-1">
           <Label htmlFor={`email-${doctorId}`} className="text-xs">
-            Email
+            {t("email")}
           </Label>
           <Input
             id={`email-${doctorId}`}
@@ -69,17 +71,17 @@ export function DoctorAccountForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1">
           <Label htmlFor={`phone-${doctorId}`} className="text-xs">
-            Phone
+            {t("phone")}
           </Label>
           <Input id={`phone-${doctorId}`} name="phone" defaultValue={currentPhone ?? ""} />
         </div>
         <div className="grid gap-1">
           <Label htmlFor={`specialty-${doctorId}`} className="text-xs">
-            Specialty
+            {t("specialty")}
           </Label>
           <Select name="specialty" defaultValue={currentSpecialty ?? undefined}>
             <SelectTrigger id={`specialty-${doctorId}`} className="w-full">
-              <SelectValue placeholder="Select specialty" />
+              <SelectValue placeholder={t("selectSpecialty")} />
             </SelectTrigger>
             <SelectContent>
               {specialties.map((s) => (
@@ -95,7 +97,7 @@ export function DoctorAccountForm({
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="grid gap-1">
           <Label htmlFor={`fee-${doctorId}`} className="text-xs">
-            Consultation Fee
+            {t("consultationFee")}
           </Label>
           <Input
             id={`fee-${doctorId}`}
@@ -108,7 +110,7 @@ export function DoctorAccountForm({
         </div>
         <div className="grid gap-1">
           <Label htmlFor={`exp-${doctorId}`} className="text-xs">
-            Years of Experience
+            {t("yearsExperience")}
           </Label>
           <Input
             id={`exp-${doctorId}`}
@@ -123,21 +125,21 @@ export function DoctorAccountForm({
 
       <div className="grid gap-1">
         <Label htmlFor={`qual-${doctorId}`} className="text-xs">
-          Qualifications
+          {t("qualifications")}
         </Label>
         <Input
           id={`qual-${doctorId}`}
           name="qualifications"
-          placeholder="e.g. MBBS, MMedSc (Obs & Gyn)"
+          placeholder={t("qualificationsPlaceholder")}
           defaultValue={currentQualifications ?? ""}
         />
       </div>
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-primary">Saved.</p>}
+      {state.success && <p className="text-sm text-primary">{t("saved")}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit justify-self-end">
-        Save Changes
+        {t("saveChanges")}
       </Button>
     </form>
   );

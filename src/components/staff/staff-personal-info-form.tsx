@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { updateOwnStaffPersonalInfo, type UpdateOwnStaffPersonalInfoState } from "@/actions/staff";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ export function StaffPersonalInfoForm({
   phone: string;
   roleLabel: string;
 }) {
+  const t = useTranslations("staff");
   const [state, formAction, pending] = useActionState<UpdateOwnStaffPersonalInfoState, FormData>(
     updateOwnStaffPersonalInfo,
     {}
@@ -29,13 +31,13 @@ export function StaffPersonalInfoForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="name" className={FIELD_LABEL}>
-            Full Name
+            {t("fullName")}
           </Label>
           <Input id="name" name="name" defaultValue={name} required />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="role" className={FIELD_LABEL}>
-            Role
+            {t("role")}
           </Label>
           <Input id="role" value={roleLabel} disabled />
         </div>
@@ -44,23 +46,23 @@ export function StaffPersonalInfoForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="email" className={FIELD_LABEL}>
-            Email
+            {t("email")}
           </Label>
           <Input id="email" value={email} disabled />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="phone" className={FIELD_LABEL}>
-            Phone
+            {t("phone")}
           </Label>
           <Input id="phone" name="phone" defaultValue={phone} placeholder="09 987654321" />
         </div>
       </div>
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-blue-600">Saved.</p>}
+      {state.success && <p className="text-sm text-blue-600">{t("saved")}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit justify-self-end">
-        Save Changes
+        {t("saveChanges")}
       </Button>
     </form>
   );

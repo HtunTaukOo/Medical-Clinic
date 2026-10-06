@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requireStaffPermissionPage } from "@/lib/authz";
 import { Link } from "@/i18n/navigation";
@@ -11,6 +12,7 @@ export default async function StaffAppointmentSchedulePage({
 }: {
   searchParams: Promise<{ doctorId?: string; week?: string; patientId?: string }>;
 }) {
+  const t = await getTranslations("doctorSchedule");
   await requireStaffPermissionPage("CREATE_APPOINTMENTS");
   const { doctorId, week, patientId } = await searchParams;
 
@@ -78,8 +80,8 @@ export default async function StaffAppointmentSchedulePage({
         basePath="/staff/appointments/schedule"
         linkParams={{ doctorId: doctor.id, ...(patientId ? { patientId } : {}) }}
         appointmentHref={(id) => `/staff/appointments/${id}`}
-        title={`${doctor.user.name}'s Schedule`}
-        subtitle={doctor.specialty ?? "Weekly calendar and availability"}
+        title={t("doctorSchedule", { name: doctor.user.name })}
+        subtitle={doctor.specialty ?? t("weeklyCalendar")}
       />
     </div>
   );

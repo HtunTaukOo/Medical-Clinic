@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   updateOwnDoctorProfile,
   type UpdateOwnDoctorProfileState,
@@ -43,6 +44,7 @@ export function DoctorSpecialtyForm({
   consultationHours: string;
   specialties: { name: string }[];
 }) {
+  const t = useTranslations("staff");
   const [state, formAction, pending] = useActionState<
     UpdateOwnDoctorProfileState,
     FormData
@@ -54,11 +56,11 @@ export function DoctorSpecialtyForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="specialty" className={FIELD_LABEL}>
-            Specialty
+            {t("specialty")}
           </Label>
           <Select name="specialty" value={specialtyValue} onValueChange={setSpecialtyValue}>
             <SelectTrigger id="specialty" className="w-full">
-              <SelectValue placeholder="Select specialty" />
+              <SelectValue placeholder={t("selectSpecialty")} />
             </SelectTrigger>
             <SelectContent>
               {specialties.map((s) => (
@@ -71,7 +73,7 @@ export function DoctorSpecialtyForm({
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="medicalLicenseNo" className={FIELD_LABEL}>
-            Medical License No.
+            {t("medicalLicenseNumber")}
           </Label>
           <Input id="medicalLicenseNo" name="medicalLicenseNo" defaultValue={medicalLicenseNo} />
         </div>
@@ -80,13 +82,13 @@ export function DoctorSpecialtyForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="mbbsUniversity" className={FIELD_LABEL}>
-            MBBS University
+            {t("mbbsUniversity")}
           </Label>
           <Input id="mbbsUniversity" name="mbbsUniversity" defaultValue={mbbsUniversity} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="graduationYear" className={FIELD_LABEL}>
-            Graduation Year
+            {t("graduationYear")}
           </Label>
           <Input
             id="graduationYear"
@@ -100,23 +102,23 @@ export function DoctorSpecialtyForm({
       </div>
 
       <div className="grid gap-1.5">
-        <p className={FIELD_LABEL}>Qualifications</p>
+        <p className={FIELD_LABEL}>{t("qualifications")}</p>
         <ChipListInput
           name="qualifications"
           defaultValues={qualifications ? qualifications.split(",").map((q) => q.trim()).filter(Boolean) : []}
-          placeholder="+ Add qualification"
+          placeholder={t("addQualification")}
           joinAsCsv
         />
       </div>
 
       <div className="grid gap-1.5">
-        <p className={FIELD_LABEL}>Languages</p>
-        <ChipListInput name="languages" defaultValues={languages} placeholder="+ Add language" />
+        <p className={FIELD_LABEL}>{t("languages")}</p>
+        <ChipListInput name="languages" defaultValues={languages} placeholder={t("addLanguage")} />
       </div>
 
       <div className="grid gap-1.5">
         <Label htmlFor="professionalBio" className={FIELD_LABEL}>
-          Professional Bio
+          {t("professionalBio")}
         </Label>
         <Textarea id="professionalBio" name="professionalBio" rows={3} defaultValue={professionalBio} />
       </div>
@@ -124,23 +126,23 @@ export function DoctorSpecialtyForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-1.5">
           <Label htmlFor="clinicRoom" className={FIELD_LABEL}>
-            Clinic Room
+            {t("clinicRoom")}
           </Label>
           <Input id="clinicRoom" name="clinicRoom" defaultValue={clinicRoom} />
         </div>
         <div className="grid gap-1.5">
           <Label htmlFor="consultationHours" className={FIELD_LABEL}>
-            Consultation Hours
+            {t("consultationHours")}
           </Label>
           <Input id="consultationHours" value={consultationHours} disabled />
         </div>
       </div>
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-blue-600">Saved.</p>}
+      {state.success && <p className="text-sm text-blue-600">{t("saved")}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit justify-self-end">
-        Save Changes
+        {t("saveChanges")}
       </Button>
     </form>
   );

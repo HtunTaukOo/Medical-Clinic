@@ -1,25 +1,26 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
 
 const COMMON_SYMPTOMS = [
-  "Fever",
-  "Cough",
-  "Dyspnea",
-  "Chest Pain",
-  "Fatigue",
-  "Headache",
-  "Nausea",
-  "Dizziness",
-  "Back Pain",
-  "Joint Pain",
-  "Palpitations",
-  "Oedema",
-];
+  { value: "Fever", labelKey: "fever" },
+  { value: "Cough", labelKey: "cough" },
+  { value: "Dyspnea", labelKey: "dyspnea" },
+  { value: "Chest Pain", labelKey: "chestPain" },
+  { value: "Fatigue", labelKey: "fatigue" },
+  { value: "Headache", labelKey: "headache" },
+  { value: "Nausea", labelKey: "nausea" },
+  { value: "Dizziness", labelKey: "dizziness" },
+  { value: "Back Pain", labelKey: "backPain" },
+  { value: "Joint Pain", labelKey: "jointPain" },
+  { value: "Palpitations", labelKey: "palpitations" },
+  { value: "Oedema", labelKey: "oedema" },
+] as const;
 
 export function SymptomPicker({
   formId,
@@ -28,13 +29,14 @@ export function SymptomPicker({
   formId: string;
   defaultValues: string[];
 }) {
+  const t = useTranslations("clinical");
   const [selected, setSelected] = useState<string[]>(defaultValues);
   // Custom symptoms the doctor has typed in, kept as their own pill list so
   // toggling one off (deselecting) just dims it like a common symptom does,
   // instead of the pill vanishing entirely because it was only ever derived
   // from the selected list itself.
   const [customSymptoms, setCustomSymptoms] = useState<string[]>(
-    defaultValues.filter((s) => !COMMON_SYMPTOMS.includes(s))
+    defaultValues.filter((s) => !COMMON_SYMPTOMS.some((symptom) => symptom.value === s))
   );
   const [custom, setCustom] = useState("");
 
@@ -61,9 +63,11 @@ export function SymptomPicker({
   return (
     <div className="grid gap-3">
       <div className="flex flex-wrap gap-2">
-        {[...COMMON_SYMPTOMS, ...customSymptoms].map((symptom) => {
+        {[...COMMON_SYMPTOMS.map((symptom) => symptom.value), ...customSymptoms].map((symptom) => {
           const active = selected.includes(symptom);
           const isCustom = customSymptoms.includes(symptom);
+          const commonSymptom = COMMON_SYMPTOMS.find((item) => item.value === symptom);
+          const label = commonSymptom ? t(commonSymptom.labelKey) : symptom;
           return (
             <span
               key={symptom}
@@ -76,13 +80,13 @@ export function SymptomPicker({
               )}
             >
               <button type="button" onClick={() => toggle(symptom)}>
-                {symptom}
+                {label}
               </button>
               {isCustom && (
                 <button
                   type="button"
                   onClick={() => removeCustom(symptom)}
-                  aria-label={`Remove ${symptom}`}
+                  aria-label={t("removeSymptom", { symptom })}
                   className={cn(
                     "rounded-full p-0.5 transition-colors",
                     active ? "hover:bg-white/20" : "hover:bg-black/10"
@@ -99,7 +103,7 @@ export function SymptomPicker({
         <Input
           value={custom}
           onChange={(e) => setCustom(e.target.value)}
-          placeholder="Add other symptom..."
+          placeholder={t("addOtherSymptom")}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
@@ -108,7 +112,7 @@ export function SymptomPicker({
           }}
         />
         <Button type="button" variant="secondary" onClick={addCustom}>
-          Add
+          {t("add")}
         </Button>
       </div>
       {selected.map((symptom) => (

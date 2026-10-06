@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,6 +30,7 @@ export function ResultEntryForm({
   items: Item[];
   showDocumentUpload?: boolean;
 }) {
+  const t = useTranslations("lab");
   const [state, formAction, pending] = useActionState<ResultFormState, FormData>(action, {});
 
   return (
@@ -38,13 +40,13 @@ export function ResultEntryForm({
           <p className="font-medium">{item.labTest.name}</p>
           {item.labTest.normalRange && (
             <p className="text-sm text-muted-foreground">
-              Normal range: {item.labTest.normalRange}
+              {t("normalRange")}: {item.labTest.normalRange}
               {item.labTest.unit && ` ${item.labTest.unit}`}
             </p>
           )}
           <div className="grid gap-2 sm:grid-cols-3">
             <div className="grid gap-1">
-              <Label htmlFor={`result-${item.id}`}>Result value</Label>
+              <Label htmlFor={`result-${item.id}`}>{t("resultValue")}</Label>
               <Input
                 id={`result-${item.id}`}
                 name={`result-${item.id}`}
@@ -52,21 +54,21 @@ export function ResultEntryForm({
               />
             </div>
             <div className="grid gap-1">
-              <Label htmlFor={`status-${item.id}`}>Status</Label>
+              <Label htmlFor={`status-${item.id}`}>{t("status")}</Label>
               <Select name={`status-${item.id}`}>
                 <SelectTrigger id={`status-${item.id}`} className="w-full">
-                  <SelectValue placeholder="Not specified" />
+                  <SelectValue placeholder={t("notSpecified")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="NORMAL">Normal</SelectItem>
-                  <SelectItem value="BORDERLINE">Borderline</SelectItem>
-                  <SelectItem value="LOW">Low</SelectItem>
-                  <SelectItem value="HIGH">High</SelectItem>
+                  <SelectItem value="NORMAL">{t("normal")}</SelectItem>
+                  <SelectItem value="BORDERLINE">{t("borderline")}</SelectItem>
+                  <SelectItem value="LOW">{t("low")}</SelectItem>
+                  <SelectItem value="HIGH">{t("high")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="grid gap-1">
-              <Label htmlFor={`note-${item.id}`}>Note (optional)</Label>
+              <Label htmlFor={`note-${item.id}`}>{t("noteOptional")}</Label>
               <Input id={`note-${item.id}`} name={`note-${item.id}`} />
             </div>
           </div>
@@ -74,7 +76,7 @@ export function ResultEntryForm({
       ))}
       {showDocumentUpload && (
         <div className="grid gap-2">
-          <Label htmlFor="document">Document (optional)</Label>
+          <Label htmlFor="document">{t("documentOptional")}</Label>
           <div className="relative">
             <Upload className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
@@ -89,7 +91,7 @@ export function ResultEntryForm({
       )}
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       <Button type="submit" disabled={pending} className="w-fit">
-        Save results
+        {t("saveResults")}
       </Button>
     </form>
   );

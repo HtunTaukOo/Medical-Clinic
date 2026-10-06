@@ -1,4 +1,5 @@
 import { CalendarOff } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { DoctorLeaveStatus } from "@prisma/client";
 import { approveDoctorLeave, rejectDoctorLeave, removeDoctorLeave } from "@/actions/staff";
 import { DoctorLeaveForm } from "@/components/staff/doctor-leave-form";
@@ -12,7 +13,7 @@ export function DoctorLeaveManager({
   leaveDays,
   showForm = true,
   canDecide = false,
-  emptyMessage = "No upcoming leave days scheduled.",
+  emptyMessage,
 }: {
   doctorId?: string;
   leaveDays: {
@@ -26,11 +27,12 @@ export function DoctorLeaveManager({
   canDecide?: boolean;
   emptyMessage?: string;
 }) {
+  const t = useTranslations("doctorSchedule");
   return (
     <div className="grid gap-4">
       {showForm && doctorId && <DoctorLeaveForm doctorId={doctorId} />}
       {leaveDays.length === 0 ? (
-        <EmptyState icon={CalendarOff} message={emptyMessage} />
+        <EmptyState icon={CalendarOff} message={emptyMessage ?? t("noUpcomingLeave")} />
       ) : (
         <div className="grid gap-2">
           {leaveDays.map((leave) => (
@@ -53,7 +55,7 @@ export function DoctorLeaveManager({
                   </p>
                   {leave.status === "PENDING" && (
                     <Badge variant="outline" className="bg-amber-100 text-amber-700">
-                      Pending approval
+                      {t("pendingApproval")}
                     </Badge>
                   )}
                 </div>
@@ -69,25 +71,25 @@ export function DoctorLeaveManager({
                         type="submit"
                         className="border-emerald-200 text-emerald-700 hover:bg-emerald-50"
                       >
-                        Approve
+                        {t("approve")}
                       </Button>
                     </form>
                     <form action={rejectDoctorLeave.bind(null, leave.id)} className="flex items-center gap-1">
-                      <Input name="note" placeholder="Reason (optional)" className="h-8 w-40" />
+                      <Input name="note" placeholder={t("reasonOptional")} className="h-8 w-40" />
                       <Button
                         size="sm"
                         variant="outline"
                         type="submit"
                         className="border-red-200 text-red-700 hover:bg-red-50"
                       >
-                        Reject
+                        {t("reject")}
                       </Button>
                     </form>
                   </>
                 )}
                 <form action={removeDoctorLeave.bind(null, leave.id)}>
                   <Button size="sm" variant="destructive" type="submit">
-                    Remove
+                    {t("remove")}
                   </Button>
                 </form>
               </div>

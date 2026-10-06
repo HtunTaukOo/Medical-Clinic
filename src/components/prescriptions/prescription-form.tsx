@@ -36,6 +36,7 @@ export function PrescriptionForm({
   medicines: { id: string; name: string; unit: string }[];
 }) {
   const t = useTranslations("appointments");
+  const tc = useTranslations("clinical");
   const [rows, setRows] = useState<Row[]>([
     {
       medicineId: "",
@@ -98,7 +99,7 @@ export function PrescriptionForm({
                 </Select>
               </div>
               <Input
-                placeholder="Dosage"
+                placeholder={tc("dosage")}
                 value={row.dosage}
                 onChange={(e) => updateRow(index, { dosage: e.target.value })}
                 className="w-40"
@@ -119,14 +120,14 @@ export function PrescriptionForm({
                     setRows((prev) => prev.filter((_, i) => i !== index))
                   }
                 >
-                  Remove
+                  {tc("remove")}
                 </Button>
               )}
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <div className="grid gap-1">
                 <Label className="text-xs text-muted-foreground">
-                  Reminders: times/day
+                  {tc("remindersTimesDaily")}
                 </Label>
                 <Input
                   type="number"
@@ -140,7 +141,7 @@ export function PrescriptionForm({
               </div>
               <div className="grid gap-1">
                 <Label className="text-xs text-muted-foreground">
-                  For how many days
+                  {tc("forHowManyDays")}
                 </Label>
                 <Input
                   type="number"
@@ -152,20 +153,20 @@ export function PrescriptionForm({
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Optional — sends Telegram reminders to the patient once fulfilled
+                {tc("reminderHelp")}
               </p>
             </div>
             <div className="flex flex-wrap items-end gap-2">
               <div className="grid min-w-44 gap-1">
-                <Label className="text-xs text-muted-foreground">Frequency (shown to patient)</Label>
+                <Label className="text-xs text-muted-foreground">{tc("frequencyPatient")}</Label>
                 <Input
-                  placeholder="e.g. 1 tablet daily"
+                  placeholder={tc("frequencyPlaceholder")}
                   value={row.frequency}
                   onChange={(e) => updateRow(index, { frequency: e.target.value })}
                 />
               </div>
               <div className="grid gap-1">
-                <Label className="text-xs text-muted-foreground">Refills</Label>
+                <Label className="text-xs text-muted-foreground">{tc("refills")}</Label>
                 <Input
                   type="number"
                   min={0}
@@ -176,9 +177,9 @@ export function PrescriptionForm({
                 />
               </div>
               <div className="grid min-w-52 flex-1 gap-1">
-                <Label className="text-xs text-muted-foreground">Instructions (optional)</Label>
+                <Label className="text-xs text-muted-foreground">{tc("instructionsOptional")}</Label>
                 <Input
-                  placeholder="e.g. Take with food"
+                  placeholder={tc("instructionsPlaceholder")}
                   value={row.instructions}
                   onChange={(e) => updateRow(index, { instructions: e.target.value })}
                 />
@@ -212,7 +213,7 @@ export function PrescriptionForm({
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       {state.success && (
-        <p className="text-sm text-muted-foreground">Prescription saved.</p>
+        <p className="text-sm text-muted-foreground">{tc("prescriptionSaved")}</p>
       )}
       <Button type="submit" disabled={pending} className="w-fit">
         {t("writePrescription")}

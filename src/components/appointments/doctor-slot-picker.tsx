@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useTransition } from "react";
+import { useTranslations } from "next-intl";
 import { fetchDaySlots } from "@/actions/booking";
 import type { DaySlot } from "@/lib/booking-slots";
 import { formatTimeLabel } from "@/lib/time-blocks";
@@ -28,6 +29,7 @@ export function DoctorSlotPicker({
   inputName?: string;
   defaultDate?: string;
 }) {
+  const t = useTranslations("appointments");
   const [date, setDate] = useState(defaultDate ?? "");
   const [time, setTime] = useState<string | null>(null);
   const [slots, setSlots] = useState<DaySlot[]>([]);
@@ -48,7 +50,7 @@ export function DoctorSlotPicker({
 
   return (
     <div className="grid gap-2">
-      <Label htmlFor="doctor-slot-date">Date</Label>
+      <Label htmlFor="doctor-slot-date">{t("date")}</Label>
       <Input
         id="doctor-slot-date"
         type="date"
@@ -63,16 +65,16 @@ export function DoctorSlotPicker({
       <input type="hidden" name={inputName} value={scheduledAt} />
 
       {!doctorId ? (
-        <p className="text-sm text-muted-foreground">Select a doctor first.</p>
+        <p className="text-sm text-muted-foreground">{t("selectDoctorFirst")}</p>
       ) : (
         date && (
           <div className="grid gap-2">
-            <Label>Time</Label>
+            <Label>{t("time")}</Label>
             {pending ? (
-              <p className="text-sm text-muted-foreground">Loading availability…</p>
+              <p className="text-sm text-muted-foreground">{t("loadingAvailability")}</p>
             ) : visibleSlots.length === 0 ? (
               <p className="text-sm text-muted-foreground">
-                This doctor isn&rsquo;t in clinic this day.
+                {t("doctorNotInClinic")}
               </p>
             ) : (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">

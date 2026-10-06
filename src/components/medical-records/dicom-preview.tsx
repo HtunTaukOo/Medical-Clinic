@@ -1,10 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useTranslations } from "next-intl";
 
 type Meta = { modality?: string; studyDate?: string; rows?: number; columns?: number };
 
 export function DicomPreview({ src }: { src: string }) {
+  const t = useTranslations("medicalRecords");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [status, setStatus] = useState<"loading" | "ready" | "unsupported" | "error">("loading");
   const [meta, setMeta] = useState<Meta>({});
@@ -94,21 +96,20 @@ export function DicomPreview({ src }: { src: string }) {
   }, [src]);
 
   if (status === "error") {
-    return <p className="text-sm text-destructive">Couldn&apos;t read this DICOM file.</p>;
+    return <p className="text-sm text-destructive">{t("dicomReadError")}</p>;
   }
 
   if (status === "unsupported") {
     return (
       <p className="text-sm text-muted-foreground">
-        This DICOM file uses a format (compressed, color, or multi-frame) this basic preview
-        can&apos;t render — download it to view in a dedicated DICOM viewer.
+        {t("dicomUnsupported")}
       </p>
     );
   }
 
   return (
     <div className="grid gap-1">
-      {status === "loading" && <p className="text-sm text-muted-foreground">Loading preview…</p>}
+      {status === "loading" && <p className="text-sm text-muted-foreground">{t("loadingPreview")}</p>}
       <canvas
         ref={canvasRef}
         className={`max-h-64 w-auto rounded-md border ${status === "ready" ? "" : "hidden"}`}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { Megaphone } from "lucide-react";
 import {
   Dialog,
@@ -15,6 +16,7 @@ import { Link } from "@/i18n/navigation";
 import { AnnouncementForm } from "@/components/staff/announcement-form";
 
 export function NewAnnouncementDialog() {
+  const t = useTranslations("staff");
   const [open, setOpen] = useState(false);
 
   return (
@@ -22,14 +24,14 @@ export function NewAnnouncementDialog() {
       <DialogTrigger asChild>
         <Button className="gap-2">
           <Megaphone className="size-4" />
-          New Announcement
+          {t("newAnnouncement")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New Announcement</DialogTitle>
+          <DialogTitle>{t("newAnnouncement")}</DialogTitle>
           <DialogDescription>
-            Post a message that every staff member will see.
+            {t("announcementDescription")}
           </DialogDescription>
         </DialogHeader>
         <AnnouncementForm onPosted={() => setOpen(false)} />
@@ -37,7 +39,7 @@ export function NewAnnouncementDialog() {
           href="/staff/announcements"
           className="text-sm text-muted-foreground underline underline-offset-2"
         >
-          View all announcements
+          {t("viewAllAnnouncements")}
         </Link>
       </DialogContent>
     </Dialog>

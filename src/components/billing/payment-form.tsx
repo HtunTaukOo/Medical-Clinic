@@ -16,6 +16,13 @@ import {
 
 const METHODS = ["CASH", "CARD", "MOBILE_BANKING", "OTHER"] as const;
 
+const METHOD_KEYS = {
+  CASH: "cash",
+  CARD: "card",
+  MOBILE_BANKING: "mobileBanking",
+  OTHER: "other",
+} as const;
+
 export function PaymentForm({
   action,
 }: {
@@ -45,7 +52,7 @@ export function PaymentForm({
           <SelectContent>
             {METHODS.map((m) => (
               <SelectItem key={m} value={m}>
-                {m}
+                {t(METHOD_KEYS[m])}
               </SelectItem>
             ))}
           </SelectContent>

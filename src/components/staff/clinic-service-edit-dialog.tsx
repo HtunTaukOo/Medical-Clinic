@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -28,18 +29,19 @@ export function ClinicServiceEditDialog({
   specialties: { name: string; bookByService: boolean }[];
   labTests: { id: string; name: string; price: number }[];
 }) {
+  const t = useTranslations("clinicServices");
   const [open, setOpen] = useState(false);
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
         <button type="button" className="font-medium text-primary underline underline-offset-2">
-          Edit
+          {t("edit")}
         </button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Edit {service.name}</DialogTitle>
+          <DialogTitle>{t("editService", { name: service.name })}</DialogTitle>
         </DialogHeader>
         <ClinicServiceForm
           service={service}

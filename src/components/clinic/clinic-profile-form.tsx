@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useState } from "react";
+import { useTranslations } from "next-intl";
 import { updateClinicProfile, type ClinicSettingsFormState } from "@/actions/clinic-settings";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +22,7 @@ export function ClinicProfileForm({
   phones: string[];
   hasLogo: boolean;
 }) {
+  const t = useTranslations("clinic");
   const [state, formAction, pending] = useActionState<ClinicSettingsFormState, FormData>(
     updateClinicProfile,
     {}
@@ -32,13 +34,13 @@ export function ClinicProfileForm({
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
           <Label htmlFor="name" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Clinic Name
+            {t("clinicName")}
           </Label>
           <Input id="name" name="name" defaultValue={name} required />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="email" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-            Email
+            {t("email")}
           </Label>
           <Input id="email" name="email" type="email" defaultValue={email ?? ""} />
         </div>
@@ -46,20 +48,20 @@ export function ClinicProfileForm({
 
       <div className="grid gap-2">
         <Label htmlFor="address" className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Address
+          {t("address")}
         </Label>
         <Input id="address" name="address" defaultValue={address ?? ""} />
       </div>
 
       <div className="grid gap-2">
         <Label className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-          Phone Numbers
+          {t("phoneNumbers")}
         </Label>
-        <ChipListInput name="phones" defaultValues={phones} placeholder="+ Add phone number" />
+        <ChipListInput name="phones" defaultValues={phones} placeholder={t("addPhone")} />
       </div>
 
       <div className="grid gap-2">
-        <Label className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">Logo</Label>
+        <Label className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">{t("logo")}</Label>
         <div className="flex items-center gap-3">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -76,7 +78,7 @@ export function ClinicProfileForm({
             htmlFor="logo"
             className="inline-flex h-8 cursor-pointer items-center rounded-lg border border-input px-3 text-sm font-medium hover:bg-muted"
           >
-            Upload Logo
+            {t("uploadLogo")}
           </Label>
           <input
             id="logo"
@@ -93,10 +95,10 @@ export function ClinicProfileForm({
       </div>
 
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
-      {state.success && <p className="text-sm text-primary">Saved.</p>}
+      {state.success && <p className="text-sm text-primary">{t("saved")}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit justify-self-end">
-        Save Changes
+        {t("saveChanges")}
       </Button>
     </form>
   );

@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import { getTranslations } from "next-intl/server";
 import {
   CalendarDays,
   Clock,
@@ -28,16 +28,13 @@ const LAB_RESULT_LABEL: Record<string, string> = {
   BORDERLINE: "borderline",
 };
 
-function Num({ children }: { children: ReactNode }) {
-  return <span className="font-semibold text-primary">{children}</span>;
-}
-
 export default async function DoctorDashboardPage({
   searchParams,
 }: {
   searchParams: Promise<{ schedule?: string }>;
 }) {
   const session = await requirePageRole(["DOCTOR"]);
+  const t = await getTranslations("doctorDashboard");
   const doctorId = session.user.doctorId;
   const { schedule: scheduleParam } = await searchParams;
   const scheduleTab: "today" | "upcoming" = scheduleParam === "upcoming" ? "upcoming" : "today";
@@ -152,7 +149,7 @@ export default async function DoctorDashboardPage({
   const firstName = session.user.name ? getDisplayFirstName(session.user.name) : "";
   const now = new Date();
   const clinicHour = Math.floor(clinicLocalMinutes(now) / 60);
-  const greeting = clinicHour < 12 ? "Good morning" : clinicHour < 18 ? "Good afternoon" : "Good evening";
+  const greeting = clinicHour < 12 ? t("goodMorning") : clinicHour < 18 ? t("goodAfternoon") : t("goodEvening");
   return (
     <div className="grid gap-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
@@ -170,21 +167,20 @@ export default async function DoctorDashboardPage({
             {firstName ? `, ${firstName}` : ""}
           </h1>
           <p className="text-sm text-muted-foreground">
-            You have <Num>{todaysAppointmentsFull.length}</Num> appointment
-            {todaysAppointmentsFull.length === 1 ? "" : "s"} scheduled today.
+            {t("appointmentsToday", { count: todaysAppointmentsFull.length })}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button asChild>
             <Link href={inProgressAppt ? `/doctor/appointments/${inProgressAppt.id}` : "/doctor/consultations"}>
               <Activity className="size-4" />
-              Start Consultation
+              {t("startConsultation")}
             </Link>
           </Button>
           <Button asChild variant="outline">
             <Link href="/doctor/schedule">
               <Clock className="size-4" />
-              Schedule
+              {t("schedule")}
             </Link>
           </Button>
         </div>
@@ -209,7 +205,7 @@ export default async function DoctorDashboardPage({
                 </div>
               </div>
               <Button asChild size="sm" variant="destructive">
-                <Link href={`/doctor/appointments/${alert.appointmentId}`}>View</Link>
+                <Link href={`/doctor/appointments/${alert.appointmentId}`}>{t("view")}</Link>
               </Button>
             </div>
           ))}
@@ -230,7 +226,7 @@ export default async function DoctorDashboardPage({
                 </div>
               </div>
               <Button asChild size="sm" className="bg-amber-600 text-white hover:bg-amber-700">
-                <Link href={alert.href}>View</Link>
+                <Link href={alert.href}>{t("view")}</Link>
               </Button>
             </div>
           ))}
@@ -240,30 +236,30 @@ export default async function DoctorDashboardPage({
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <SolidStatCard
           icon={CalendarDays}
-          label="Today's Total"
+          label={t("todayTotal")}
           value={todaysAppointmentsFull.length}
-          sublabel="appointments"
+          sublabel={t("appointments")}
           className="bg-blue-600"
         />
         <SolidStatCard
           icon={Clock}
-          label="Waiting"
+          label={t("waiting")}
           value={waitingAppts.length}
-          sublabel="patients in queue"
+          sublabel={t("patientsInQueue")}
           className="bg-amber-600"
         />
         <SolidStatCard
           icon={Activity}
-          label="In Progress"
+          label={t("inProgress")}
           value={inProgressAppt ? 1 : 0}
-          sublabel="active consultation"
+          sublabel={t("activeConsultation")}
           className="bg-sky-600"
         />
         <SolidStatCard
           icon={CheckCircle2}
-          label="Completed"
+          label={t("completed")}
           value={completedAppts.length}
-          sublabel="consultations today"
+          sublabel={t("consultationsToday")}
           className="bg-indigo-600"
         />
       </div>
@@ -271,7 +267,7 @@ export default async function DoctorDashboardPage({
       <div className="grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
           <CardHeader className="flex flex-wrap items-center justify-between gap-2">
-            <CardTitle>{scheduleTab === "today" ? "Today's Schedule" : "Upcoming Schedule"}</CardTitle>
+            <CardTitle>{scheduleTab === "today" ? t("todaySchedule") : t("upcomingSchedule")}</CardTitle>
             <div className="flex items-center gap-2">
               <div className="inline-flex items-center gap-1 rounded-lg bg-muted p-1">
                 <Link
@@ -282,7 +278,7 @@ export default async function DoctorDashboardPage({
                       : "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground"
                   }
                 >
-                  Today
+                  {t("today")}
                 </Link>
                 <Link
                   href="/doctor?schedule=upcoming"
@@ -292,18 +288,18 @@ export default async function DoctorDashboardPage({
                       : "rounded-md px-3 py-1 text-sm font-medium text-muted-foreground hover:text-foreground"
                   }
                 >
-                  Upcoming
+                  {t("upcoming")}
                 </Link>
               </div>
               <Link href="/doctor/appointments" className="text-sm underline">
-                View all
+                {t("viewAll")}
               </Link>
             </div>
           </CardHeader>
           <CardContent className="grid gap-2">
             {scheduleTab === "today" ? (
               todaysAppointmentsFull.length === 0 ? (
-                <EmptyState icon={CalendarDays} message="No appointments scheduled today." />
+                <EmptyState icon={CalendarDays} message={t("noAppointmentsToday")} />
               ) : (
                 todaysAppointmentsFull.map((appt, index) => {
                   const isInProgress = inProgressAppt?.id === appt.id;
@@ -352,7 +348,7 @@ export default async function DoctorDashboardPage({
                 })
               )
             ) : upcomingAppointmentsFull.length === 0 ? (
-              <EmptyState icon={CalendarDays} message="No upcoming appointments." />
+              <EmptyState icon={CalendarDays} message={t("noUpcomingAppointments")} />
             ) : (
               upcomingAppointmentsFull.map((appt, index) => {
                 const age = calculateAge(appt.patient.dob);
@@ -391,11 +387,11 @@ export default async function DoctorDashboardPage({
         <div className="grid gap-6">
           <Card>
             <CardHeader>
-              <CardTitle>Waiting Room</CardTitle>
+              <CardTitle>{t("waitingRoom")}</CardTitle>
             </CardHeader>
             <CardContent className="grid gap-2">
               {checkedInToday.length === 0 ? (
-                <EmptyState icon={Clock} message="No one waiting right now." />
+                <EmptyState icon={Clock} message={t("noOneWaiting")} />
               ) : (
                 checkedInToday.map((appt, index) => {
                   const isInProgress = inProgressAppt?.id === appt.id;
@@ -414,13 +410,13 @@ export default async function DoctorDashboardPage({
                         <div>
                           <p className="font-medium">{appt.patient.name}</p>
                           <p className="text-sm text-muted-foreground">
-                            {appt.reason || "No reason given"}
+                            {appt.reason || t("noReason")}
                           </p>
                         </div>
                       </div>
                       <Button asChild size="sm" variant={isUrgent ? "destructive" : "default"}>
                         <Link href={`/doctor/appointments/${appt.id}`}>
-                          {isInProgress ? "Resume" : "Start"}
+                          {isInProgress ? t("resume") : t("start")}
                         </Link>
                       </Button>
                     </div>

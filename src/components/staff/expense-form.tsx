@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect } from "react";
+import { useTranslations } from "next-intl";
 import { createExpense, updateExpense, type ExpenseFormState } from "@/actions/expenses";
 import { EXPENSE_CATEGORIES, EXPENSE_CATEGORY_LABELS } from "@/lib/expenses";
 import { useRouter } from "@/i18n/navigation";
@@ -41,6 +42,7 @@ export function ExpenseForm({
   // admin gets every category (the default, when this is omitted).
   allowedCategories?: readonly string[];
 }) {
+  const t = useTranslations("expenses");
   const router = useRouter();
   const action = expense ? updateExpense.bind(null, expense.id) : createExpense;
   const [state, formAction, pending] = useActionState<ExpenseFormState, FormData>(action, {});
@@ -56,7 +58,7 @@ export function ExpenseForm({
   return (
     <form action={formAction} className="grid gap-4">
       <div className="grid gap-2">
-        <Label htmlFor="description">Description</Label>
+        <Label htmlFor="description">{t("description")}</Label>
         <Input
           id="description"
           name="description"
@@ -67,7 +69,7 @@ export function ExpenseForm({
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor="category">Category</Label>
+          <Label htmlFor="category">{t("category")}</Label>
           <Select name="category" defaultValue={expense?.category ?? "OTHER"}>
             <SelectTrigger id="category" className="w-full">
               <SelectValue />
@@ -82,13 +84,13 @@ export function ExpenseForm({
           </Select>
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="vendor">Vendor (optional)</Label>
+          <Label htmlFor="vendor">{t("vendorOptional")}</Label>
           <Input id="vendor" name="vendor" defaultValue={expense?.vendor ?? ""} placeholder="e.g. Landlord" />
         </div>
       </div>
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="grid gap-2">
-          <Label htmlFor="amount">Amount (MMK)</Label>
+          <Label htmlFor="amount">{t("amount")}</Label>
           <Input
             id="amount"
             name="amount"
@@ -100,7 +102,7 @@ export function ExpenseForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="paidAt">Date</Label>
+          <Label htmlFor="paidAt">{t("date")}</Label>
           <Input
             id="paidAt"
             name="paidAt"
@@ -119,9 +121,9 @@ export function ExpenseForm({
           className="mt-0.5 size-4 accent-primary"
         />
         <span className="grid gap-0.5">
-          <span className="text-sm font-medium">Repeat monthly</span>
+          <span className="text-sm font-medium">{t("repeatMonthly")}</span>
           <span className="text-xs text-muted-foreground">
-            Add this expense automatically each month on the selected date.
+            {t("repeatMonthlyHelp")}
           </span>
         </span>
       </label>
@@ -129,7 +131,7 @@ export function ExpenseForm({
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
       <Button type="submit" disabled={pending} className="w-fit">
-        {expense ? "Save Changes" : "Add Expense"}
+        {expense ? t("saveChanges") : t("addExpense")}
       </Button>
     </form>
   );

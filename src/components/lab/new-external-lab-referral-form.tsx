@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useMemo, useState } from "react";
+import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 import { createExternalLabReferral, type CreateExternalLabReferralState } from "@/actions/external-lab";
 import { Button } from "@/components/ui/button";
@@ -44,6 +45,7 @@ export function NewExternalLabReferralForm({
   tests: Test[];
   referredLabNames: string[];
 }) {
+  const t = useTranslations("lab");
   const [state, formAction, pending] = useActionState<CreateExternalLabReferralState, FormData>(
     createExternalLabReferral,
     {}
@@ -86,16 +88,16 @@ export function NewExternalLabReferralForm({
     <form action={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <Card className="relative z-20 h-fit overflow-visible">
         <CardHeader>
-          <CardTitle className="text-base">External Lab Referral</CardTitle>
+          <CardTitle className="text-base">{t("externalReferral")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-4 sm:grid-cols-2">
           <div className="grid gap-2">
-            <Label>Patient</Label>
+            <Label>{t("patient")}</Label>
             <div className="relative">
               <Search className="absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-muted-foreground" />
               <Input
                 className="pl-8"
-                placeholder="Search patient..."
+                placeholder={t("searchPatient")}
                 value={selectedPatient ? selectedPatient.name : patientQuery}
                 onChange={(e) => {
                   setPatientQuery(e.target.value);
@@ -128,10 +130,10 @@ export function NewExternalLabReferralForm({
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="testId">Requested Test</Label>
+            <Label htmlFor="testId">{t("requestedTest")}</Label>
             <Select value={selectedTestId} onValueChange={(v) => { setSelectedTestId(v); setJustCreated(false); }}>
               <SelectTrigger id="testId" className="w-full">
-                <SelectValue placeholder="Select a test" />
+                <SelectValue placeholder={t("selectTest")} />
               </SelectTrigger>
               <SelectContent>
                 {LAB_TEST_CATEGORIES.map((category) => {
@@ -145,7 +147,7 @@ export function NewExternalLabReferralForm({
                       {testsInCategory.map((test) => (
                         <SelectItem key={test.id} value={test.id}>
                           {test.name}
-                          {test.requiresExternalLab ? " — Sent externally" : ""}
+                          {test.requiresExternalLab ? t("sentExternallySuffix") : ""}
                         </SelectItem>
                       ))}
                     </SelectGroup>
@@ -155,13 +157,13 @@ export function NewExternalLabReferralForm({
             </Select>
             {selectedTest?.requiresExternalLab && (
               <p className="text-xs font-medium text-amber-700">
-                This test is known to need an outside lab.
+                {t("outsideLabNotice")}
               </p>
             )}
           </div>
 
           <div className="grid gap-2">
-            <Label htmlFor="referredLabName">Referred Lab</Label>
+            <Label htmlFor="referredLabName">{t("referredLab")}</Label>
             <Input
               id="referredLabName"
               name="referredLabName"
@@ -178,7 +180,7 @@ export function NewExternalLabReferralForm({
           <div />
 
           <div className="grid gap-2">
-            <Label htmlFor="sampleCollectedAt">Sample Collected At</Label>
+            <Label htmlFor="sampleCollectedAt">{t("sampleCollectedAt")}</Label>
             <Input
               id="sampleCollectedAt"
               name="sampleCollectedAt"
@@ -188,36 +190,36 @@ export function NewExternalLabReferralForm({
             />
           </div>
           <div className="grid gap-2">
-            <Label htmlFor="requestedAt">Request Time</Label>
+            <Label htmlFor="requestedAt">{t("requestTime")}</Label>
             <Input id="requestedAt" name="requestedAt" type="datetime-local" defaultValue={defaultNow} required />
           </div>
 
           <div className="grid gap-2 sm:col-span-2">
-            <Label htmlFor="notes">Notes (optional)</Label>
-            <Textarea id="notes" name="notes" rows={2} placeholder="Anything staff should know about this referral" />
+            <Label htmlFor="notes">{t("noteOptional")}</Label>
+            <Textarea id="notes" name="notes" rows={2} placeholder={t("referralNotesPlaceholder")} />
           </div>
         </CardContent>
       </Card>
 
       <Card className="h-fit">
         <CardHeader>
-          <CardTitle className="text-base">Referral Summary</CardTitle>
+          <CardTitle className="text-base">{t("referralSummary")}</CardTitle>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm">
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Patient</span>
+            <span className="text-muted-foreground">{t("patient")}</span>
             <span className="font-medium">{selectedPatient?.name ?? "—"}</span>
           </div>
           <div className="flex items-center justify-between">
-            <span className="text-muted-foreground">Test</span>
+            <span className="text-muted-foreground">{t("test")}</span>
             <span className="font-medium">{selectedTest?.name ?? "—"}</span>
           </div>
 
-          {justCreated && <p className="text-sm font-medium text-emerald-700">Referral created.</p>}
+          {justCreated && <p className="text-sm font-medium text-emerald-700">{t("referralCreated")}</p>}
           {state.error && <p className="text-sm text-destructive">{state.error}</p>}
 
           <Button type="submit" size="lg" disabled={pending || !selectedPatient || !selectedTestId}>
-            Log Referral
+            {t("logReferral")}
           </Button>
         </CardContent>
       </Card>

@@ -1,6 +1,7 @@
 "use client";
 
 import { CalendarPlus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogContent,
@@ -13,19 +14,20 @@ import { Button } from "@/components/ui/button";
 import { DoctorLeaveForm } from "@/components/staff/doctor-leave-form";
 
 export function RequestLeaveDialog({ doctorId }: { doctorId: string }) {
+  const t = useTranslations("doctorSchedule");
   return (
     <Dialog>
       <DialogTrigger asChild>
         <Button className="gap-2">
           <CalendarPlus className="size-4" />
-          Request Leave
+          {t("requestLeave")}
         </Button>
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Request Leave</DialogTitle>
+          <DialogTitle>{t("requestLeave")}</DialogTitle>
           <DialogDescription>
-            Block a day on your schedule so patients can&apos;t book appointments then.
+            {t("requestLeaveDescription")}
           </DialogDescription>
         </DialogHeader>
         <DoctorLeaveForm doctorId={doctorId} />

@@ -103,21 +103,21 @@ export function PatientForm({
       </div>
       <div className="grid grid-cols-3 gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="bloodType">Blood Type</Label>
+          <Label htmlFor="bloodType">{t("bloodType")}</Label>
           <Input id="bloodType" name="bloodType" defaultValue={defaultValues?.bloodType} />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="nationality">Nationality</Label>
+          <Label htmlFor="nationality">{t("nationality")}</Label>
           <Input id="nationality" name="nationality" defaultValue={defaultValues?.nationality} />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="nrcNumber">NRC / ID Number</Label>
+          <Label htmlFor="nrcNumber">{t("nrcNumber")}</Label>
           <Input id="nrcNumber" name="nrcNumber" defaultValue={defaultValues?.nrcNumber} />
         </div>
       </div>
       <div className="grid grid-cols-2 gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="heightCm">Height (cm)</Label>
+          <Label htmlFor="heightCm">{t("height")}</Label>
           <Input
             id="heightCm"
             name="heightCm"
@@ -127,7 +127,7 @@ export function PatientForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="weightKg">Weight (kg)</Label>
+          <Label htmlFor="weightKg">{t("weight")}</Label>
           <Input
             id="weightKg"
             name="weightKg"
@@ -155,7 +155,7 @@ export function PatientForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="insuranceGroupNumber">Group Number</Label>
+          <Label htmlFor="insuranceGroupNumber">{t("insuranceGroupNumber")}</Label>
           <Input
             id="insuranceGroupNumber"
             name="insuranceGroupNumber"
@@ -163,7 +163,7 @@ export function PatientForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="insuranceCoverageType">Coverage Type</Label>
+          <Label htmlFor="insuranceCoverageType">{t("insuranceCoverageType")}</Label>
           <Input
             id="insuranceCoverageType"
             name="insuranceCoverageType"
@@ -171,7 +171,7 @@ export function PatientForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="insurancePolicyHolder">Policy Holder</Label>
+          <Label htmlFor="insurancePolicyHolder">{t("insurancePolicyHolder")}</Label>
           <Input
             id="insurancePolicyHolder"
             name="insurancePolicyHolder"
@@ -179,7 +179,7 @@ export function PatientForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="insuranceExpiryDate">Expiry Date</Label>
+          <Label htmlFor="insuranceExpiryDate">{t("insuranceExpiryDate")}</Label>
           <Input
             id="insuranceExpiryDate"
             name="insuranceExpiryDate"
@@ -198,7 +198,7 @@ export function PatientForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="emergencyContactRelationship">Relationship</Label>
+          <Label htmlFor="emergencyContactRelationship">{t("emergencyContactRelationship")}</Label>
           <Input
             id="emergencyContactRelationship"
             name="emergencyContactRelationship"
@@ -214,7 +214,7 @@ export function PatientForm({
           />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="emergencyContactAltPhone">Alternate Phone</Label>
+          <Label htmlFor="emergencyContactAltPhone">{t("emergencyContactAltPhone")}</Label>
           <Input
             id="emergencyContactAltPhone"
             name="emergencyContactAltPhone"
@@ -222,7 +222,7 @@ export function PatientForm({
           />
         </div>
         <div className="col-span-2 grid gap-2">
-          <Label htmlFor="emergencyContactAddress">Emergency Contact Address</Label>
+          <Label htmlFor="emergencyContactAddress">{t("emergencyContactAddress")}</Label>
           <Input
             id="emergencyContactAddress"
             name="emergencyContactAddress"
@@ -236,7 +236,7 @@ export function PatientForm({
       </div>
       {state.error && <p className="text-sm text-destructive">{state.error}</p>}
       {state.success && (
-        <p className="text-sm text-muted-foreground">Saved.</p>
+        <p className="text-sm text-muted-foreground">{t("saved")}</p>
       )}
       <Button type="submit" disabled={pending}>
         {t("save")}

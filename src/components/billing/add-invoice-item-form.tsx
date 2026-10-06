@@ -53,7 +53,7 @@ export function AddInvoiceItemForm({
       {services && services.length > 0 && (
         <Select onValueChange={handleService}>
           <SelectTrigger className="w-56">
-            <SelectValue placeholder="Add service" />
+            <SelectValue placeholder={t("addService")} />
           </SelectTrigger>
           <SelectContent>
             {services.map((service) => (
@@ -81,7 +81,7 @@ export function AddInvoiceItemForm({
       <input type="hidden" name="clinicServiceId" value={clinicServiceId} />
       <Input
         name="description"
-        placeholder="Description"
+        placeholder={t("description")}
         className="w-40"
         required
         value={description}
@@ -96,7 +96,7 @@ export function AddInvoiceItemForm({
         min={1}
         defaultValue={1}
         className="w-20"
-        placeholder="Qty"
+        placeholder={t("quantity")}
         required
       />
       <Input
@@ -105,13 +105,13 @@ export function AddInvoiceItemForm({
         min={0}
         step="0.01"
         className="w-28"
-        placeholder="Unit price"
+        placeholder={t("unitPrice")}
         required
         value={unitPrice}
         onChange={(e) => setUnitPrice(e.target.value)}
       />
       <Button type="submit" size="sm" disabled={pending}>
-        Add item
+        {t("addItem")}
       </Button>
       {state.error && <span className="text-sm text-destructive">{state.error}</span>}
     </form>

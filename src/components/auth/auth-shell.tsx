@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import { ShieldCheck, CalendarCheck, Stethoscope } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { ClinicLogo } from "@/components/clinic-logo";
+import { LocaleSwitcher } from "@/components/locale-switcher";
 import { getClinicSettings } from "@/lib/clinic-hours";
 
 const FEATURE_ICONS = [ShieldCheck, CalendarCheck, Stethoscope] as const;
@@ -60,7 +61,10 @@ export async function AuthShell({ children }: { children: ReactNode }) {
             {tAuth("tagline")}
           </p>
         </div>
-        <div className="flex flex-col justify-center bg-card/80 p-8 backdrop-blur-2xl sm:p-10">
+        <div className="relative flex flex-col justify-center bg-card/80 p-8 pt-16 backdrop-blur-2xl sm:p-10 sm:pt-16">
+          <div className="absolute top-5 right-5">
+            <LocaleSwitcher />
+          </div>
           {children}
         </div>
       </div>

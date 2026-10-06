@@ -1,10 +1,12 @@
 "use client";
 
 import { useActionState } from "react";
+import { useTranslations } from "next-intl";
 import { completeAppointmentCheckout } from "@/actions/appointments";
 import type { CompleteCheckoutState } from "@/actions/appointments";
 
 export function CompleteCheckoutButton({ appointmentId }: { appointmentId: string }) {
+  const t = useTranslations("appointments");
   const [state, formAction, pending] = useActionState<CompleteCheckoutState, FormData>(
     completeAppointmentCheckout.bind(null, appointmentId),
     {}
@@ -17,7 +19,7 @@ export function CompleteCheckoutButton({ appointmentId }: { appointmentId: strin
         disabled={pending}
         className="font-medium text-emerald-600 underline underline-offset-2 disabled:opacity-50"
       >
-        Complete
+        {t("complete")}
       </button>
       {state.error && <p className="max-w-48 text-right text-xs text-destructive">{state.error}</p>}
     </form>
