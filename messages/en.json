@@ -825,7 +825,7 @@
     "medicalRecords": {
       "description": "Your complete health history at a glance.",
       "tabVisitHistory": "Visit History",
-      "tabDrugsInstructions": "Drugs and Instructions",
+      "tabDrugsInstructions": "Medicines and Instructions",
       "tabDocuments": "Documents",
       "noCompletedVisits": "No completed visits yet.",
       "visitFallback": "Visit",
