@@ -294,11 +294,15 @@ export async function submitAppointmentRequest(
   // Set for BLOCK_CAPACITY bookings, where durationMinutes is a block length
   // (up to STANDARD_BLOCK_MINUTES, less for a trailing partial block) rather
   // than a multiple of APPOINTMENT_SLOT_MINUTES.
-  bookingContext?: { mode: "BLOCK_CAPACITY" } | null
+  bookingContext?: { mode: "BLOCK_CAPACITY" | "LAB_VISIT" } | null
 ): Promise<AppointmentFormState> {
   if (bookingContext?.mode === "BLOCK_CAPACITY") {
     if (!(Number.isInteger(durationMinutes) && durationMinutes > 0 && durationMinutes <= STANDARD_BLOCK_MINUTES)) {
       return { error: "Invalid appointment duration." };
+    }
+  } else if (bookingContext?.mode === "LAB_VISIT") {
+    if (!(Number.isInteger(durationMinutes) && durationMinutes >= 15 && durationMinutes <= 240 && durationMinutes % 15 === 0)) {
+      return { error: "Invalid lab visit duration." };
     }
   } else if (
     !Number.isInteger(durationMinutes) ||

@@ -13,6 +13,8 @@ import {
   fetchBlockMonthBookability,
   fetchEligibleDoctorIds,
   confirmBlockBooking,
+  confirmLabVisitBooking,
+  fetchLabVisitDaySlots,
 } from "@/actions/booking";
 import type { DaySlot, BlockAvailability } from "@/lib/booking-slots";
 import type { AppointmentFormState } from "@/actions/appointments";
@@ -198,6 +200,7 @@ export function BookingWizard({
 
   const currentSpecialtyOption = specialtyOptions.find((s) => s.name === specialty) ?? null;
   const isBookByService = currentSpecialtyOption?.bookingMode === "SERVICE_CAPACITY";
+  const isLabVisit = isBookByService && specialty === "Lab Visit";
   const isBlockCapacity = currentSpecialtyOption?.bookingMode === "BLOCK_CAPACITY";
   // SERVICE_CAPACITY (e.g. Lab Visit) shares the exact same fixed-block time
   // model as BLOCK_CAPACITY doctors — the only real difference is that there's
@@ -205,7 +208,7 @@ export function BookingWizard({
   // the doctor step's place rather than a different time model entirely. Only
   // the legacy, currently-unused DOCTOR_CALENDAR mode still uses continuous
   // slots + a duration picker, further below.
-  const usesTimeBlocks = isBlockCapacity || isBookByService;
+  const usesTimeBlocks = isBlockCapacity || (isBookByService && !isLabVisit);
 
   // For BLOCK_CAPACITY, once a block is chosen, only offer doctors who are
   // actually working that day/hours and not on leave — filtered server-side
@@ -214,7 +217,9 @@ export function BookingWizard({
     if (!isBlockCapacity || !date || !blockId || eligibleDoctorIds === null) return doctorsForSpecialty;
     return doctorsForSpecialty.filter((d) => eligibleDoctorIds.includes(d.id));
   }, [isBlockCapacity, date, blockId, doctorsForSpecialty, eligibleDoctorIds]);
-  const steps = usesTimeBlocks
+  const steps = isLabVisit
+    ? [t("stepSpecialty"), t("stepService"), t("stepDateTime"), t("stepDetails"), t("stepConfirm")]
+    : usesTimeBlocks
     ? [
         t("stepSpecialty"),
         t("stepDateTime"),
@@ -227,7 +232,11 @@ export function BookingWizard({
   const selectedDoctor = doctors.find((d) => d.id === doctorId) ?? null;
   const selectedService = services.find((s) => s.id === clinicServiceId) ?? null;
   const selectedBlock = blockId ? (blockAvailability.find((b) => b.blockId === blockId) ?? null) : null;
-  const timeRangeLabel = usesTimeBlocks
+  const timeRangeLabel = isLabVisit
+    ? time && selectedService
+      ? `${formatTimeLabel(time)} – ${formatTimeLabel(addMinutesToTime(time, Math.ceil(selectedService.durationMinutes / 15) * 15))} (${Math.ceil(selectedService.durationMinutes / 15) * 15} min)`
+      : null
+    : usesTimeBlocks
     ? selectedBlock
       ? formatBlockLabel(selectedBlock)
       : null
@@ -250,7 +259,7 @@ export function BookingWizard({
       : null;
 
   useEffect(() => {
-    if (usesTimeBlocks) {
+    if (usesTimeBlocks || isLabVisit) {
       if (!currentSpecialtyOption) return;
       startMonthTransition(async () => {
         const result = await fetchBlockMonthBookability(calendarYear, calendarMonth);
@@ -263,7 +272,7 @@ export function BookingWizard({
       const result = await fetchMonthBookability(doctorId, calendarYear, calendarMonth);
       setMonthBookability(result);
     });
-  }, [usesTimeBlocks, currentSpecialtyOption, doctorId, calendarYear, calendarMonth]);
+  }, [usesTimeBlocks, isLabVisit, currentSpecialtyOption, doctorId, calendarYear, calendarMonth]);
 
   useEffect(() => {
     if (!isBlockCapacity || !currentSpecialtyOption || !date || !blockId) return;
@@ -280,6 +289,22 @@ export function BookingWizard({
   }, [isBlockCapacity, currentSpecialtyOption, date, blockId]);
 
   function pickDate(d: YMD) {
+    if (isLabVisit) {
+      if (!currentSpecialtyOption || !selectedService) return;
+      setDate(d);
+      setTime(null);
+      setDaySlots([]);
+      startSlotsTransition(async () => {
+        const result = await fetchLabVisitDaySlots(
+          currentSpecialtyOption.name,
+          currentSpecialtyOption.capacityPerSlot,
+          selectedService.durationMinutes,
+          d.year, d.month, d.day
+        );
+        setDaySlots(result);
+      });
+      return;
+    }
     if (usesTimeBlocks) {
       if (!currentSpecialtyOption) return;
       setDate(d);
@@ -354,8 +379,19 @@ export function BookingWizard({
       return;
     }
 
-    if (!doctorId || !date || !time || !reasonCategory) return;
+    if (!date || !time || !reasonCategory) return;
     const reason = notes ? `${reasonCategory}: ${notes}` : reasonCategory;
+    if (isLabVisit && currentSpecialtyOption && clinicServiceId) {
+      startSubmitTransition(async () => {
+        const result = await confirmLabVisitBooking(
+          currentSpecialtyOption.name, date.year, date.month, date.day, time, reason, clinicServiceId
+        );
+        setSubmitState(result);
+        if (result.success) setStep(6);
+      });
+      return;
+    }
+    if (!doctorId) return;
     const durationMinutes = slotCount * 30;
     startSubmitTransition(async () => {
       const result = await confirmBooking(
@@ -407,7 +443,12 @@ export function BookingWizard({
   const monthGrid = getMonthGrid(calendarYear, calendarMonth);
   const prevMonth = addMonths(calendarYear, calendarMonth, -1);
   const nextMonth = addMonths(calendarYear, calendarMonth, 1);
-  const canContinue = usesTimeBlocks
+  const canContinue = isLabVisit
+    ? (step === 1 && !!specialty) ||
+      (step === 2 && !!clinicServiceId) ||
+      (step === 3 && !!date && !!time) ||
+      (step === 4 && !!reasonCategory)
+    : usesTimeBlocks
     ? (step === 1 && !!specialty) ||
       (step === 2 && !!date && !!blockId) ||
       (step === 3 && (isBookByService ? !!clinicServiceId : !!doctorId)) ||
@@ -613,7 +654,7 @@ export function BookingWizard({
           </div>
         )}
 
-        {step === 2 && !usesTimeBlocks && (
+        {step === 2 && !usesTimeBlocks && !isBookByService && (
           <div className="grid gap-6">
             <div>
               <h2 className="text-xl font-semibold">{t("selectDoctor")}</h2>
@@ -709,7 +750,7 @@ export function BookingWizard({
           </div>
         )}
 
-        {step === 3 && usesTimeBlocks && isBookByService && (
+        {((step === 3 && usesTimeBlocks) || (step === 2 && isLabVisit)) && isBookByService && (
           <div className="grid gap-6">
             <div>
               <h2 className="text-xl font-semibold">{t("selectService")}</h2>
@@ -734,6 +775,11 @@ export function BookingWizard({
                         setClinicServiceId(s.id);
                         setDoctorId(autoDoctor.id);
                         setReasonCategory(s.name);
+                        if (isLabVisit) {
+                          setDate(null);
+                          setTime(null);
+                          setDaySlots([]);
+                        }
                       }}
                       className={`rounded-xl border p-4 text-left transition-colors ${
                         selected ? "border-primary ring-1 ring-primary" : "hover:bg-muted/50"
@@ -944,7 +990,7 @@ export function BookingWizard({
                 </div>
               )}
 
-              {time && (
+              {time && !isLabVisit && (
                 <div className="grid gap-2">
                   <p className="text-sm font-medium">{t("reserveMoreTime")}</p>
                   {minSlots > 1 && (
@@ -985,6 +1031,11 @@ export function BookingWizard({
                     </p>
                   )}
                 </div>
+              )}
+              {time && isLabVisit && selectedService && (
+                <p className="text-sm text-muted-foreground">
+                  {formatTimeLabel(time)} – {formatTimeLabel(addMinutesToTime(time, Math.ceil(selectedService.durationMinutes / 15) * 15))} ({Math.ceil(selectedService.durationMinutes / 15) * 15} min)
+                </p>
               )}
             </div>
           </div>

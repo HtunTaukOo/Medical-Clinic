@@ -12,7 +12,8 @@ import {
   type DaySlot,
   type BlockAvailability,
 } from "@/lib/booking-slots";
-import { clinicMidnightForYMD, toMinutes } from "@/lib/clinic-hours";
+import { clinicMidnightForYMD, getClinicHoursForDate, toMinutes } from "@/lib/clinic-hours";
+import { isResourceSlotAvailable, MIN_BOOKING_LEAD_MINUTES } from "@/lib/scheduling";
 import { submitAppointmentRequest, type AppointmentFormState } from "@/actions/appointments";
 import { blockDurationMinutes, blockCapacity } from "@/lib/time-blocks";
 import { isDoctorOnLeave, isDoctorAvailableForRange } from "@/lib/doctor-availability";
@@ -150,6 +151,65 @@ export async function confirmResourceBooking(
     clinicServiceId,
     { specialtyName, capacityPerSlot: blockCapacity(block, specialty.capacityPerSlot) },
     { mode: "BLOCK_CAPACITY" }
+  );
+}
+
+const LAB_VISIT_SLOT_MINUTES = 15;
+
+export async function fetchLabVisitDaySlots(
+  specialtyName: string,
+  capacityPerSlot: number,
+  durationMinutes: number,
+  year: number,
+  month: number,
+  day: number
+): Promise<DaySlot[]> {
+  await requireSession();
+  const dayStart = clinicMidnightForYMD(year, month, day);
+  const clinicHours = await getClinicHoursForDate(dayStart);
+  if (!clinicHours.isOpen) return [];
+
+  const reservedMinutes = Math.ceil(durationMinutes / LAB_VISIT_SLOT_MINUTES) * LAB_VISIT_SLOT_MINUTES;
+  const startMinutes = toMinutes(clinicHours.openTime);
+  const endMinutes = toMinutes(clinicHours.closeTime);
+  const earliestBookable = Date.now() + MIN_BOOKING_LEAD_MINUTES * 60 * 1000;
+  const slots: DaySlot[] = [];
+  for (let minute = startMinutes; minute + reservedMinutes <= endMinutes; minute += LAB_VISIT_SLOT_MINUTES) {
+    const scheduledAt = new Date(dayStart.getTime() + minute * 60 * 1000);
+    const available =
+      scheduledAt.getTime() > earliestBookable &&
+      (await isResourceSlotAvailable({ specialtyName, capacityPerSlot }, scheduledAt, reservedMinutes));
+    slots.push({ time: `${String(Math.floor(minute / 60)).padStart(2, "0")}:${String(minute % 60).padStart(2, "0")}`, available });
+  }
+  return slots;
+}
+
+export async function confirmLabVisitBooking(
+  specialtyName: string,
+  year: number,
+  month: number,
+  day: number,
+  time: string,
+  reason: string,
+  clinicServiceId: string
+): Promise<AppointmentFormState> {
+  const session = await requireSession();
+  const patientId = session.user.patientId;
+  if (!patientId) throw new UnauthorizedError("No patient profile");
+  const [specialty, service, doctor] = await Promise.all([
+    prisma.specialty.findUnique({ where: { name: specialtyName } }),
+    prisma.clinicService.findUnique({ where: { id: clinicServiceId } }),
+    prisma.doctorProfile.findFirst({ where: { specialty: specialtyName }, orderBy: { id: "asc" } }),
+  ]);
+  if (!specialty || specialty.bookingMode !== "SERVICE_CAPACITY" || !service || service.specialty !== specialtyName || !doctor) {
+    return { error: "This lab visit is no longer available. Please choose again." };
+  }
+  const scheduledAt = new Date(clinicMidnightForYMD(year, month, day).getTime() + toMinutes(time) * 60 * 1000);
+  const durationMinutes = Math.ceil(service.durationMinutes / LAB_VISIT_SLOT_MINUTES) * LAB_VISIT_SLOT_MINUTES;
+  return submitAppointmentRequest(
+    patientId, doctor.id, scheduledAt, reason || undefined, durationMinutes, service.id,
+    { specialtyName, capacityPerSlot: specialty.capacityPerSlot },
+    { mode: "LAB_VISIT" }
   );
 }
 
