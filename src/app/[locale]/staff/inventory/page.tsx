@@ -119,19 +119,19 @@ export default async function InventoryPage({
         <Card className="border-amber-200 bg-amber-50">
           <CardContent className="text-center">
             <p className="text-2xl font-bold text-amber-700">{lowStockList.length}</p>
-            <p className="text-sm text-amber-700">Low Stock</p>
+            <p className="text-sm text-amber-700">{t("lowStock")}</p>
           </CardContent>
         </Card>
         <Card className="border-orange-200 bg-orange-50">
           <CardContent className="text-center">
             <p className="text-2xl font-bold text-orange-700">{expiringList.length}</p>
-            <p className="text-sm text-orange-700">Expiring Soon</p>
+            <p className="text-sm text-orange-700">{t("expiringSoon")}</p>
           </CardContent>
         </Card>
         <Card className="border-rose-200 bg-rose-50">
           <CardContent className="text-center">
             <p className="text-2xl font-bold text-rose-700">{expiredList.length}</p>
-            <p className="text-sm text-rose-700">Expired</p>
+            <p className="text-sm text-rose-700">{t("expired")}</p>
           </CardContent>
         </Card>
         <Card className="border-rose-200 bg-rose-50">

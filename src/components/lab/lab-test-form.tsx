@@ -61,7 +61,7 @@ export function LabTestForm({ test }: { test?: ExistingTest }) {
       </div>
       <div className="grid gap-2">
         <Label htmlFor="unit">{t("unit")}</Label>
-        <Input id="unit" name="unit" defaultValue={test?.unit ?? undefined} placeholder="e.g. mg/dL" />
+        <Input id="unit" name="unit" defaultValue={test?.unit ?? undefined} placeholder={t("unitPlaceholder")} />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="normalRange">{t("normalRange")}</Label>
@@ -69,7 +69,7 @@ export function LabTestForm({ test }: { test?: ExistingTest }) {
           id="normalRange"
           name="normalRange"
           defaultValue={test?.normalRange ?? undefined}
-          placeholder="e.g. 70–100"
+          placeholder={t("normalRangePlaceholder")}
         />
       </div>
       <div className="grid gap-2">

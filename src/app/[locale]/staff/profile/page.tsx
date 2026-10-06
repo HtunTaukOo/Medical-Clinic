@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/empty-state";
+import { getLocale, getTranslations } from "next-intl/server";
 import {
   Table,
   TableBody,
@@ -20,11 +21,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 
-const ROLE_LABEL: Record<string, string> = {
-  ADMIN: "Administrator",
-  STAFF: "Staff",
-};
-
 const SIDEBAR_TAB_LIST =
   "h-fit w-full shrink-0 flex-col items-stretch gap-1 rounded-xl border bg-white p-2 md:w-56";
 const SIDEBAR_TAB_TRIGGER =
@@ -32,6 +28,8 @@ const SIDEBAR_TAB_TRIGGER =
 
 export default async function StaffProfilePage() {
   const session = await requirePageRole(["ADMIN", "STAFF"]);
+  const t = await getTranslations("staffProfile");
+  const locale = await getLocale();
 
   const user = await prisma.user.findUnique({ where: { id: session.user.id } });
   if (!user) notFound();
@@ -42,13 +40,13 @@ export default async function StaffProfilePage() {
     take: 100,
   });
 
-  const memberSince = user.createdAt.toLocaleDateString(undefined, {
+  const memberSince = user.createdAt.toLocaleDateString(locale === "my" ? "my-MM" : "en-US", {
     month: "short",
     year: "numeric",
   });
   const roleDisplay = user.title
-    ? `${user.title} / ${ROLE_LABEL[user.role] ?? user.role}`
-    : (ROLE_LABEL[user.role] ?? user.role);
+    ? `${user.title} / ${user.role === "ADMIN" ? t("administrator") : t("staff")}`
+    : (user.role === "ADMIN" ? t("administrator") : t("staff"));
 
   return (
     <div className="grid gap-6">
@@ -64,9 +62,9 @@ export default async function StaffProfilePage() {
           <div className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
             <Badge className="gap-1.5 bg-emerald-100 text-emerald-700">
               <span className="size-1.5 rounded-full bg-emerald-500" />
-              {user.active ? "Active" : "Inactive"}
+              {user.active ? t("active") : t("inactive")}
             </Badge>
-            <span>· NCA Clinic since {memberSince}</span>
+            <span>· {t("clinicSince", { date: memberSince })}</span>
           </div>
         </div>
       </div>
@@ -79,26 +77,26 @@ export default async function StaffProfilePage() {
         <TabsList className={SIDEBAR_TAB_LIST}>
           <TabsTrigger value="personal" className={SIDEBAR_TAB_TRIGGER}>
             <User className="size-4 text-violet-500" />
-            Personal Info
+            {t("personalInfo")}
           </TabsTrigger>
           <TabsTrigger value="security" className={SIDEBAR_TAB_TRIGGER}>
             <Lock className="size-4 text-amber-500" />
-            Password
+            {t("password")}
           </TabsTrigger>
           <TabsTrigger value="notifications" className={SIDEBAR_TAB_TRIGGER}>
             <Bell className="size-4 text-yellow-500" />
-            Notifications
+            {t("notifications")}
           </TabsTrigger>
           <TabsTrigger value="activity" className={SIDEBAR_TAB_TRIGGER}>
             <History className="size-4 text-blue-500" />
-            Activity History
+            {t("activityHistory")}
           </TabsTrigger>
         </TabsList>
 
         <Card className="w-full flex-1">
           <CardContent>
             <TabsContent value="personal">
-              <p className="mb-4 text-lg font-semibold">Personal Information</p>
+              <p className="mb-4 text-lg font-semibold">{t("personalInformation")}</p>
               <StaffPersonalInfoForm
                 name={user.name}
                 email={user.email}
@@ -114,31 +112,31 @@ export default async function StaffProfilePage() {
             <TabsContent value="notifications" className="grid gap-6">
               <div>
                 <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Alerts
+                  {t("alerts")}
                 </p>
                 <div className="grid divide-y">
                   <StaffNotificationToggle
                     field="notifyNewAppointments"
-                    label="New Appointments"
-                    description="Alert when a new appointment is booked or checked in"
+                    label={t("newAppointments")}
+                    description={t("newAppointmentsHelp")}
                     defaultChecked={user.notifyNewAppointments}
                   />
                   <StaffNotificationToggle
                     field="notifyLowStock"
-                    label="Inventory Alerts"
-                    description="Alert on low stock, expired, or soon-to-expire medicines"
+                    label={t("inventoryAlerts")}
+                    description={t("inventoryAlertsHelp")}
                     defaultChecked={user.notifyLowStock}
                   />
                   <StaffNotificationToggle
                     field="notifyAnnouncements"
-                    label="Clinic Announcements"
-                    description="Receive clinic-wide notices and updates"
+                    label={t("clinicAnnouncements")}
+                    description={t("clinicAnnouncementsHelp")}
                     defaultChecked={user.notifyAnnouncements}
                   />
                   <StaffNotificationToggle
                     field="notifyBilling"
-                    label="Billing Alerts"
-                    description="Alert on insurance claim decisions, refunds, and received purchase orders"
+                    label={t("billingAlerts")}
+                    description={t("billingAlertsHelp")}
                     defaultChecked={user.notifyBilling}
                   />
                 </div>
@@ -146,16 +144,14 @@ export default async function StaffProfilePage() {
             </TabsContent>
 
             <TabsContent value="activity">
-              <p className="mb-4 text-lg font-semibold">Activity History</p>
+              <p className="mb-4 text-lg font-semibold">{t("activityHistory")}</p>
               {activity.length === 0 ? (
-                <EmptyState icon={History} message="No activity recorded yet." />
+                <EmptyState icon={History} message={t("noActivity")} />
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Action</TableHead>
-                      <TableHead>Target</TableHead>
+                      <TableHead>{t("date")}</TableHead><TableHead>{t("action")}</TableHead><TableHead>{t("target")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>

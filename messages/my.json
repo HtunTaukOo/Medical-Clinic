@@ -229,7 +229,18 @@
     "diagnosisHistory": "ရောဂါအမည် မှတ်တမ်း",
     "notes": "မှတ်ချက်များ",
     "noLabOrders": "ဓာတ်ခွဲအော်ဒါ မရှိသေးပါ။",
-    "viewReport": "အစီရင်ခံစာ ကြည့်ရန်"
+    "viewReport": "အစီရင်ခံစာ ကြည့်ရန်",
+    "presentingSymptoms": "လက်ရှိခံစားနေရသော လက္ခဏာများ",
+    "patientId": "လူနာအမှတ်: {id}",
+    "startConsultation": "ဆွေးနွေးကုသမှု စတင်ရန်",
+    "notCheckedIn": "ဆေးခန်းသို့ ရောက်ရှိကြောင်း မှတ်တမ်းမတင်ရသေးပါ",
+    "appointmentOn": "ချိန်းဆိုမှုရက်မှာ {date} ဖြစ်ပါသည်။ အရင်ဆုံး ဆေးခန်းဧည့်ကြိုကို ရောက်ရှိကြောင်း မှတ်တမ်းတင်ပေးရန် တောင်းဆိုပါ။",
+    "viewAppointment": "ချိန်းဆိုမှု ကြည့်ရန်",
+    "noAppointmentBooked": "ချိန်းဆိုမှု စာရင်းသွင်းထားခြင်း မရှိပါ",
+    "bookAppointment": "ချိန်းဆိုမှု စာရင်းသွင်းရန်",
+    "vitalsHistory": "ကိုယ်ခန္ဓာအခြေအနေ မှတ်တမ်း",
+    "noVitalsInRange": "ဤရက်အပိုင်းအခြားတွင် ကိုယ်ခန္ဓာအခြေအနေ မှတ်တမ်း မရှိပါ။",
+    "pulse": "သွေးခုန်နှုန်း", "temperature": "ကိုယ်အပူချိန်", "weight": "ကိုယ်အလေးချိန်", "height": "အရပ်အမြင့်", "labAwaitingCollection": "နမူနာယူရန် စောင့်ဆိုင်းနေသည်", "labAwaitingResults": "ရလဒ်စောင့်ဆိုင်းနေသည်", "labCompleted": "ပြီးစီးပြီး", "labCancelled": "ပယ်ဖျက်ပြီး"
   },
   "appointments": {
     "title": "ချိန်းဆိုမှုများ",
@@ -531,7 +542,8 @@
     "type": "အမျိုးအစား",
     "reason": "အကြောင်းရင်း",
     "noStockMovements": "လက်ကျန်အဝင်အထွက် မှတ်တမ်းမရှိသေးပါ။",
-    "date": "ရက်စွဲ"
+    "date": "ရက်စွဲ",
+    "inStockSummary": "{unit} {quantity} လက်ကျန်ရှိသည် — {unit} လျှင် {price}", "portalPromo": "လူနာပေါ်တယ် ဆေးဆိုင် ပရိုမိုးရှင်း", "stockHistory": "လက်ကျန် မှတ်တမ်း", "viewInStockMovement": "လက်ကျန်အဝင်အထွက်တွင် ကြည့်ရန်", "transactionType": "အမျိုးအစား"
   },
   "staff": {
     "title": "အသုံးပြုသူများ စီမံခန့်ခွဲမှု",
@@ -801,7 +813,13 @@
       "noPaid": "ပေးဆောင်ပြီးသော ငွေတောင်းခံလွှာ မရှိသေးပါ။",
       "consultationTitle": "{specialty} ကုသမှု",
       "generalFallback": "အထွေထွေ",
-      "invoiceFallback": "ငွေတောင်းခံလွှာ"
+      "invoiceFallback": "ငွေတောင်းခံလွှာ",
+      "statusPaid": "ပေးဆောင်ပြီး",
+      "statusUnpaid": "မပေးရသေး",
+      "statusPartial": "တစ်စိတ်တစ်ပိုင်း ပေးချေပြီး",
+      "statusSubmitted": "တင်သွင်းပြီး",
+      "statusApproved": "အတည်ပြုပြီး",
+      "statusRejected": "ငြင်းပယ်ပြီး"
     },
     "billingCard": {
       "invoiceItems": "ငွေတောင်းခံလွှာပါ ပစ္စည်း/ဝန်ဆောင်မှုများ",
@@ -1084,7 +1102,8 @@
     "orderCreatedInline": "ဓာတ်ခွဲအော်ဒါ ဖန်တီးပြီး —",
     "noTestsForCategory": "ဤအမျိုးအစားအတွက် စစ်ဆေးမှုစာရင်းတွင် မရှိသေးပါ။",
     "normalLabel": "ပုံမှန်: {range}",
-    "testsSelected": "စစ်ဆေးမှု {count} မျိုး · {total}"
+    "testsSelected": "စစ်ဆေးမှု {count} မျိုး · {total}",
+    "newLabTest": "ဓာတ်ခွဲစစ်ဆေးမှုအသစ်", "editLabTest": "ဓာတ်ခွဲစစ်ဆေးမှု ပြင်ဆင်ရန်", "unitPlaceholder": "ဥပမာ - mg/dL", "normalRangePlaceholder": "ဥပမာ - 70–100"
   },
   "clinicServices": {
     "serviceName": "ဝန်ဆောင်မှုအမည်",
@@ -1568,5 +1587,116 @@
     "noReason": "လာရောက်ရသည့် အကြောင်းရင်း မဖော်ပြထားပါ",
     "resume": "ဆက်လက်လုပ်ဆောင်ရန်",
     "start": "စတင်ရန်"
+  },
+  "doctorConsultation": {
+    "checkedInWaiting": "ရောက်ရှိကြောင်း မှတ်တမ်းတင်ပြီး — စောင့်ဆိုင်းနေသည်",
+    "waitingToStart": "{name} သည် ရောက်ရှိကြောင်း မှတ်တမ်းတင်ပြီး စောင့်ဆိုင်းနေပါသည်။ ဆွေးနွေးကုသမှု စတင်မှသာ မှတ်တမ်းရေးခြင်း၊ ဆေးညွှန်းနှင့် ဓာတ်ခွဲအော်ဒါများကို အသုံးပြုနိုင်မည်။",
+    "startConsultation": "ဆွေးနွေးကုသမှု စတင်ရန်",
+    "saveDraft": "မူကြမ်း သိမ်းရန်",
+    "diagnosis": "ရောဂါအမည်",
+    "prescriptionsThisVisit": "ဤလာရောက်ပြသမှု၏ ဆေးညွှန်းများ",
+    "labOrdersThisVisit": "ဤလာရောက်ပြသမှု၏ ဓာတ်ခွဲအော်ဒါများ",
+    "viewReport": "အစီရင်ခံစာ ကြည့်ရန်",
+    "completeConsultation": "ဆွေးနွေးကုသမှု ပြီးစီးရန်",
+    "bookFollowUp": "နောက်ဆက်တွဲ ချိန်းဆိုရန်",
+    "vitalSigns": "ကိုယ်ခန္ဓာအခြေအနေများ",
+    "labOrders": "ဓာတ်ခွဲအော်ဒါများ",
+    "fulfilled": "ထုတ်ပေးပြီး",
+    "pending": "စောင့်ဆိုင်းနေသည်",
+    "complete": "ပြီးစီးရန်", "diagnosisTitle": "ရောဂါအမည်", "allergiesTitle": "ဓာတ်မတည့်မှုများ", "statusRequested": "တောင်းဆိုထားသည်", "statusConfirmed": "အတည်ပြုပြီး", "statusInProgress": "လုပ်ဆောင်နေသည်", "statusCompleted": "ပြီးစီးပြီး", "statusCancelled": "ပယ်ဖျက်ပြီး", "statusNoShow": "မလာရောက်", "labOrdered": "အော်ဒါတင်ပြီး", "labSampleCollected": "နမူနာယူပြီး", "labCancelled": "ပယ်ဖျက်ပြီး"
+  },
+  "doctorPrescriptions": {
+    "title": "ဆေးညွှန်းများ",
+    "description": "လူနာဆေးညွှန်းများကို ပြန်လည်ကြည့်ရှုပြီး စီမံခန့်ခွဲပါ။ လူနာ၏ ဆွေးနွေးကုသမှုမှ ဆေးညွှန်းအသစ် ရေးနိုင်သည်။",
+    "active": "အသုံးပြုနေဆဲ ({count})",
+    "history": "မှတ်တမ်း",
+    "noActive": "အသုံးပြုနေဆဲ ဆေးညွှန်း မရှိပါ။",
+    "noFulfilled": "ထုတ်ပေးပြီးသော ဆေးညွှန်း မရှိသေးပါ။",
+    "days": "{count} ရက်",
+    "refillsLeft": "ထပ်ထုတ်နိုင်မှု {count} ကြိမ် ကျန်",
+    "activeStatus": "အသုံးပြုနေဆဲ",
+    "completed": "ပြီးစီးပြီး"
+  },
+  "doctorAnnouncements": {
+    "title": "ကြေညာချက်များ",
+    "description": "ဝန်ထမ်းများနှင့် လူနာများထံ တင်ထားသော စာတိုများ။",
+    "empty": "ကြေညာချက် မရှိသေးပါ။"
+  },
+  "doctorConsultations": {
+    "title": "ဆွေးနွေးကုသမှုများ",
+    "description": "ယနေ့ လူနာဆွေးနွေးကုသမှုများကို စတင်ပြီး စီမံခန့်ခွဲပါ။",
+    "waiting": "စောင့်ဆိုင်းနေသည်",
+    "completedToday": "ယနေ့ ပြီးစီးပြီး",
+    "noOneWaiting": "စောင့်ဆိုင်းနေသူ မရှိပါ။",
+    "waitingMinutes": "{count} မိနစ် စောင့်ဆိုင်းနေသည်",
+    "urgent": "အရေးပေါ်",
+    "noReason": "လာရောက်ရသည့် အကြောင်းရင်း မဖော်ပြထားပါ",
+    "start": "စတင်ရန်",
+    "noCompleted": "ယနေ့ ပြီးစီးခဲ့သော ဆွေးနွေးကုသမှု မရှိသေးပါ။",
+    "completed": "ပြီးစီးပြီး"
+  },
+  "doctorProfile": {
+    "generalPractice": "အထွေထွေဆေးကုသမှု",
+    "license": "လိုင်စင်: {number}",
+    "activePhysician": "တာဝန်ထမ်းဆောင်နေသော ဆရာဝန်",
+    "inactive": "အသုံးမပြုနေပါ",
+    "clinicSince": "NCA Clinic တွင် {year} မှစတင်",
+    "personalInfo": "ကိုယ်ရေးအချက်အလက်",
+    "professional": "ပညာရှင်ဆိုင်ရာ",
+    "security": "လုံခြုံရေး",
+    "notifications": "အသိပေးချက်များ",
+    "personalInformation": "ကိုယ်ရေးအချက်အလက်",
+    "professionalDetails": "ပညာရှင်ဆိုင်ရာ အသေးစိတ်",
+    "patientAlerts": "လူနာ သတိပေးချက်များ",
+    "system": "စနစ်",
+    "newAppointmentBooked": "ချိန်းဆိုမှုအသစ် စာရင်းသွင်းပြီး",
+    "newAppointmentHelp": "လူနာက သင်နှင့် ချိန်းဆိုမှု စာရင်းသွင်းလျှင် အသိပေးမည်",
+    "appointmentCancelled": "ချိန်းဆိုမှု ပယ်ဖျက်ပြီး",
+    "appointmentCancelledHelp": "လူနာက ပယ်ဖျက်လျှင် အသိပေးမည်",
+    "patientWaiting": "လူနာ စောင့်ဆိုင်းနေသည်",
+    "patientWaitingHelp": "လူနာ စောင့်ဆိုင်းခန်းသို့ ဝင်လျှင် အသိပေးမည်",
+    "labResultsAvailable": "ဓာတ်ခွဲရလဒ်များ ရရှိပြီ",
+    "labResultsHelp": "ဓာတ်ခွဲရလဒ်များ ပြန်လည်ကြည့်ရှုရန် အသင့်ဖြစ်လျှင် အသိပေးမည်",
+    "clinicAnnouncements": "ဆေးခန်း ကြေညာချက်များ",
+    "announcementsHelp": "ဆေးခန်းတစ်ခုလုံးဆိုင်ရာ ကြေညာချက်များနှင့် အပ်ဒိတ်များကို ရယူပါ",
+    "scheduleReminders": "အချိန်ဇယား သတိပေးချက်များ",
+    "scheduleRemindersHelp": "လာမည့် ချိန်းဆိုမှုများ၏ နေ့စဉ်အနှစ်ချုပ်",
+    "leaveRequestStatus": "ခွင့်တောင်းဆိုမှု အခြေအနေ",
+    "leaveRequestHelp": "တင်သွင်းထားသော ခွင့်တောင်းဆိုမှုများ၏ အပ်ဒိတ်များ"
+  },
+  "staffQueue": {
+    "title": "တန်းစီမှု အခြေအနေဘုတ်", "description": "လူနာများ၏ လာရောက်ကုသမှု လုပ်ငန်းစဉ်ကို အချိန်နှင့်တပြေးညီ ကြည့်ရှုပါ။", "today": "ယနေ့ — {date}",
+    "waiting": "စောင့်ဆိုင်းနေသည်", "inConsultation": "ဆွေးနွေးကုသမှု လုပ်ဆောင်နေသည်", "completed": "ပြီးစီးပြီး", "missed": "မလာရောက်", "empty": "မရှိပါ",
+    "callIn": "ခေါ်ရန်", "miss": "မလာရောက်အဖြစ် မှတ်ရန်", "start": "စတင်ရန်", "markDone": "ပြီးစီးအဖြစ် မှတ်ရန်", "anyDoctor": "မည်သည့်ဆရာဝန်မဆို"
+  },
+  "staffAppointment": {
+    "allergies": "ဓာတ်မတည့်မှုများ", "labVisit": "ဓာတ်ခွဲလာရောက်မှု — {service}", "labVisitHelp": "လူနာသည် သတ်မှတ်စစ်ဆေးမှုတစ်ခုမဟုတ်ဘဲ ဤအမျိုးအစားကို စာရင်းသွင်းထားပါသည်။ လာရောက်ရသည့်အကြောင်းရင်းကို ဆွေးနွေးပြီးနောက် လိုအပ်သော စစ်ဆေးမှုများကို အောက်တွင် ရွေးချယ်ပါ။",
+    "frontDeskCheckout": "ဧည့်ကြိုမှ ထွက်ခွာမှု ပြီးစီးရန်", "checkedOutBy": "{name} မှ {date} တွင် ထွက်ခွာမှု ပြီးစီးအဖြစ် မှတ်တမ်းတင်ခဲ့သည်။", "checkoutHelp": "ဆရာဝန်က ဆွေးနွေးကုသမှုကို ပြီးစီးထားပါသည်။ ငွေပေးချေမှုနှင့် အခြားလိုအပ်ချက်များ ပြီးစီးသောအခါ ထွက်ခွာမှုကို ပြီးစီးအဖြစ် မှတ်တမ်းတင်ပါ။ ထိုမတိုင်မီ လူနာသည် နောက်ထပ်ချိန်းဆိုမှု မပြုလုပ်နိုင်ပါ။",
+    "vitalSigns": "ကိုယ်ခန္ဓာအခြေအနေများ", "diagnosis": "ရောဂါအမည်", "clinicalNotes": "ဆေးခန်းမှတ်ချက်များ", "treatmentPlan": "ကုသမှုအစီအစဉ်", "fulfilled": "ထုတ်ပေးပြီး", "pending": "စောင့်ဆိုင်းနေသည်", "labOrders": "ဓာတ်ခွဲအော်ဒါများ", "viewReport": "အစီရင်ခံစာ ကြည့်ရန်", "labOrdered": "အော်ဒါတင်ပြီး", "labSampleCollected": "နမူနာယူပြီး", "labCompleted": "ပြီးစီးပြီး", "labCancelled": "ပယ်ဖျက်ပြီး", "staff": "ဝန်ထမ်း"
+  },
+  "staffLab": {
+    "title": "ဓာတ်ခွဲခန်း", "description": "ဓာတ်ခွဲစစ်ဆေးမှု အော်ဒါများနှင့် ရလဒ်များကို စီမံခန့်ခွဲပါ။", "newTest": "စစ်ဆေးမှုအသစ်", "orders": "အော်ဒါများ", "externalLabTest": "ပြင်ပဓာတ်ခွဲ စစ်ဆေးမှု", "testCatalog": "စစ်ဆေးမှု စာရင်း", "history": "မှတ်တမ်း",
+    "noPendingOrders": "စောင့်ဆိုင်းနေသော ဓာတ်ခွဲအော်ဒါ မရှိပါ။", "noExternalReferrals": "ပြင်ပဓာတ်ခွဲသို့ လွှဲပို့မှု မရှိသေးပါ။", "noTests": "ဓာတ်ခွဲစစ်ဆေးမှု စာရင်းတွင် မရှိသေးပါ။", "noCompletedOrders": "ပြီးစီးသော ဓာတ်ခွဲအော်ဒါ မရှိသေးပါ။",
+    "patient": "လူနာ", "doctor": "ဆရာဝန်", "tests": "စစ်ဆေးမှုများ", "ordered": "အော်ဒါတင်သည့်အချိန်", "status": "အခြေအနေ", "actions": "လုပ်ဆောင်ချက်များ", "date": "ရက်စွဲ", "name": "အမည်", "age": "အသက်", "id": "ID", "requestedTest": "တောင်းဆိုသည့် စစ်ဆေးမှု", "referLab": "လွှဲပို့ဓာတ်ခွဲခန်း", "sampleCollectedTime": "နမူနာယူသည့်အချိန်", "requestedTime": "တောင်းဆိုသည့်အချိန်",
+    "collectSample": "နမူနာယူရန်", "enterResults": "ရလဒ်ထည့်ရန်", "markReceived": "လက်ခံရရှိပြီးအဖြစ် မှတ်ရန်", "cancel": "ပယ်ဖျက်ရန်", "addTestType": "စစ်ဆေးမှုအမျိုးအစား ထည့်ရန်", "sentExternally": "ပြင်ပသို့ ပို့ထားသည်", "edit": "ပြင်ဆင်ရန်", "normalRange": "ပုံမှန်အတိုင်းအတာ: {range}", "view": "ကြည့်ရန်", "report": "အစီရင်ခံစာ",
+    "orderedStatus": "အော်ဒါတင်ပြီး", "sampleCollected": "နမူနာယူပြီး", "completed": "ပြီးစီးပြီး", "cancelled": "ပယ်ဖျက်ပြီး", "sending": "ပို့ဆောင်နေသည်", "received": "လက်ခံရရှိပြီး",
+    "orderedBy": "{name} မှ အော်ဒါတင်သည်", "waitingForSample": "နမူနာယူရန် စောင့်ဆိုင်းနေသည်။", "results": "ရလဒ်များ", "result": "ရလဒ်: {value}", "note": "မှတ်ချက်: {note}", "printReport": "အစီရင်ခံစာ ထုတ်ရန်", "referredTo": "{name} သို့ လွှဲပို့ထားသည်", "receiveBeforeResults": "ရလဒ်မထည့်သွင်းမီ ဤလွှဲပို့မှုကို လက်ခံရရှိပြီးအဖြစ် မှတ်တမ်းတင်ပါ။", "referralCancelled": "ဤလွှဲပို့မှုကို ပယ်ဖျက်ထားသည်။"
+  },
+  "staffCheckIn": {
+    "title": "လူနာရောက်ရှိမှု မှတ်တမ်းတင်ရန်", "description": "လူနာကို ရှာဖွေပါ သို့မဟုတ် လမ်းလျှောက်လာရောက်သူအသစ်ကို မှတ်ပုံတင်ပါ။", "searchTitle": "လူနာရောက်ရှိမှု မှတ်တမ်းတင်ရန်", "searchPlaceholder": "လူနာအမည် သို့မဟုတ် ID ဖြင့် ရှာရန်...", "minimumSearch": "ရှာဖွေရန် အနည်းဆုံး စာလုံး ၂ လုံး ရိုက်ထည့်ပါ", "noMatches": "“{query}” နှင့် ကိုက်ညီသော လူနာ မရှိပါ။", "registerWalkInTitle": "လမ်းလျှောက်လာရောက်သူ မှတ်ပုံတင်ရန် — {name}", "registerAsWalkIn": "လမ်းလျှောက်လာရောက်သူအဖြစ် မှတ်ပုံတင်ရန်", "checkIn": "ရောက်ရှိမှု မှတ်တမ်းတင်ရန်", "alreadyCheckedIn": "ရောက်ရှိမှု မှတ်တမ်းတင်ပြီး", "walkInRegistration": "လမ်းလျှောက်လာရောက်သူ မှတ်ပုံတင်ရန်", "walkInDescription": "လူနာအသစ်ကို မှတ်ပုံတင်ပြီး ချက်ချင်းရောက်ရှိမှု မှတ်တမ်းတင်ပါ။", "yearsOld": "အသက် {age} နှစ်"
+  },
+  "labReport": {
+    "title": "ဓာတ်ခွဲအစီရင်ခံစာ", "heading": "NCA Clinic — ဓာတ်ခွဲအစီရင်ခံစာ", "patient": "လူနာ: {name}", "doctor": "ဆရာဝန်: {name}", "date": "ရက်စွဲ: {date}", "test": "စစ်ဆေးမှု", "result": "ရလဒ်", "normalRange": "ပုံမှန်အတိုင်းအတာ", "print": "ထုတ်ရန်"
+  },
+  "receipt": {
+    "title": "ငွေလက်ခံပြေစာ", "heading": "NCA Clinic — ငွေလက်ခံပြေစာ", "patient": "လူနာ: {name}", "doctor": "ဆရာဝန်: {name}", "invoiceDate": "ငွေတောင်းခံလွှာရက်စွဲ: {date}", "paid": "ပေးချေပြီး: {date} ({method})", "description": "ဖော်ပြချက်", "quantity": "အရေအတွက်", "amount": "ပမာဏ", "totalPaid": "စုစုပေါင်းပေးချေပြီး: {amount}",
+    "pharmacyTitle": "ဆေးဆိုင် ပြေစာ", "pharmacyHeading": "NCA Clinic — ဆေးဆိုင် ပြေစာ", "rx": "ဆေးညွှန်း #: {code}", "date": "ရက်စွဲ: {date}", "payment": "ငွေပေးချေမှု: {method} · ဆေးထုတ်ပေးသူ {name}", "saleReturned": "ဤရောင်းချမှုကို ပြန်အမ်းထားပါသည်။", "medicine": "ဆေးဝါး", "subtotal": "စုစုပေါင်းခွဲ: {amount}", "discount": "လျှော့ဈေး: -{amount}"
+  },
+  "staffAnnouncements": {
+    "title": "ကြေညာချက်များ", "description": "ဝန်ထမ်းများနှင့် လူနာများထံ တင်ထားသော စာများ။", "empty": "ကြေညာချက် မရှိသေးပါ။", "published": "ထုတ်ပြန်ထားသည်", "hidden": "ဖျောက်ထားသည်", "hide": "ဖျောက်ရန်", "publish": "ထုတ်ပြန်ရန်"
   }
+  ,"staffProfile": {
+    "administrator": "စီမံခန့်ခွဲသူ", "staff": "ဝန်ထမ်း", "active": "အသုံးပြုနေသည်", "inactive": "အသုံးမပြုနေပါ", "clinicSince": "NCA Clinic တွင် {date} မှစ၍", "personalInfo": "ကိုယ်ရေးအချက်အလက်", "password": "စကားဝှက်", "notifications": "အသိပေးချက်များ", "activityHistory": "လုပ်ဆောင်ချက်မှတ်တမ်း", "personalInformation": "ကိုယ်ရေးအချက်အလက်", "alerts": "သတိပေးချက်များ", "newAppointments": "ချိန်းဆိုမှုအသစ်များ", "newAppointmentsHelp": "ချိန်းဆိုမှုအသစ် စာရင်းသွင်းခြင်း သို့မဟုတ် ရောက်ရှိမှုမှတ်တမ်းတင်ခြင်းတွင် အသိပေးရန်", "inventoryAlerts": "ပစ္စည်းလက်ကျန် သတိပေးချက်များ", "inventoryAlertsHelp": "လက်ကျန်နည်းသော၊ သက်တမ်းကုန်သော သို့မဟုတ် မကြာမီကုန်မည့် ဆေးဝါးများအတွက် အသိပေးရန်", "clinicAnnouncements": "ဆေးခန်း ကြေညာချက်များ", "clinicAnnouncementsHelp": "ဆေးခန်းတစ်ခုလုံးဆိုင်ရာ ကြေညာချက်နှင့် အပ်ဒိတ်များကို ရယူရန်", "billingAlerts": "ငွေတောင်းခံမှု သတိပေးချက်များ", "billingAlertsHelp": "အာမခံတောင်းဆိုမှု ဆုံးဖြတ်ချက်များ၊ ပြန်အမ်းငွေများနှင့် လက်ခံရရှိသော ဝယ်ယူမှုအမှာစာများအတွက် အသိပေးရန်", "noActivity": "လုပ်ဆောင်ချက် မှတ်တမ်း မရှိသေးပါ။", "date": "ရက်စွဲ", "action": "လုပ်ဆောင်ချက်", "target": "သက်ဆိုင်သည့်အရာ"
+  },
+  "appointmentRow": { "urgent": "အရေးပေါ်", "noReason": "လာရောက်ရသည့် အကြောင်းရင်း မဖော်ပြထားပါ" }
 }

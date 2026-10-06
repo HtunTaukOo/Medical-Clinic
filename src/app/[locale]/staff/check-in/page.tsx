@@ -10,6 +10,7 @@ import { SearchInput } from "@/components/search-input";
 import { RegisterWalkInForm } from "@/components/check-in/register-walk-in-form";
 import { UserActionDialog } from "@/components/staff/user-action-dialog";
 import { Button } from "@/components/ui/button";
+import { getTranslations } from "next-intl/server";
 
 export default async function PatientCheckInPage({
   searchParams,
@@ -17,6 +18,7 @@ export default async function PatientCheckInPage({
   searchParams: Promise<{ q?: string }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
+  const t = await getTranslations("staffCheckIn");
   const { q } = await searchParams;
   const { start: todayStart, end: todayEnd } = todayRange();
 
@@ -69,27 +71,27 @@ export default async function PatientCheckInPage({
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Patient Check-In</h1>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Search for a patient or register a new walk-in visit.
+          {t("description")}
         </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Patient Check-In</CardTitle>
+            <CardTitle>{t("searchTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <SearchInput placeholder="Search patient by name or ID..." />
+            <SearchInput placeholder={t("searchPlaceholder")} />
 
             {trimmedQuery.length < 2 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                Type at least 2 characters to search
+                {t("minimumSearch")}
               </p>
             ) : matches.length === 0 ? (
               <p className="py-8 text-center text-sm text-muted-foreground">
-                No patients match &ldquo;{trimmedQuery}&rdquo;.
+                {t("noMatches", { query: trimmedQuery })}
               </p>
             ) : (
               <div className="grid gap-2">
@@ -116,17 +118,17 @@ export default async function PatientCheckInPage({
                           {patient.name}
                         </Link>
                         <p className="text-sm text-muted-foreground">
-                          {[age != null ? `${age}yo` : null, patient.patientCode, patient.phone]
+                          {[age != null ? t("yearsOld", { age }) : null, patient.patientCode, patient.phone]
                             .filter(Boolean)
                             .join(" · ")}
                         </p>
                       </div>
                       {!todaysAppointment ? (
                         <UserActionDialog
-                          title={`Register Walk-in — ${patient.name}`}
+                          title={t("registerWalkInTitle", { name: patient.name })}
                           trigger={
                             <Button size="sm" variant="outline">
-                              Register as Walk-in
+                              {t("registerAsWalkIn")}
                             </Button>
                           }
                         >
@@ -141,11 +143,11 @@ export default async function PatientCheckInPage({
                             type="submit"
                             className="rounded-md bg-primary px-3 py-1.5 text-sm font-medium text-primary-foreground hover:bg-primary/90"
                           >
-                            Check In
+                            {t("checkIn")}
                           </button>
                         </form>
                       ) : todaysAppointment.status === "CHECKED_IN" ? (
-                        <Badge className="bg-emerald-100 text-emerald-700">Already checked in</Badge>
+                        <Badge className="bg-emerald-100 text-emerald-700">{t("alreadyCheckedIn")}</Badge>
                       ) : (
                         <Badge variant="outline">{todaysAppointment.status}</Badge>
                       )}
@@ -159,9 +161,9 @@ export default async function PatientCheckInPage({
 
         <Card>
           <CardHeader>
-            <CardTitle>Walk-in Registration</CardTitle>
+            <CardTitle>{t("walkInRegistration")}</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Register a new patient and check them in immediately.
+              {t("walkInDescription")}
             </p>
           </CardHeader>
           <CardContent>

@@ -19,10 +19,12 @@ type DiagnosisItem = {
 export async function DiagnosisList({
   diagnoses,
   canDelete = false,
+  statusChangeAppointmentId,
   showDoctor = false,
 }: {
   diagnoses: DiagnosisItem[];
   canDelete?: boolean;
+  statusChangeAppointmentId?: string;
   showDoctor?: boolean;
 }) {
   const t = await getTranslations("portal.diagnoses");
@@ -55,24 +57,18 @@ export async function DiagnosisList({
               {new Date(d.createdAt).toLocaleString()}
             </p>
           </div>
-          {canDelete && (
+          {(canDelete || statusChangeAppointmentId) && (
             <div className="flex shrink-0 items-center gap-2">
-              <form
-                action={setDiagnosisStatus.bind(
-                  null,
-                  d.id,
-                  d.status === "ACTIVE" ? "RESOLVED" : "ACTIVE"
-                )}
-              >
-                <Button size="sm" variant="outline" type="submit">
-                  {d.status === "ACTIVE" ? t("markResolved") : t("reopen")}
-                </Button>
-              </form>
-              <form action={deleteDiagnosis.bind(null, d.id)}>
-                <Button size="sm" variant="destructive" type="submit">
-                  {t("remove")}
-                </Button>
-              </form>
+              {statusChangeAppointmentId && (
+                <form action={setDiagnosisStatus.bind(null, d.id, d.status === "ACTIVE" ? "RESOLVED" : "ACTIVE", statusChangeAppointmentId)}>
+                  <Button size="sm" variant="outline" type="submit">
+                    {d.status === "ACTIVE" ? t("markResolved") : t("reopen")}
+                  </Button>
+                </form>
+              )}
+              {canDelete && <form action={deleteDiagnosis.bind(null, d.id)}>
+                <Button size="sm" variant="destructive" type="submit">{t("remove")}</Button>
+              </form>}
             </div>
           )}
         </div>

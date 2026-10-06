@@ -1,8 +1,8 @@
 import { CalendarDays } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
-import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
+import { getMonthGrid, addMonths } from "@/lib/calendar";
 import { todayRange } from "@/lib/queue";
 import { clinicDateKey, clinicDateParts } from "@/lib/clinic-hours";
 import { calculateAge } from "@/lib/format";
@@ -61,6 +61,7 @@ export default async function DoctorAppointmentsPage({
 }) {
   const session = await requirePageRole(["DOCTOR"]);
   const t = await getTranslations("appointments");
+  const locale = await getLocale();
   const doctorId = session.user.doctorId;
   const isRangeBooking = doctorId ? await isDoctorRangeBooking(doctorId) : false;
 
@@ -185,7 +186,7 @@ export default async function DoctorAppointmentsPage({
         <div className="grid gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium">
-              {MONTH_NAMES[month - 1]} {year}
+              {new Intl.DateTimeFormat(locale === "my" ? "my-MM" : "en-US", { month: "long", year: "numeric" }).format(new Date(Date.UTC(year, month - 1, 1)))}
             </h2>
             <div className="flex items-center gap-2">
               <Button asChild variant="outline" size="sm">
@@ -295,7 +296,7 @@ export default async function DoctorAppointmentsPage({
                   dateLabel={
                     tab === "today"
                       ? undefined
-                      : appt.scheduledAt.toLocaleDateString(undefined, {
+                      : appt.scheduledAt.toLocaleDateString(locale === "my" ? "my-MM" : "en-US", {
                           month: "short",
                           day: "numeric",
                         })

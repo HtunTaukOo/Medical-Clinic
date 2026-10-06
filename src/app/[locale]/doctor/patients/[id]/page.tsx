@@ -26,7 +26,6 @@ import {
 import { initials, calculateAge } from "@/lib/format";
 import { AVATAR_COLORS } from "@/components/appointments/appointment-row";
 import {
-  VITALS_RANGE_OPTIONS,
   isVitalsRangeKey,
   vitalsRangeCutoff,
   filterVitalsHistory,
@@ -41,13 +40,6 @@ const ALLERGY_SEVERITY_STYLES: Record<string, string> = {
   SEVERE: "bg-red-600 text-white",
   MODERATE: "bg-amber-100 text-amber-800",
   MILD: "bg-amber-50 text-amber-700",
-};
-
-const LAB_STATUS_LABEL: Record<string, string> = {
-  ORDERED: "Awaiting collection",
-  SAMPLE_COLLECTED: "Awaiting results",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
 };
 
 const DOCTOR_TABS = [
@@ -72,6 +64,7 @@ export default async function DoctorPatientDetailPage({
   const vitalsRange: VitalsRangeKey = isVitalsRangeKey(vitalsRangeParam) ? vitalsRangeParam : "6m";
   const tAppt = await getTranslations("appointments");
   const t = await getTranslations("patientDetail");
+  const labStatusLabel = (status: string) => t({ ORDERED: "labAwaitingCollection", SAMPLE_COLLECTED: "labAwaitingResults", COMPLETED: "labCompleted", CANCELLED: "labCancelled" }[status] ?? "labAwaitingCollection");
 
   const rangeBookingNames = await getRangeBookingSpecialtyNames();
 
@@ -202,7 +195,7 @@ export default async function DoctorPatientDetailPage({
             <div>
               <h1 className="text-xl font-semibold">{patient.name}</h1>
               <p className="text-sm text-muted-foreground">
-                Patient ID: {patient.patientCode ?? "—"}
+                {t("patientId", { id: patient.patientCode ?? "—" })}
               </p>
               {metaLine && <p className="text-sm text-muted-foreground">{metaLine}</p>}
               {contactLine && <p className="text-sm text-muted-foreground">{contactLine}</p>}
@@ -220,38 +213,38 @@ export default async function DoctorPatientDetailPage({
               <Button asChild>
                 <Link href={`/doctor/appointments/${checkedInAppointment.id}`}>
                   <Activity className="size-4" />
-                  Start Consultation
+                  {t("startConsultation")}
                 </Link>
               </Button>
             ) : nextPendingAppointment ? (
               <div className="grid gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
                 <div className="flex items-center gap-1.5 font-medium">
                   <Info className="size-4" />
-                  Not checked in yet
+                  {t("notCheckedIn")}
                 </div>
                 <p>
-                  Their appointment is on{" "}
-                  {nextPendingAppointment.scheduledAt.toLocaleDateString(undefined, {
-                    month: "long",
-                    day: "numeric",
-                    year: "numeric",
+                  {t("appointmentOn", {
+                    date: nextPendingAppointment.scheduledAt.toLocaleDateString(undefined, {
+                      month: "long",
+                      day: "numeric",
+                      year: "numeric",
+                    }),
                   })}
-                  . Ask the front desk to check them in first.
                 </p>
                 <Link
                   href={`/doctor/appointments/${nextPendingAppointment.id}`}
                   className="w-fit text-sm underline underline-offset-2"
                 >
-                  View appointment
+                  {t("viewAppointment")}
                 </Link>
               </div>
             ) : (
               <div className="flex items-center gap-3 rounded-lg border px-3 py-2 text-sm text-muted-foreground">
-                <span>No appointment booked</span>
+                <span>{t("noAppointmentBooked")}</span>
                 <Button asChild size="sm" variant="outline">
                   <Link href={`/doctor/appointments/new?patientId=${patient.id}`}>
                     <Plus className="size-4" />
-                    Book an appointment
+                    {t("bookAppointment")}
                   </Link>
                 </Button>
               </div>
@@ -296,12 +289,12 @@ export default async function DoctorPatientDetailPage({
           <Card>
             <CardHeader>
               <CardTitle className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Presenting Symptoms
+                {t("presentingSymptoms")}
               </CardTitle>
             </CardHeader>
             <CardContent>
               {activeConditions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No active conditions.</p>
+                <p className="text-sm text-muted-foreground">{t("noActiveConditions")}</p>
               ) : (
                 <div className="flex flex-wrap gap-2">
                   {activeConditions.map((d) => (
@@ -361,13 +354,13 @@ export default async function DoctorPatientDetailPage({
                           : "—",
                     },
                     {
-                      label: "Pulse",
+                      label: t("pulse"),
                       value: lastCompletedVisit.heartRateBpm
                         ? `${lastCompletedVisit.heartRateBpm} bpm`
                         : "—",
                     },
                     {
-                      label: "Temp",
+                      label: t("temperature"),
                       value: lastCompletedVisit.temperatureC
                         ? `${Number(lastCompletedVisit.temperatureC)}°C`
                         : "—",
@@ -385,11 +378,11 @@ export default async function DoctorPatientDetailPage({
                         : "—",
                     },
                     {
-                      label: "Weight",
+                      label: t("weight"),
                       value: lastCompletedVisit.weightKg ? `${lastCompletedVisit.weightKg} kg` : "—",
                     },
                     {
-                      label: "Height",
+                      label: t("height"),
                       value: lastCompletedVisit.heightCm ? `${lastCompletedVisit.heightCm} cm` : "—",
                     },
                     {
@@ -412,16 +405,13 @@ export default async function DoctorPatientDetailPage({
           <Card id="vitals-history">
             <CardHeader className="flex flex-wrap items-center justify-between gap-2">
               <CardTitle className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                Vitals History
+                {t("vitalsHistory")}
               </CardTitle>
               <VitalsRangeFilter defaultRange={vitalsRange} />
             </CardHeader>
             <CardContent>
               {vitalsHistory.length === 0 ? (
-                <p className="text-sm text-muted-foreground">
-                  No vitals recorded in this range —{" "}
-                  {VITALS_RANGE_OPTIONS.find((o) => o.value === vitalsRange)?.label.toLowerCase()}.
-                </p>
+                <p className="text-sm text-muted-foreground">{t("noVitalsInRange")}</p>
               ) : (
                 <div className="grid gap-6 sm:grid-cols-2">
                   {vitalsChartSeries.map((chart) => (
@@ -507,7 +497,7 @@ export default async function DoctorPatientDetailPage({
                         {new Date(order.createdAt).toLocaleString()}
                       </span>
                       <Badge variant={order.status === "COMPLETED" ? "success" : "outline"}>
-                        {LAB_STATUS_LABEL[order.status] ?? order.status}
+                        {labStatusLabel(order.status)}
                       </Badge>
                     </div>
                     <ul className="text-sm">

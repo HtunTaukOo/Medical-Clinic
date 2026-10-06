@@ -124,7 +124,14 @@ export default async function StaffDashboardPage({
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const sixMonthsAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
-  const rangeBookingNames = await getRangeBookingSpecialtyNames();
+  const [rangeBookingNames, serviceCapacitySpecialties] = await Promise.all([
+    getRangeBookingSpecialtyNames(),
+    prisma.specialty.findMany({
+      where: { bookingMode: "SERVICE_CAPACITY" },
+      select: { name: true },
+    }),
+  ]);
+  const serviceCapacitySpecialtyNames = serviceCapacitySpecialties.map((specialty) => specialty.name);
   const mondayOffsetDays = (clinicWeekday(now) + 6) % 7;
   const weekStart = new Date(clinicMidnight(now).getTime() - mondayOffsetDays * 86400000);
   const weekEnd = new Date(weekStart.getTime() + 7 * 86400000);
@@ -257,7 +264,15 @@ export default async function StaffDashboardPage({
       : Promise.resolve(0),
     role === "ADMIN" ? prisma.patient.count() : Promise.resolve(0),
     role === "ADMIN"
-      ? prisma.doctorProfile.count({ where: { user: { active: true } } })
+      ? prisma.doctorProfile.count({
+          where: {
+            user: { active: true },
+            OR: [
+              { specialty: null },
+              { specialty: { notIn: serviceCapacitySpecialtyNames } },
+            ],
+          },
+        })
       : Promise.resolve(0),
     role === "ADMIN"
       ? prisma.payment.findMany({

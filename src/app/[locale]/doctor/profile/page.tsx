@@ -1,4 +1,5 @@
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 import { User, GraduationCap, Lock, Bell, Send } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
@@ -68,6 +69,7 @@ function summarizeConsultationHours(
 
 export default async function DoctorProfilePage() {
   const session = await requirePageRole(["DOCTOR"]);
+  const t = await getTranslations("doctorProfile");
   const doctorId = session.user.doctorId;
   if (!doctorId) notFound();
 
@@ -90,16 +92,16 @@ export default async function DoctorProfilePage() {
         <div>
           <h1 className="text-2xl font-semibold">{doctor.user.name}</h1>
           <p className="text-muted-foreground">
-            {doctor.specialty || "General practice"}
-            {doctor.medicalLicenseNo && ` · License: ${doctor.medicalLicenseNo}`}
+            {doctor.specialty || t("generalPractice")}
+            {doctor.medicalLicenseNo && ` · ${t("license", { number: doctor.medicalLicenseNo })}`}
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm">
             <span className="flex items-center gap-1.5 font-medium text-blue-600">
               <span className="size-1.5 rounded-full bg-blue-600" />
-              {doctor.user.active ? "Active Physician" : "Inactive"}
+              {doctor.user.active ? t("activePhysician") : t("inactive")}
             </span>
             <span className="text-muted-foreground">
-              · NCA Clinic since {doctor.createdAt.getFullYear()}
+              · {t("clinicSince", { year: doctor.createdAt.getFullYear() })}
             </span>
           </p>
         </div>
@@ -113,19 +115,19 @@ export default async function DoctorProfilePage() {
         <TabsList className={SIDEBAR_TAB_LIST}>
           <TabsTrigger value="personal" className={SIDEBAR_TAB_TRIGGER}>
             <User className="size-4 text-violet-500" />
-            Personal Info
+            {t("personalInfo")}
           </TabsTrigger>
           <TabsTrigger value="professional" className={SIDEBAR_TAB_TRIGGER}>
             <GraduationCap className="size-4 text-blue-500" />
-            Professional
+            {t("professional")}
           </TabsTrigger>
           <TabsTrigger value="security" className={SIDEBAR_TAB_TRIGGER}>
             <Lock className="size-4 text-amber-500" />
-            Security
+            {t("security")}
           </TabsTrigger>
           <TabsTrigger value="notifications" className={SIDEBAR_TAB_TRIGGER}>
             <Bell className="size-4 text-yellow-500" />
-            Notifications
+            {t("notifications")}
           </TabsTrigger>
           <TabsTrigger value="telegram" className={SIDEBAR_TAB_TRIGGER}>
             <Send className="size-4 text-sky-500" />
@@ -136,7 +138,7 @@ export default async function DoctorProfilePage() {
         <Card className="w-full flex-1">
           <CardContent>
             <TabsContent value="personal">
-              <p className="mb-4 text-lg font-semibold">Personal Information</p>
+              <p className="mb-4 text-lg font-semibold">{t("personalInformation")}</p>
               <DoctorPersonalInfoForm
                 name={doctor.user.name}
                 email={doctor.user.email}
@@ -150,7 +152,7 @@ export default async function DoctorProfilePage() {
             </TabsContent>
 
             <TabsContent value="professional">
-              <p className="mb-4 text-lg font-semibold">Professional Details</p>
+              <p className="mb-4 text-lg font-semibold">{t("professionalDetails")}</p>
               <DoctorSpecialtyForm
                 specialty={doctor.specialty ?? ""}
                 qualifications={doctor.qualifications ?? ""}
@@ -172,56 +174,56 @@ export default async function DoctorProfilePage() {
             <TabsContent value="notifications" className="grid gap-6">
               <div>
                 <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  Patient Alerts
+                  {t("patientAlerts")}
                 </p>
                 <div className="grid divide-y">
                   <DoctorNotificationToggle
                     field="notifyNewAppointments"
-                    label="New Appointment Booked"
-                    description="Alert when a patient books with you"
+                    label={t("newAppointmentBooked")}
+                    description={t("newAppointmentHelp")}
                     defaultChecked={doctor.notifyNewAppointments}
                   />
                   <DoctorNotificationToggle
                     field="notifyAppointmentCancelled"
-                    label="Appointment Cancelled"
-                    description="Alert when a patient cancels"
+                    label={t("appointmentCancelled")}
+                    description={t("appointmentCancelledHelp")}
                     defaultChecked={doctor.notifyAppointmentCancelled}
                   />
                   <DoctorNotificationToggle
                     field="notifyPatientWaiting"
-                    label="Patient Waiting"
-                    description="Ping when a patient enters the waiting room"
+                    label={t("patientWaiting")}
+                    description={t("patientWaitingHelp")}
                     defaultChecked={doctor.notifyPatientWaiting}
                   />
                   <DoctorNotificationToggle
                     field="notifyLabResults"
-                    label="Lab Results Available"
-                    description="Alert when lab results are ready to review"
+                    label={t("labResultsAvailable")}
+                    description={t("labResultsHelp")}
                     defaultChecked={doctor.notifyLabResults}
                   />
                 </div>
               </div>
               <div>
                 <p className="mb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                  System
+                  {t("system")}
                 </p>
                 <div className="grid divide-y">
                   <DoctorNotificationToggle
                     field="notifyAnnouncements"
-                    label="Clinic Announcements"
-                    description="Receive clinic-wide notices and updates"
+                    label={t("clinicAnnouncements")}
+                    description={t("announcementsHelp")}
                     defaultChecked={doctor.notifyAnnouncements}
                   />
                   <DoctorNotificationToggle
                     field="notifyScheduleReminders"
-                    label="Schedule Reminders"
-                    description="Daily summary of upcoming appointments"
+                    label={t("scheduleReminders")}
+                    description={t("scheduleRemindersHelp")}
                     defaultChecked={doctor.notifyScheduleReminders}
                   />
                   <DoctorNotificationToggle
                     field="notifyLeaveRequestStatus"
-                    label="Leave Request Status"
-                    description="Updates on submitted leave requests"
+                    label={t("leaveRequestStatus")}
+                    description={t("leaveRequestHelp")}
                     defaultChecked={doctor.notifyLeaveRequestStatus}
                   />
                 </div>

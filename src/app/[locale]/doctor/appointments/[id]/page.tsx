@@ -33,15 +33,6 @@ import { initials } from "@/lib/format";
 import { GENDER_LETTER, AVATAR_COLORS } from "@/components/appointments/appointment-row";
 import { formatAppointmentDateTime } from "@/lib/appointment-provider";
 
-const CONSULTATION_STATUS_LABEL: Record<string, string> = {
-  REQUESTED: "Requested",
-  CONFIRMED: "Confirmed",
-  CHECKED_IN: "In Progress",
-  COMPLETED: "Completed",
-  CANCELLED: "Cancelled",
-  NO_SHOW: "No-show",
-};
-
 const CONSULTATION_STATUS_CLASS: Record<string, string> = {
   REQUESTED: "bg-slate-100 text-slate-700",
   CONFIRMED: "bg-slate-100 text-slate-700",
@@ -59,6 +50,9 @@ export default async function DoctorAppointmentDetailPage({
   const session = await requirePageRole(["DOCTOR"]);
   const { id } = await params;
   const t = await getTranslations("appointments");
+  const tConsultation = await getTranslations("doctorConsultation");
+  const consultationStatusLabel = (status: string) => tConsultation({ REQUESTED: "statusRequested", CONFIRMED: "statusConfirmed", CHECKED_IN: "statusInProgress", COMPLETED: "statusCompleted", CANCELLED: "statusCancelled", NO_SHOW: "statusNoShow" }[status] ?? "statusRequested");
+  const labStatusLabel = (status: string) => tConsultation({ ORDERED: "labOrdered", SAMPLE_COLLECTED: "labSampleCollected", COMPLETED: "statusCompleted", CANCELLED: "labCancelled" }[status] ?? "labOrdered");
 
   const appointment = await prisma.appointment.findUnique({
     where: { id },
@@ -66,7 +60,7 @@ export default async function DoctorAppointmentDetailPage({
       patient: {
         include: {
           allergyRecords: { orderBy: { createdAt: "desc" } },
-          diagnoses: { where: { status: "ACTIVE" }, orderBy: { createdAt: "desc" } },
+          diagnoses: { orderBy: { createdAt: "desc" } },
           prescriptions: {
             orderBy: { createdAt: "desc" },
             include: { items: { include: { medicine: true } } },
@@ -147,11 +141,11 @@ export default async function DoctorAppointmentDetailPage({
                 {appointment.patient.name}
               </Link>
               <Badge variant="outline" className="bg-amber-100 text-amber-700">
-                Checked In — Waiting
+                {tConsultation("checkedInWaiting")}
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
-              {[age != null ? `${age}yo` : null, genderLetter, appointment.patient.bloodType]
+              {[age != null ? t("yearsOld", { age }) : null, genderLetter, appointment.patient.bloodType]
                 .filter(Boolean)
                 .join(" · ")}
               {appointment.reason ? ` · ${appointment.reason}` : ""}
@@ -161,13 +155,10 @@ export default async function DoctorAppointmentDetailPage({
 
         <Card>
           <CardContent className="flex flex-col items-center gap-4 py-10 text-center">
-            <p className="text-muted-foreground">
-              {appointment.patient.name} has checked in and is waiting. Charting, prescriptions, and
-              lab orders unlock once you start the consultation.
-            </p>
+            <p className="text-muted-foreground">{tConsultation("waitingToStart", { name: appointment.patient.name })}</p>
             <form action={startConsultation.bind(null, appointment.id)}>
               <Button type="submit" size="lg">
-                Start Consultation
+                {tConsultation("startConsultation")}
               </Button>
             </form>
           </CardContent>
@@ -213,11 +204,11 @@ export default async function DoctorAppointmentDetailPage({
                   {appointment.patient.name}
                 </Link>
                 <Badge variant="outline" className={CONSULTATION_STATUS_CLASS[appointment.status]}>
-                  {CONSULTATION_STATUS_LABEL[appointment.status]}
+                  {consultationStatusLabel(appointment.status)}
                 </Badge>
               </div>
               <p className="text-sm text-muted-foreground">
-                {[age != null ? `${age}yo` : null, genderLetter, appointment.patient.bloodType]
+                {[age != null ? t("yearsOld", { age }) : null, genderLetter, appointment.patient.bloodType]
                   .filter(Boolean)
                   .join(" · ")}
                 {appointment.reason ? ` · ${appointment.reason}` : ""}
@@ -232,11 +223,11 @@ export default async function DoctorAppointmentDetailPage({
               value="draft"
               variant="outline"
             >
-              Save Draft
+              {tConsultation("saveDraft")}
             </Button>
             {!isCompleted && (
               <Button type="submit" form={CONSULTATION_FORM_ID} name="intent" value="complete">
-                Complete
+                {tConsultation("complete")}
               </Button>
             )}
           </div>
@@ -245,7 +236,7 @@ export default async function DoctorAppointmentDetailPage({
         <div className="grid gap-6 lg:grid-cols-[260px_1fr]">
           <ConsultationSidebar
             allergies={appointment.patient.allergyRecords}
-            activeConditions={appointment.patient.diagnoses}
+            activeConditions={appointment.patient.diagnoses.filter((diagnosis) => diagnosis.status === "ACTIVE")}
             currentMedications={activeMedications}
             lastVisitNote={lastVisitNote}
           />
@@ -274,10 +265,13 @@ export default async function DoctorAppointmentDetailPage({
                     <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                       5
                     </span>
-                    <h2 className="font-semibold">Diagnosis</h2>
+                    <h2 className="font-semibold">{tConsultation("diagnosis")}</h2>
                   </div>
                   <div className="grid gap-4">
-                    <DiagnosisList diagnoses={appointment.diagnoses} canDelete={canPrescribe} />
+                    <DiagnosisList
+                      diagnoses={appointment.patient.diagnoses}
+                      statusChangeAppointmentId={canPrescribe ? appointment.id : undefined}
+                    />
                     {canPrescribe && <DiagnosisForm appointmentId={appointment.id} />}
                   </div>
                 </section>
@@ -286,7 +280,7 @@ export default async function DoctorAppointmentDetailPage({
 
             {appointment.prescriptions.length > 0 && (
               <div>
-                <p className="mb-2 text-sm font-semibold">Prescriptions on this visit</p>
+                <p className="mb-2 text-sm font-semibold">{tConsultation("prescriptionsThisVisit")}</p>
                 <div className="grid gap-3">
                   {appointment.prescriptions.map((rx) => (
                     <div key={rx.id} className="rounded-md border p-3">
@@ -295,7 +289,7 @@ export default async function DoctorAppointmentDetailPage({
                           {new Date(rx.createdAt).toLocaleString()}
                         </span>
                         <Badge variant={rx.fulfilled ? "success" : "outline"}>
-                          {rx.fulfilled ? "Fulfilled" : "Pending"}
+                          {rx.fulfilled ? tConsultation("fulfilled") : tConsultation("pending")}
                         </Badge>
                       </div>
                       <ul className="grid gap-2 text-sm">
@@ -316,7 +310,7 @@ export default async function DoctorAppointmentDetailPage({
 
             {appointment.labOrders.length > 0 && (
               <div>
-                <p className="mb-2 text-sm font-semibold">Lab orders on this visit</p>
+                <p className="mb-2 text-sm font-semibold">{tConsultation("labOrdersThisVisit")}</p>
                 <div className="grid gap-3">
                   {appointment.labOrders.map((order) => (
                     <div key={order.id} className="rounded-md border p-3">
@@ -325,7 +319,7 @@ export default async function DoctorAppointmentDetailPage({
                           {new Date(order.createdAt).toLocaleString()}
                         </span>
                         <Badge variant={order.status === "COMPLETED" ? "success" : "outline"}>
-                          {order.status.replace("_", " ")}
+                          {labStatusLabel(order.status)}
                         </Badge>
                       </div>
                       <ul className="text-sm">
@@ -338,7 +332,7 @@ export default async function DoctorAppointmentDetailPage({
                           href={`/lab-report/${order.id}`}
                           className="text-sm underline text-muted-foreground"
                         >
-                          View report
+                          {tConsultation("viewReport")}
                         </Link>
                       )}
                     </div>
@@ -377,11 +371,11 @@ export default async function DoctorAppointmentDetailPage({
                 value="draft"
                 variant="outline"
               >
-                Save Draft
+                {tConsultation("saveDraft")}
               </Button>
               {!isCompleted && (
                 <Button type="submit" form={CONSULTATION_FORM_ID} name="intent" value="complete">
-                  Complete Consultation
+                  {tConsultation("completeConsultation")}
                 </Button>
               )}
             </div>
@@ -414,7 +408,7 @@ export default async function DoctorAppointmentDetailPage({
       {appointment.patient.allergyRecords.length > 0 && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
-            <CardTitle className="text-destructive">Allergies</CardTitle>
+          <CardTitle className="text-destructive">{tConsultation("allergiesTitle")}</CardTitle>
           </CardHeader>
           <CardContent>
             <AllergyList allergies={appointment.patient.allergyRecords} />
@@ -468,7 +462,7 @@ export default async function DoctorAppointmentDetailPage({
         <Button asChild size="sm" variant="outline">
           <Link href={`/doctor/schedule?patientId=${appointment.patientId}`}>
             <CalendarPlus className="size-4" />
-            Book Follow-up
+            {tConsultation("bookFollowUp")}
           </Link>
         </Button>
       </div>
@@ -476,7 +470,7 @@ export default async function DoctorAppointmentDetailPage({
       {appointment.bpSystolic || appointment.heartRateBpm ? (
         <Card>
           <CardHeader>
-            <CardTitle>Vital Signs</CardTitle>
+            <CardTitle>{tConsultation("vitalSigns")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
@@ -494,7 +488,7 @@ export default async function DoctorAppointmentDetailPage({
       {appointment.diagnoses.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Diagnosis</CardTitle>
+            <CardTitle>{tConsultation("diagnosisTitle")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <DiagnosisList diagnoses={appointment.diagnoses} canDelete={false} />
@@ -515,7 +509,7 @@ export default async function DoctorAppointmentDetailPage({
                     {new Date(rx.createdAt).toLocaleString()}
                   </span>
                   <Badge variant={rx.fulfilled ? "success" : "outline"}>
-                    {rx.fulfilled ? "Fulfilled" : "Pending"}
+                    {rx.fulfilled ? tConsultation("fulfilled") : tConsultation("pending")}
                   </Badge>
                 </div>
                 <ul className="grid gap-2 text-sm">
@@ -537,7 +531,7 @@ export default async function DoctorAppointmentDetailPage({
       {appointment.labOrders.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Lab Orders</CardTitle>
+            <CardTitle>{tConsultation("labOrders")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
             {appointment.labOrders.map((order) => (
@@ -547,7 +541,7 @@ export default async function DoctorAppointmentDetailPage({
                     {new Date(order.createdAt).toLocaleString()}
                   </span>
                   <Badge variant={order.status === "COMPLETED" ? "success" : "outline"}>
-                    {order.status.replace("_", " ")}
+                  {labStatusLabel(order.status)}
                   </Badge>
                 </div>
                 <ul className="text-sm">
@@ -560,7 +554,7 @@ export default async function DoctorAppointmentDetailPage({
                     href={`/lab-report/${order.id}`}
                     className="text-sm underline text-muted-foreground"
                   >
-                    View report
+                    {tConsultation("viewReport")}
                   </Link>
                 )}
               </div>

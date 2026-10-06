@@ -20,6 +20,7 @@ export default async function PortalInvoiceDetailPage({
   const session = await auth();
   const { id } = await params;
   const t = await getTranslations("billing");
+  const tp = await getTranslations("portal.invoicesPage");
 
   const invoice = await prisma.invoice.findUnique({
     where: { id },
@@ -32,12 +33,24 @@ export default async function PortalInvoiceDetailPage({
 
   if (!invoice || invoice.patientId !== session?.user.patientId) notFound();
 
+  const invoiceStatus = {
+    PAID: tp("statusPaid"),
+    UNPAID: tp("statusUnpaid"),
+    PARTIAL: tp("statusPartial"),
+  } as const;
+  const claimStatus = {
+    SUBMITTED: tp("statusSubmitted"),
+    APPROVED: tp("statusApproved"),
+    REJECTED: tp("statusRejected"),
+    PAID: tp("statusPaid"),
+  } as const;
+
   return (
     <div className="grid gap-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{t("invoices")}</h1>
         <Badge variant={invoice.status === "PAID" ? "success" : "outline"}>
-          {invoice.status}
+          {invoiceStatus[invoice.status]}
         </Badge>
       </div>
       <Table>
@@ -92,7 +105,7 @@ export default async function PortalInvoiceDetailPage({
                 {claim.insuranceProvider} &mdash; {Number(claim.claimedAmount).toFixed(2)}
               </span>
               <Badge variant={claim.status === "PAID" ? "success" : "outline"}>
-                {claim.status}
+                {claimStatus[claim.status] ?? claim.status}
               </Badge>
             </div>
           ))}

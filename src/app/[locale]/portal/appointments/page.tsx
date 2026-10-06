@@ -1,10 +1,10 @@
 import { CalendarDays, Pill } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { clinicDateKey, clinicDateParts, formatClinicDateTime } from "@/lib/clinic-hours";
 import { leaveWaitlist } from "@/actions/waitlist";
-import { getMonthGrid, addMonths, MONTH_NAMES } from "@/lib/calendar";
+import { getMonthGrid, addMonths } from "@/lib/calendar";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -47,6 +47,7 @@ export default async function PortalAppointmentsPage({
   searchParams: Promise<{ view?: string; year?: string; month?: string; tab?: string }>;
 }) {
   const session = await auth();
+  const locale = await getLocale();
   const t = await getTranslations("appointments");
   const tp = await getTranslations("portal.appointmentsPage");
   const td = await getTranslations("portal.appointmentDetail");
@@ -268,7 +269,10 @@ export default async function PortalAppointmentsPage({
         <div className="grid gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-medium">
-              {MONTH_NAMES[month - 1]} {year}
+              {new Intl.DateTimeFormat(locale === "my" ? "my-MM" : "en-US", {
+                month: "long",
+                year: "numeric",
+              }).format(new Date(Date.UTC(year, month - 1, 1)))}
             </h2>
             <div className="flex items-center gap-2">
               <Button asChild variant="outline" size="sm">

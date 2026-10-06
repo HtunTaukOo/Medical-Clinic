@@ -33,20 +33,20 @@ type QueueCard = {
 
 const COLUMN_META: Record<
   ColumnKey,
-  { label: string; headerClass: string; numberClass: string }
+  { labelKey: "waiting" | "inConsultation" | "completed" | "missed"; headerClass: string; numberClass: string }
 > = {
-  WAITING: { label: "Waiting", headerClass: "bg-amber-500", numberClass: "text-amber-600" },
+  WAITING: { labelKey: "waiting", headerClass: "bg-amber-500", numberClass: "text-amber-600" },
   IN_CONSULTATION: {
-    label: "In Consultation",
+    labelKey: "inConsultation",
     headerClass: "bg-purple-500",
     numberClass: "text-purple-600",
   },
   COMPLETED: {
-    label: "Completed",
+    labelKey: "completed",
     headerClass: "bg-emerald-500",
     numberClass: "text-emerald-600",
   },
-  MISSED: { label: "Missed", headerClass: "bg-rose-500", numberClass: "text-rose-600" },
+  MISSED: { labelKey: "missed", headerClass: "bg-rose-500", numberClass: "text-rose-600" },
 };
 
 const COLUMN_ORDER: ColumnKey[] = ["WAITING", "IN_CONSULTATION", "COMPLETED", "MISSED"];
@@ -80,6 +80,7 @@ function ActionButton({
 export default async function QueuePage() {
   await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("appointments");
+  const tq = await getTranslations("staffQueue");
   const { start, end } = todayRange();
 
   const [appointments, walkIns, rangeBookingNames] = await Promise.all([
@@ -136,14 +137,14 @@ export default async function QueuePage() {
         action: (
           <>
             <ActionButton formAction={checkInAppointment.bind(null, appt.id)} variant="blue">
-              Call In
+              {tq("callIn")}
             </ActionButton>
             <form action={markNoShow.bind(null, appt.id)}>
               <button
                 type="submit"
                 className="px-2 py-1 text-xs font-semibold text-rose-600 hover:text-rose-700"
               >
-                Miss
+                {tq("miss")}
               </button>
             </form>
           </>
@@ -168,20 +169,20 @@ export default async function QueuePage() {
         queuedAt: walkIn.createdAt.getTime(),
         timeLabel: walkInTimeLabel(walkIn.createdAt),
         patientName: walkIn.name || t("anonymousWalkIn"),
-        doctorName: walkIn.doctor?.user.name ?? "Any doctor",
+        doctorName: walkIn.doctor?.user.name ?? tq("anyDoctor"),
         specialty: walkIn.doctor?.specialty ?? null,
         column: "WAITING",
         action: (
           <>
             <ActionButton formAction={callWalkIn.bind(null, walkIn.id)} variant="blue">
-              Call In
+              {tq("callIn")}
             </ActionButton>
             <form action={cancelWalkIn.bind(null, walkIn.id)}>
               <button
                 type="submit"
                 className="px-2 py-1 text-xs font-semibold text-rose-600 hover:text-rose-700"
               >
-                Miss
+                {tq("miss")}
               </button>
             </form>
           </>
@@ -202,7 +203,7 @@ export default async function QueuePage() {
             href={`/staff/queue/walk-ins/${walkIn.id}`}
             className="flex-1 rounded-md bg-purple-100 px-2 py-1 text-center text-xs font-semibold text-purple-700 hover:bg-purple-200"
           >
-            Start
+            {tq("start")}
           </Link>
         ),
       })
@@ -218,7 +219,7 @@ export default async function QueuePage() {
         column: "IN_CONSULTATION",
         action: (
           <ActionButton formAction={completeAppointment.bind(null, appt.id)} variant="emerald">
-            Mark Done
+            {tq("markDone")}
           </ActionButton>
         ),
       })
@@ -272,14 +273,14 @@ export default async function QueuePage() {
     <div className="grid gap-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-semibold">Queue Status Board</h1>
+          <h1 className="text-2xl font-semibold">{tq("title")}</h1>
           <p className="text-sm text-muted-foreground">
-            Track patients through the visit workflow in real time.
+            {tq("description")}
           </p>
         </div>
         <div className="flex items-center gap-3">
           <p className="text-sm text-muted-foreground">
-            Today — {today.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" })}
+            {tq("today", { date: today.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" }) })}
           </p>
           <Button asChild>
             <Link href="/queue-display" target="_blank">
@@ -299,7 +300,7 @@ export default async function QueuePage() {
               <div
                 className={`flex items-center justify-between rounded-lg px-3 py-2 text-white ${meta.headerClass}`}
               >
-                <span className="font-semibold">{meta.label}</span>
+                <span className="font-semibold">{tq(meta.labelKey)}</span>
                 <span className="flex size-6 items-center justify-center rounded-full bg-white/25 text-sm font-bold">
                   {columnCards.length}
                 </span>
@@ -307,7 +308,7 @@ export default async function QueuePage() {
 
               {columnCards.length === 0 ? (
                 <div className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
-                  Empty
+                  {tq("empty")}
                 </div>
               ) : (
                 columnCards.map((card) => (

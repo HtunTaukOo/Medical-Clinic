@@ -4,6 +4,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { initials } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 
 export const AVATAR_COLORS = [
   "bg-blue-100 text-blue-700",
@@ -45,6 +46,7 @@ export function AppointmentRow({
   statusLabel: string;
   statusClassName: string;
 }) {
+  const t = useTranslations("appointmentRow");
   return (
     <Link
       href={href}
@@ -76,11 +78,11 @@ export function AppointmentRow({
             )}
             {isUrgent && (
               <Badge variant="destructive" className="ml-2 align-middle">
-                URGENT
+                {t("urgent")}
               </Badge>
             )}
           </p>
-          <p className="text-sm text-muted-foreground">{reason || "No reason given"}</p>
+          <p className="text-sm text-muted-foreground">{reason || t("noReason")}</p>
         </div>
       </div>
       <div className="flex items-center gap-2">

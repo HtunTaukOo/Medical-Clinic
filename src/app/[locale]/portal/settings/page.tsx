@@ -1,5 +1,5 @@
 import { User, HeartPulse, ShieldCheck, Lock, Settings2, Send } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { initials } from "@/lib/format";
@@ -31,6 +31,7 @@ const SIDEBAR_TAB_TRIGGER =
 export default async function PortalSettingsPage() {
   const session = await auth();
   const patientId = session?.user.patientId;
+  const locale = await getLocale();
   const t = await getTranslations("portal.settingsPage");
 
   const [patient, allergies] = await Promise.all([
@@ -44,7 +45,7 @@ export default async function PortalSettingsPage() {
     return <EmptyState icon={User} message={t("noProfile")} />;
   }
 
-  const memberSince = patient.createdAt.toLocaleDateString(undefined, {
+  const memberSince = patient.createdAt.toLocaleDateString(locale === "my" ? "my-MM" : "en-US", {
     month: "short",
     year: "numeric",
   });

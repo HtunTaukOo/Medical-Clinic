@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { rxCode } from "@/lib/pharmacy";
 import { PrintButton } from "@/components/lab/print-button";
+import { getLocale, getTranslations } from "next-intl/server";
 
 function formatKyat(value: number) {
   return `MMK ${Math.round(value).toLocaleString()}`;
@@ -14,6 +15,8 @@ export default async function PharmacyReceiptPage({
   params: Promise<{ saleId: string }>;
 }) {
   const session = await auth();
+  const t = await getTranslations("receipt");
+  const locale = await getLocale();
   if (!session?.user) notFound();
   const { saleId } = await params;
 
@@ -31,29 +34,27 @@ export default async function PharmacyReceiptPage({
   return (
     <div className="mx-auto max-w-2xl p-8 print:p-0">
       <div className="mb-6 flex items-center justify-between print:hidden">
-        <h1 className="text-xl font-semibold">Pharmacy Receipt</h1>
+        <h1 className="text-xl font-semibold">{t("pharmacyTitle")}</h1>
         <PrintButton />
       </div>
 
       <div className="mb-6 grid gap-1 border-b pb-4">
-        <p className="text-lg font-semibold">NCA Clinic — Pharmacy Receipt</p>
-        <p>Patient: {sale.patient.name}</p>
-        {sale.prescriptionId && <p>Rx #: {rxCode(sale.prescriptionId, sale.createdAt)}</p>}
-        <p>Date: {sale.createdAt.toLocaleString()}</p>
+        <p className="text-lg font-semibold">{t("pharmacyHeading")}</p>
+        <p>{t("patient", { name: sale.patient.name })}</p>
+        {sale.prescriptionId && <p>{t("rx", { code: rxCode(sale.prescriptionId, sale.createdAt) })}</p>}
+        <p>{t("date", { date: sale.createdAt.toLocaleString(locale === "my" ? "my-MM" : "en-US") })}</p>
         <p>
-          Payment: {sale.paymentMethod} · Dispensed by {sale.soldBy.name}
+          {t("payment", { method: sale.paymentMethod, name: sale.soldBy.name })}
         </p>
         {sale.status === "RETURNED" && (
-          <p className="font-semibold text-destructive">This sale has been returned.</p>
+          <p className="font-semibold text-destructive">{t("saleReturned")}</p>
         )}
       </div>
 
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b">
-            <th className="py-2 pr-4">Medicine</th>
-            <th className="py-2 pr-4">Qty</th>
-            <th className="py-2">Amount</th>
+            <th className="py-2 pr-4">{t("medicine")}</th><th className="py-2 pr-4">{t("quantity")}</th><th className="py-2">{t("amount")}</th>
           </tr>
         </thead>
         <tbody>
@@ -68,9 +69,9 @@ export default async function PharmacyReceiptPage({
       </table>
 
       <div className="mt-4 grid gap-1 text-right text-sm">
-        <p>Subtotal: {formatKyat(Number(sale.subtotal))}</p>
-        {Number(sale.discount) > 0 && <p>Discount: -{formatKyat(Number(sale.discount))}</p>}
-        <p className="text-lg font-semibold">Total paid: {formatKyat(Number(sale.total))}</p>
+        <p>{t("subtotal", { amount: formatKyat(Number(sale.subtotal)) })}</p>
+        {Number(sale.discount) > 0 && <p>{t("discount", { amount: formatKyat(Number(sale.discount)) })}</p>}
+        <p className="text-lg font-semibold">{t("totalPaid", { amount: formatKyat(Number(sale.total)) })}</p>
       </div>
     </div>
   );

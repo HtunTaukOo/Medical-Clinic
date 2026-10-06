@@ -229,7 +229,18 @@
     "diagnosisHistory": "Diagnosis history",
     "notes": "Notes",
     "noLabOrders": "No lab orders yet.",
-    "viewReport": "View report"
+    "viewReport": "View report",
+    "presentingSymptoms": "Presenting symptoms",
+    "patientId": "Patient ID: {id}",
+    "startConsultation": "Start consultation",
+    "notCheckedIn": "Not checked in yet",
+    "appointmentOn": "Their appointment is on {date}. Ask the front desk to check them in first.",
+    "viewAppointment": "View appointment",
+    "noAppointmentBooked": "No appointment booked",
+    "bookAppointment": "Book an appointment",
+    "vitalsHistory": "Vitals history",
+    "noVitalsInRange": "No vitals recorded in this range.",
+    "pulse": "Pulse", "temperature": "Temperature", "weight": "Weight", "height": "Height", "labAwaitingCollection": "Awaiting collection", "labAwaitingResults": "Awaiting results", "labCompleted": "Completed", "labCancelled": "Cancelled"
   },
   "appointments": {
     "title": "Appointments",
@@ -531,7 +542,8 @@
     "type": "Type",
     "reason": "Reason",
     "noStockMovements": "No stock movements recorded yet.",
-    "date": "Date"
+    "date": "Date",
+    "inStockSummary": "{quantity} {unit} in stock — {price} per {unit}", "portalPromo": "Patient portal pharmacy promotion", "stockHistory": "Stock history", "viewInStockMovement": "View in stock movement", "transactionType": "Type"
   },
   "staff": {
     "title": "User Management",
@@ -801,7 +813,13 @@
       "noPaid": "No paid bills yet.",
       "consultationTitle": "{specialty} Consultation",
       "generalFallback": "General",
-      "invoiceFallback": "Invoice"
+      "invoiceFallback": "Invoice",
+      "statusPaid": "Paid",
+      "statusUnpaid": "Unpaid",
+      "statusPartial": "Partial",
+      "statusSubmitted": "Submitted",
+      "statusApproved": "Approved",
+      "statusRejected": "Rejected"
     },
     "billingCard": {
       "invoiceItems": "Invoice items",
@@ -1084,7 +1102,8 @@
     "orderCreatedInline": "Lab order created —",
     "noTestsForCategory": "No tests in the catalog for this category yet.",
     "normalLabel": "Normal: {range}",
-    "testsSelected": "{count} test{count, plural, one {} other {s}} · {total}"
+    "testsSelected": "{count} test{count, plural, one {} other {s}} · {total}",
+    "newLabTest": "New lab test", "editLabTest": "Edit lab test", "unitPlaceholder": "e.g. mg/dL", "normalRangePlaceholder": "e.g. 70–100"
   },
   "clinicServices": {
     "serviceName": "Service name",
@@ -1568,5 +1587,116 @@
     "noReason": "No reason given",
     "resume": "Resume",
     "start": "Start"
+  },
+  "doctorConsultation": {
+    "checkedInWaiting": "Checked in — waiting",
+    "waitingToStart": "{name} has checked in and is waiting. Charting, prescriptions, and lab orders unlock once you start the consultation.",
+    "startConsultation": "Start consultation",
+    "saveDraft": "Save draft",
+    "diagnosis": "Diagnosis",
+    "prescriptionsThisVisit": "Prescriptions on this visit",
+    "labOrdersThisVisit": "Lab orders on this visit",
+    "viewReport": "View report",
+    "completeConsultation": "Complete consultation",
+    "bookFollowUp": "Book follow-up",
+    "vitalSigns": "Vital signs",
+    "labOrders": "Lab orders",
+    "fulfilled": "Fulfilled",
+    "pending": "Pending",
+    "complete": "Complete", "diagnosisTitle": "Diagnosis", "allergiesTitle": "Allergies", "statusRequested": "Requested", "statusConfirmed": "Confirmed", "statusInProgress": "In progress", "statusCompleted": "Completed", "statusCancelled": "Cancelled", "statusNoShow": "No-show", "labOrdered": "Ordered", "labSampleCollected": "Sample collected", "labCancelled": "Cancelled"
+  },
+  "doctorPrescriptions": {
+    "title": "Prescriptions",
+    "description": "Review and manage patient prescriptions. Write new ones from a patient's consultation.",
+    "active": "Active ({count})",
+    "history": "History",
+    "noActive": "No active prescriptions.",
+    "noFulfilled": "No fulfilled prescriptions yet.",
+    "days": "{count} days",
+    "refillsLeft": "{count} refill{count, plural, one {} other {s}} left",
+    "activeStatus": "Active",
+    "completed": "Completed"
+  },
+  "doctorAnnouncements": {
+    "title": "Announcements",
+    "description": "Messages posted to staff and patients.",
+    "empty": "No announcements yet."
+  },
+  "doctorConsultations": {
+    "title": "Consultations",
+    "description": "Start and manage patient consultations for today.",
+    "waiting": "Waiting",
+    "completedToday": "Completed today",
+    "noOneWaiting": "No one waiting.",
+    "waitingMinutes": "Waiting {count} min",
+    "urgent": "Urgent",
+    "noReason": "No reason given",
+    "start": "Start",
+    "noCompleted": "No consultations completed yet today.",
+    "completed": "Completed"
+  },
+  "doctorProfile": {
+    "generalPractice": "General practice",
+    "license": "License: {number}",
+    "activePhysician": "Active physician",
+    "inactive": "Inactive",
+    "clinicSince": "NCA Clinic since {year}",
+    "personalInfo": "Personal info",
+    "professional": "Professional",
+    "security": "Security",
+    "notifications": "Notifications",
+    "personalInformation": "Personal information",
+    "professionalDetails": "Professional details",
+    "patientAlerts": "Patient alerts",
+    "system": "System",
+    "newAppointmentBooked": "New appointment booked",
+    "newAppointmentHelp": "Alert when a patient books with you",
+    "appointmentCancelled": "Appointment cancelled",
+    "appointmentCancelledHelp": "Alert when a patient cancels",
+    "patientWaiting": "Patient waiting",
+    "patientWaitingHelp": "Ping when a patient enters the waiting room",
+    "labResultsAvailable": "Lab results available",
+    "labResultsHelp": "Alert when lab results are ready to review",
+    "clinicAnnouncements": "Clinic announcements",
+    "announcementsHelp": "Receive clinic-wide notices and updates",
+    "scheduleReminders": "Schedule reminders",
+    "scheduleRemindersHelp": "Daily summary of upcoming appointments",
+    "leaveRequestStatus": "Leave request status",
+    "leaveRequestHelp": "Updates on submitted leave requests"
+  },
+  "staffQueue": {
+    "title": "Queue status board", "description": "Track patients through the visit workflow in real time.", "today": "Today — {date}",
+    "waiting": "Waiting", "inConsultation": "In consultation", "completed": "Completed", "missed": "Missed", "empty": "Empty",
+    "callIn": "Call in", "miss": "Miss", "start": "Start", "markDone": "Mark done", "anyDoctor": "Any doctor"
+  },
+  "staffAppointment": {
+    "allergies": "Allergies", "labVisit": "Lab visit — {service}", "labVisitHelp": "The patient booked this category rather than a specific test. Discuss their reason for visiting, then select the test or tests needed below.",
+    "frontDeskCheckout": "Front desk checkout", "checkedOutBy": "Checked out by {name} on {date}.", "checkoutHelp": "The doctor has finished this consultation. Complete checkout once payment and other requirements are settled; the patient cannot book another appointment until then.",
+    "vitalSigns": "Vital signs", "diagnosis": "Diagnosis", "clinicalNotes": "Clinical notes", "treatmentPlan": "Treatment plan", "fulfilled": "Fulfilled", "pending": "Pending", "labOrders": "Lab orders", "viewReport": "View report", "labOrdered": "Ordered", "labSampleCollected": "Sample collected", "labCompleted": "Completed", "labCancelled": "Cancelled", "staff": "staff"
+  },
+  "staffLab": {
+    "title": "Laboratory", "description": "Manage lab test orders and results.", "newTest": "New test", "orders": "Orders", "externalLabTest": "External lab test", "testCatalog": "Test catalog", "history": "History",
+    "noPendingOrders": "No pending lab orders.", "noExternalReferrals": "No external lab referrals yet.", "noTests": "No lab tests in the catalog yet.", "noCompletedOrders": "No completed lab orders yet.",
+    "patient": "Patient", "doctor": "Doctor", "tests": "Tests", "ordered": "Ordered", "status": "Status", "actions": "Actions", "date": "Date", "name": "Name", "age": "Age", "id": "ID", "requestedTest": "Requested test", "referLab": "Refer lab", "sampleCollectedTime": "Sample collected time", "requestedTime": "Requested time",
+    "collectSample": "Collect sample", "enterResults": "Enter results", "markReceived": "Mark received", "cancel": "Cancel", "addTestType": "Add test type", "sentExternally": "Sent externally", "edit": "Edit", "normalRange": "Normal range: {range}", "view": "View", "report": "Report",
+    "orderedStatus": "Ordered", "sampleCollected": "Sample collected", "completed": "Completed", "cancelled": "Cancelled", "sending": "Sending", "received": "Received",
+    "orderedBy": "Ordered by {name}", "waitingForSample": "Waiting for sample collection.", "results": "Results", "result": "Result: {value}", "note": "Note: {note}", "printReport": "Print report", "referredTo": "Referred to {name}", "receiveBeforeResults": "Mark this referral received before entering results.", "referralCancelled": "This referral was cancelled."
+  },
+  "staffCheckIn": {
+    "title": "Patient check-in", "description": "Search for a patient or register a new walk-in visit.", "searchTitle": "Patient check-in", "searchPlaceholder": "Search patient by name or ID...", "minimumSearch": "Type at least 2 characters to search", "noMatches": "No patients match “{query}”.", "registerWalkInTitle": "Register walk-in — {name}", "registerAsWalkIn": "Register as walk-in", "checkIn": "Check in", "alreadyCheckedIn": "Already checked in", "walkInRegistration": "Walk-in registration", "walkInDescription": "Register a new patient and check them in immediately.", "yearsOld": "{age} years old"
+  },
+  "labReport": {
+    "title": "Lab report", "heading": "NCA Clinic — Laboratory report", "patient": "Patient: {name}", "doctor": "Doctor: {name}", "date": "Date: {date}", "test": "Test", "result": "Result", "normalRange": "Normal range", "print": "Print"
+  },
+  "receipt": {
+    "title": "Receipt", "heading": "NCA Clinic — Payment receipt", "patient": "Patient: {name}", "doctor": "Doctor: {name}", "invoiceDate": "Invoice date: {date}", "paid": "Paid: {date} ({method})", "description": "Description", "quantity": "Qty", "amount": "Amount", "totalPaid": "Total paid: {amount}",
+    "pharmacyTitle": "Pharmacy receipt", "pharmacyHeading": "NCA Clinic — Pharmacy receipt", "rx": "Rx #: {code}", "date": "Date: {date}", "payment": "Payment: {method} · Dispensed by {name}", "saleReturned": "This sale has been returned.", "medicine": "Medicine", "subtotal": "Subtotal: {amount}", "discount": "Discount: -{amount}"
+  },
+  "staffAnnouncements": {
+    "title": "Announcements", "description": "Messages posted to staff and patients.", "empty": "No announcements yet.", "published": "Published", "hidden": "Hidden", "hide": "Hide", "publish": "Publish"
   }
+  ,"staffProfile": {
+    "administrator": "Administrator", "staff": "Staff", "active": "Active", "inactive": "Inactive", "clinicSince": "NCA Clinic since {date}", "personalInfo": "Personal info", "password": "Password", "notifications": "Notifications", "activityHistory": "Activity history", "personalInformation": "Personal information", "alerts": "Alerts", "newAppointments": "New appointments", "newAppointmentsHelp": "Alert when a new appointment is booked or checked in", "inventoryAlerts": "Inventory alerts", "inventoryAlertsHelp": "Alert on low stock, expired, or soon-to-expire medicines", "clinicAnnouncements": "Clinic announcements", "clinicAnnouncementsHelp": "Receive clinic-wide notices and updates", "billingAlerts": "Billing alerts", "billingAlertsHelp": "Alert on insurance claim decisions, refunds, and received purchase orders", "noActivity": "No activity recorded yet.", "date": "Date", "action": "Action", "target": "Target"
+  },
+  "appointmentRow": { "urgent": "Urgent", "noReason": "No reason given" }
 }

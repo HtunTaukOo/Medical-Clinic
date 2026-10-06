@@ -396,6 +396,8 @@ model Diagnosis {
   notes         String?
   status        DiagnosisStatus    @default(ACTIVE)
   severity      DiagnosisSeverity?
+  statusChangedAt DateTime?
+  statusChangedAppointmentId String?
   createdAt     DateTime           @default(now())
 
   @@index([patientId])

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { PrintButton } from "@/components/lab/print-button";
+import { getLocale, getTranslations } from "next-intl/server";
 
 export default async function LabReportPage({
   params,
@@ -9,6 +10,8 @@ export default async function LabReportPage({
   params: Promise<{ id: string }>;
 }) {
   const session = await auth();
+  const t = await getTranslations("labReport");
+  const locale = await getLocale();
   if (!session?.user) notFound();
   const { id } = await params;
 
@@ -33,23 +36,23 @@ export default async function LabReportPage({
   return (
     <div className="mx-auto max-w-2xl p-8 print:p-0">
       <div className="mb-6 flex items-center justify-between print:hidden">
-        <h1 className="text-xl font-semibold">Lab Report</h1>
+        <h1 className="text-xl font-semibold">{t("title")}</h1>
         <PrintButton />
       </div>
 
       <div className="mb-6 grid gap-1 border-b pb-4">
-        <p className="text-lg font-semibold">NCA Clinic — Laboratory Report</p>
-        <p>Patient: {order.patient.name}</p>
-        <p>Doctor: {order.doctor.user.name}</p>
-        <p>Date: {order.completedAt?.toLocaleString()}</p>
+        <p className="text-lg font-semibold">{t("heading")}</p>
+        <p>{t("patient", { name: order.patient.name })}</p>
+        <p>{t("doctor", { name: order.doctor.user.name })}</p>
+        <p>{t("date", { date: order.completedAt?.toLocaleString(locale === "my" ? "my-MM" : "en-US") ?? "—" })}</p>
       </div>
 
       <table className="w-full text-left text-sm">
         <thead>
           <tr className="border-b">
-            <th className="py-2 pr-4">Test</th>
-            <th className="py-2 pr-4">Result</th>
-            <th className="py-2">Normal range</th>
+            <th className="py-2 pr-4">{t("test")}</th>
+            <th className="py-2 pr-4">{t("result")}</th>
+            <th className="py-2">{t("normalRange")}</th>
           </tr>
         </thead>
         <tbody>

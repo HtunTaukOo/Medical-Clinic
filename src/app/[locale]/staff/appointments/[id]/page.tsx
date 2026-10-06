@@ -36,6 +36,8 @@ export default async function AppointmentDetailPage({
   const { id } = await params;
   const t = await getTranslations("appointments");
   const tBilling = await getTranslations("billing");
+  const ts = await getTranslations("staffAppointment");
+  const labStatusLabel = (status: string) => ts({ ORDERED: "labOrdered", SAMPLE_COLLECTED: "labSampleCollected", COMPLETED: "labCompleted", CANCELLED: "labCancelled" }[status] ?? "labOrdered");
 
   const [appointment, rangeBookingNames] = await Promise.all([
     prisma.appointment.findUnique({
@@ -95,7 +97,7 @@ export default async function AppointmentDetailPage({
       {appointment.patient.allergyRecords.length > 0 && (
         <Card className="border-destructive/40 bg-destructive/5">
           <CardHeader>
-            <CardTitle className="text-destructive">Allergies</CardTitle>
+            <CardTitle className="text-destructive">{ts("allergies")}</CardTitle>
           </CardHeader>
           <CardContent>
             <AllergyList allergies={appointment.patient.allergyRecords} />
@@ -115,12 +117,11 @@ export default async function AppointmentDetailPage({
       {needsLabOrder && (
         <Card className="border-primary/40 bg-primary/5">
           <CardHeader>
-            <CardTitle>Lab Visit — {appointment.clinicService!.name}</CardTitle>
+            <CardTitle>{ts("labVisit", { service: appointment.clinicService!.name })}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
             <p className="text-sm text-muted-foreground">
-              Patient booked this category, not a specific test. Talk to the patient about their reason for
-              visiting, then pick the actual test(s) needed below.
+              {ts("labVisitHelp")}
             </p>
             <CreateLabOrderForAppointmentForm
               appointmentId={appointment.id}
@@ -213,20 +214,17 @@ export default async function AppointmentDetailPage({
         appointment.status === "COMPLETED" && (
           <Card>
             <CardHeader>
-              <CardTitle>Front Desk Checkout</CardTitle>
+              <CardTitle>{ts("frontDeskCheckout")}</CardTitle>
             </CardHeader>
             <CardContent>
               {appointment.staffCompletedAt ? (
                 <p className="text-sm text-emerald-600">
-                  Checked out by {appointment.staffCompletedByName ?? "staff"} on{" "}
-                  {appointment.staffCompletedAt.toLocaleString()}.
+                  {ts("checkedOutBy", { name: appointment.staffCompletedByName ?? ts("staff"), date: appointment.staffCompletedAt.toLocaleString() })}
                 </p>
               ) : (
                 <div className="flex items-center justify-between gap-3">
                   <p className="text-sm text-muted-foreground">
-                    The doctor has finished this consultation. Complete checkout here once
-                    everything (payment, etc.) is settled — the patient can&apos;t book another
-                    appointment until this is done.
+                    {ts("checkoutHelp")}
                   </p>
                   <CompleteCheckoutButton appointmentId={appointment.id} />
                 </div>
@@ -238,7 +236,7 @@ export default async function AppointmentDetailPage({
       {(appointment.bpSystolic || appointment.heartRateBpm) && (
         <Card>
           <CardHeader>
-            <CardTitle>Vital Signs</CardTitle>
+            <CardTitle>{ts("vitalSigns")}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-3">
@@ -256,7 +254,7 @@ export default async function AppointmentDetailPage({
       {appointment.diagnoses.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Diagnosis</CardTitle>
+            <CardTitle>{ts("diagnosis")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             <DiagnosisList diagnoses={appointment.diagnoses} canDelete={false} />
@@ -267,7 +265,7 @@ export default async function AppointmentDetailPage({
       {appointment.notes && (
         <Card>
           <CardHeader>
-            <CardTitle>Clinical Notes</CardTitle>
+            <CardTitle>{ts("clinicalNotes")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap text-sm">{appointment.notes}</p>
@@ -278,7 +276,7 @@ export default async function AppointmentDetailPage({
       {appointment.treatmentPlan && (
         <Card>
           <CardHeader>
-            <CardTitle>Treatment Plan</CardTitle>
+            <CardTitle>{ts("treatmentPlan")}</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="whitespace-pre-wrap text-sm">{appointment.treatmentPlan}</p>
@@ -299,7 +297,7 @@ export default async function AppointmentDetailPage({
                     {new Date(rx.createdAt).toLocaleString()}
                   </span>
                   <Badge variant={rx.fulfilled ? "success" : "outline"}>
-                    {rx.fulfilled ? "Fulfilled" : "Pending"}
+                    {rx.fulfilled ? ts("fulfilled") : ts("pending")}
                   </Badge>
                 </div>
                 <ul className="grid gap-2 text-sm">
@@ -321,7 +319,7 @@ export default async function AppointmentDetailPage({
       {appointment.labOrders.length > 0 && (
         <Card>
           <CardHeader>
-            <CardTitle>Lab Orders</CardTitle>
+            <CardTitle>{ts("labOrders")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-3">
             {appointment.labOrders.map((order) => (
@@ -331,7 +329,7 @@ export default async function AppointmentDetailPage({
                     {new Date(order.createdAt).toLocaleString()}
                   </span>
                   <Badge variant={order.status === "COMPLETED" ? "success" : "outline"}>
-                    {order.status.replace("_", " ")}
+                  {labStatusLabel(order.status)}
                   </Badge>
                 </div>
                 <ul className="text-sm">
@@ -344,7 +342,7 @@ export default async function AppointmentDetailPage({
                     href={`/lab-report/${order.id}`}
                     className="text-sm underline text-muted-foreground"
                   >
-                    View report
+                    {ts("viewReport")}
                   </Link>
                 )}
               </div>

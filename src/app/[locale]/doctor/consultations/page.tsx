@@ -1,4 +1,5 @@
 import { Clock, CheckCircle2, AlertTriangle } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { todayRange } from "@/lib/queue";
@@ -21,6 +22,7 @@ function waitingMinutes(checkedInAt: Date | null, now: Date) {
 
 export default async function ConsultationsPage() {
   const session = await requirePageRole(["DOCTOR"]);
+  const t = await getTranslations("doctorConsultations");
   const doctorId = session.user.doctorId;
   const { start, end } = todayRange();
   const now = new Date();
@@ -54,8 +56,8 @@ export default async function ConsultationsPage() {
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Consultations</h1>
-        <p className="text-muted-foreground">Start and manage patient consultations for today.</p>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <p className="text-muted-foreground">{t("description")}</p>
       </div>
 
       <Tabs defaultValue="waiting">
@@ -64,7 +66,7 @@ export default async function ConsultationsPage() {
             value="waiting"
             className="data-active:bg-primary data-active:text-primary-foreground"
           >
-            Waiting
+            {t("waiting")}
             <Badge variant="secondary" className="ml-1">
               {waiting.length}
             </Badge>
@@ -73,7 +75,7 @@ export default async function ConsultationsPage() {
             value="completed"
             className="data-active:bg-primary data-active:text-primary-foreground"
           >
-            Completed Today
+            {t("completedToday")}
             <Badge variant="secondary" className="ml-1">
               {completed.length}
             </Badge>
@@ -82,7 +84,7 @@ export default async function ConsultationsPage() {
 
         <TabsContent value="waiting" className="grid gap-3">
           {waiting.length === 0 ? (
-            <EmptyState icon={Clock} message="No one waiting." />
+            <EmptyState icon={Clock} message={t("noOneWaiting")} />
           ) : (
             waiting.map((appt, index) => {
               const age = calculateAge(appt.patient.dob);
@@ -121,16 +123,16 @@ export default async function ConsultationsPage() {
                         </p>
                         <Badge variant="outline" className="gap-1 bg-amber-100 text-amber-700">
                           <Clock className="size-3" />
-                          Waiting {minutes} min
+                          {t("waitingMinutes", { count: minutes })}
                         </Badge>
                         {urgent && (
                           <Badge variant="destructive" className="gap-1">
                             <AlertTriangle className="size-3" />
-                            URGENT
+                            {t("urgent")}
                           </Badge>
                         )}
                       </div>
-                      <p className="text-sm text-muted-foreground">{appt.reason || "No reason given"}</p>
+                      <p className="text-sm text-muted-foreground">{appt.reason || t("noReason")}</p>
                       {appt.patient.allergyRecords.length > 0 && (
                         <div className="mt-1.5 flex flex-wrap gap-1">
                           {appt.patient.allergyRecords.map((a) => (
@@ -147,7 +149,7 @@ export default async function ConsultationsPage() {
                     asChild
                     className={urgent ? "bg-red-600 text-white hover:bg-red-700" : "bg-emerald-600 text-white hover:bg-emerald-700"}
                   >
-                    <Link href={`/doctor/appointments/${appt.id}`}>Start</Link>
+                    <Link href={`/doctor/appointments/${appt.id}`}>{t("start")}</Link>
                   </Button>
                 </div>
               );
@@ -157,7 +159,7 @@ export default async function ConsultationsPage() {
 
         <TabsContent value="completed" className="grid gap-3">
           {completed.length === 0 ? (
-            <EmptyState icon={CheckCircle2} message="No consultations completed yet today." />
+            <EmptyState icon={CheckCircle2} message={t("noCompleted")} />
           ) : (
             completed.map((appt, index) => {
               const age = calculateAge(appt.patient.dob);
@@ -188,7 +190,7 @@ export default async function ConsultationsPage() {
                           {formatAppointmentTime(appt, isRangeBooking, { hour: "2-digit", minute: "2-digit" })}
                         </span>
                         <Badge variant="outline" className="bg-indigo-100 text-indigo-700">
-                          Completed
+                          {t("completed")}
                         </Badge>
                       </div>
                       {diagnosis && <p className="text-sm text-muted-foreground">{diagnosis}</p>}

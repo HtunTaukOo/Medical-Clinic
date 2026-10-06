@@ -6,6 +6,7 @@ import { ResultEntryForm } from "@/components/lab/result-entry-form";
 import { BackLink } from "@/components/back-link";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { getTranslations } from "next-intl/server";
 
 export default async function ExternalLabReferralDetailPage({
   params,
@@ -13,6 +14,7 @@ export default async function ExternalLabReferralDetailPage({
   params: Promise<{ id: string }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
+  const t = await getTranslations("staffLab");
   const { id } = await params;
 
   const referral = await prisma.externalLabReferral.findUnique({
@@ -31,7 +33,7 @@ export default async function ExternalLabReferralDetailPage({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{referral.patient.name}</h1>
-          <p className="text-muted-foreground">Referred to {referral.referredLabName}</p>
+          <p className="text-muted-foreground">{t("referredTo", { name: referral.referredLabName })}</p>
         </div>
         <Badge variant="outline">{referral.status}</Badge>
       </div>
@@ -39,7 +41,7 @@ export default async function ExternalLabReferralDetailPage({
       {referral.status === "SENDING" && (
         <Card>
           <CardContent className="text-muted-foreground">
-            Mark this referral received before entering results.
+            {t("receiveBeforeResults")}
           </CardContent>
         </Card>
       )}
@@ -47,7 +49,7 @@ export default async function ExternalLabReferralDetailPage({
       {referral.status === "RECEIVED" && !resultsEntered && (
         <Card>
           <CardHeader>
-            <CardTitle>Enter results</CardTitle>
+            <CardTitle>{t("enterResults")}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResultEntryForm
@@ -69,23 +71,23 @@ export default async function ExternalLabReferralDetailPage({
       {referral.status === "RECEIVED" && resultsEntered && (
         <Card>
           <CardHeader>
-            <CardTitle>Results</CardTitle>
+            <CardTitle>{t("results")}</CardTitle>
           </CardHeader>
           <CardContent className="grid gap-4">
             {referral.items.map((item) => (
               <div key={item.id} className="rounded-md border p-3">
                 <p className="font-medium">{item.labTest.name}</p>
                 <p className="text-sm">
-                  Result: {item.resultValue ?? "—"}
+                  {t("result", { value: item.resultValue ?? "—" })}
                   {item.labTest.unit && item.resultValue ? ` ${item.labTest.unit}` : ""}
                 </p>
                 {item.labTest.normalRange && (
                   <p className="text-sm text-muted-foreground">
-                    Normal range: {item.labTest.normalRange}
+                    {t("normalRange", { range: item.labTest.normalRange })}
                   </p>
                 )}
                 {item.resultNote && (
-                  <p className="text-sm text-muted-foreground">Note: {item.resultNote}</p>
+                  <p className="text-sm text-muted-foreground">{t("note", { note: item.resultNote })}</p>
                 )}
               </div>
             ))}
@@ -95,7 +97,7 @@ export default async function ExternalLabReferralDetailPage({
 
       {referral.status === "CANCELLED" && (
         <Card>
-          <CardContent className="text-muted-foreground">This referral was cancelled.</CardContent>
+          <CardContent className="text-muted-foreground">{t("referralCancelled")}</CardContent>
         </Card>
       )}
     </div>

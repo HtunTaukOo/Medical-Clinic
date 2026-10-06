@@ -87,17 +87,34 @@ export async function deleteDiagnosis(diagnosisId: string) {
   revalidatePath("/portal/medical-records");
 }
 
-export async function setDiagnosisStatus(diagnosisId: string, status: "ACTIVE" | "RESOLVED") {
+export async function setDiagnosisStatus(
+  diagnosisId: string,
+  status: "ACTIVE" | "RESOLVED",
+  appointmentId: string
+) {
   const session = await requireRole(["DOCTOR"]);
 
   const diagnosis = await prisma.diagnosis.findUniqueOrThrow({ where: { id: diagnosisId } });
-  if (diagnosis.doctorId !== session.user.doctorId) {
-    throw new UnauthorizedError("Not your diagnosis");
+  const appointment = await prisma.appointment.findUnique({
+    where: { id: appointmentId },
+    select: { doctorId: true, patientId: true, status: true },
+  });
+  if (
+    !appointment ||
+    appointment.doctorId !== session.user.doctorId ||
+    appointment.patientId !== diagnosis.patientId ||
+    !["CHECKED_IN", "COMPLETED"].includes(appointment.status)
+  ) {
+    throw new UnauthorizedError("You can only update a patient's diagnosis during their consultation");
   }
 
-  await prisma.diagnosis.update({ where: { id: diagnosisId }, data: { status } });
+  await prisma.diagnosis.update({
+    where: { id: diagnosisId },
+    data: { status, statusChangedAt: new Date(), statusChangedAppointmentId: appointmentId },
+  });
 
   revalidatePath(`/doctor/appointments/${diagnosis.appointmentId}`);
+  revalidatePath(`/doctor/appointments/${appointmentId}`);
   revalidatePath(`/doctor/patients/${diagnosis.patientId}`);
   revalidatePath(`/portal/appointments/${diagnosis.appointmentId}`);
   revalidatePath("/portal/medical-records");

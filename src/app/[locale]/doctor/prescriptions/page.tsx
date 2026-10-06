@@ -1,8 +1,8 @@
 import { Pill, Clock, Hourglass, RotateCw, History as HistoryIcon } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import { prisma } from "@/lib/prisma";
 import { requirePageRole } from "@/lib/authz";
 import { initials } from "@/lib/format";
-import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -11,6 +11,7 @@ import { AVATAR_COLORS } from "@/components/appointments/appointment-row";
 
 export default async function PrescriptionsPage() {
   const session = await requirePageRole(["DOCTOR"]);
+  const t = await getTranslations("doctorPrescriptions");
   const doctorId = session.user.doctorId;
 
   const [active, history] = doctorId
@@ -32,13 +33,9 @@ export default async function PrescriptionsPage() {
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Prescriptions</h1>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-muted-foreground">
-          Review and manage patient prescriptions. Write new ones from a{" "}
-          <Link href="/doctor/consultations" className="underline">
-            patient&apos;s consultation
-          </Link>
-          .
+          {t("description")}
         </p>
       </div>
 
@@ -48,19 +45,19 @@ export default async function PrescriptionsPage() {
             value="active"
             className="data-active:bg-primary data-active:text-primary-foreground"
           >
-            Active ({active.length})
+            {t("active", { count: active.length })}
           </TabsTrigger>
           <TabsTrigger
             value="history"
             className="data-active:bg-primary data-active:text-primary-foreground"
           >
-            History
+            {t("history")}
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="active" className="grid gap-3">
           {active.length === 0 ? (
-            <EmptyState icon={Pill} message="No active prescriptions." />
+            <EmptyState icon={Pill} message={t("noActive")} />
           ) : (
             active.map((rx, index) =>
               rx.items.map((item) => (
@@ -96,13 +93,13 @@ export default async function PrescriptionsPage() {
                           {(item.duration || item.durationDays) && (
                             <span className="flex items-center gap-1">
                               <Hourglass className="size-3.5" />
-                              {item.duration ?? `${item.durationDays} days`}
+                              {item.duration ?? t("days", { count: item.durationDays ?? 0 })}
                             </span>
                           )}
                           {item.refillsLeft != null && (
                             <Badge variant="outline" className="gap-1 bg-blue-50 text-blue-700">
                               <RotateCw className="size-3" />
-                              {item.refillsLeft} refill{item.refillsLeft === 1 ? "" : "s"} left
+                              {t("refillsLeft", { count: item.refillsLeft })}
                             </Badge>
                           )}
                         </div>
@@ -114,7 +111,7 @@ export default async function PrescriptionsPage() {
                       </div>
                     </div>
                     <Badge variant="outline" className="bg-blue-100 text-blue-700">
-                      Active
+                      {t("activeStatus")}
                     </Badge>
                   </div>
                 </div>
@@ -125,7 +122,7 @@ export default async function PrescriptionsPage() {
 
         <TabsContent value="history" className="grid gap-3">
           {history.length === 0 ? (
-            <EmptyState icon={HistoryIcon} message="No fulfilled prescriptions yet." />
+            <EmptyState icon={HistoryIcon} message={t("noFulfilled")} />
           ) : (
             history.map((rx, index) =>
               rx.items.map((item) => (
@@ -147,7 +144,7 @@ export default async function PrescriptionsPage() {
                         {item.dosage}
                         {item.frequency && ` · ${item.frequency}`}
                         {(item.duration || item.durationDays) &&
-                          ` · ${item.duration ?? `${item.durationDays} days`}`}
+                          ` · ${item.duration ?? t("days", { count: item.durationDays ?? 0 })}`}
                       </p>
                       {rx.fulfilledAt && (
                         <p className="text-xs text-muted-foreground">
@@ -161,7 +158,7 @@ export default async function PrescriptionsPage() {
                     </div>
                   </div>
                   <Badge variant="outline" className="bg-indigo-100 text-indigo-700">
-                    Completed
+                    {t("completed")}
                   </Badge>
                 </div>
               ))

@@ -7,9 +7,11 @@ import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
 import { BackLink } from "@/components/back-link";
+import { getTranslations } from "next-intl/server";
 
 export default async function AnnouncementsPage() {
   await requirePageRole(["ADMIN", "STAFF"]);
+  const t = await getTranslations("staffAnnouncements");
 
   const announcements = await prisma.announcement.findMany({
     orderBy: { createdAt: "desc" },
@@ -21,14 +23,14 @@ export default async function AnnouncementsPage() {
       <BackLink href="/staff" />
 
       <div>
-        <h1 className="text-2xl font-semibold">Announcements</h1>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">
-          Messages posted to staff and patients.
+          {t("description")}
         </p>
       </div>
 
       {announcements.length === 0 ? (
-        <EmptyState icon={Megaphone} message="No announcements yet." />
+        <EmptyState icon={Megaphone} message={t("empty")} />
       ) : (
         <div className="grid gap-4">
           {announcements.map((a) => (
@@ -45,13 +47,13 @@ export default async function AnnouncementsPage() {
                     </p>
                   </div>
                   <Badge variant={a.active ? "success" : "outline"}>
-                    {a.active ? "Published" : "Hidden"}
+                    {a.active ? t("published") : t("hidden")}
                   </Badge>
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{a.body}</p>
                 <form action={toggleAnnouncementActive.bind(null, a.id)}>
                   <Button size="sm" variant="outline" type="submit" className="w-fit">
-                    {a.active ? "Hide" : "Publish"}
+                    {a.active ? t("hide") : t("publish")}
                   </Button>
                 </form>
               </CardContent>

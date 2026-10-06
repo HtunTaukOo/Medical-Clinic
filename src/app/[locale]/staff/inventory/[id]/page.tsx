@@ -50,8 +50,7 @@ export default async function MedicineHistoryPage({
         <div>
           <h1 className="text-2xl font-semibold">{medicine.name}</h1>
           <p className="text-muted-foreground">
-            {medicine.stockQty} {medicine.unit} in stock &mdash;{" "}
-            {Number(medicine.price).toFixed(2)} per {medicine.unit}
+            {t("inStockSummary", { quantity: medicine.stockQty, unit: medicine.unit, price: Number(medicine.price).toFixed(2) })}
           </p>
         </div>
         <div className="flex flex-col items-end gap-2">
@@ -69,7 +68,7 @@ export default async function MedicineHistoryPage({
           <Button asChild size="sm" variant="outline">
             <Link href={`/staff/inventory/${medicine.id}/edit`}>
               <Pencil className="size-4" />
-              Edit
+              {t("edit")}
             </Link>
           </Button>
         </div>
@@ -105,7 +104,7 @@ export default async function MedicineHistoryPage({
 
       <Card>
         <CardHeader>
-          <CardTitle>Patient portal pharmacy promo</CardTitle>
+          <CardTitle>{t("portalPromo")}</CardTitle>
         </CardHeader>
         <CardContent>
           <MedicinePromoForm
@@ -120,25 +119,25 @@ export default async function MedicineHistoryPage({
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0">
-          <CardTitle>Stock history</CardTitle>
+          <CardTitle>{t("stockHistory")}</CardTitle>
           <Link
             href={`/staff/inventory/stock-movement?q=${encodeURIComponent(medicine.name)}`}
             className="text-sm underline"
           >
-            View in Stock Movement
+            {t("viewInStockMovement")}
           </Link>
         </CardHeader>
         <CardContent>
           {medicine.stockTransactions.length === 0 ? (
-            <EmptyState icon={History} message="No stock movements recorded yet." />
+            <EmptyState icon={History} message={t("noStockMovements")} />
           ) : (
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Date</TableHead>
-                  <TableHead>Type</TableHead>
-                  <TableHead>Quantity</TableHead>
-                  <TableHead>Reason</TableHead>
+                  <TableHead>{t("date")}</TableHead>
+                  <TableHead>{t("transactionType")}</TableHead>
+                  <TableHead>{t("quantity")}</TableHead>
+                  <TableHead>{t("reason")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

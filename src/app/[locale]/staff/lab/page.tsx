@@ -22,6 +22,7 @@ import { DeleteLabTestButton } from "@/components/lab/delete-lab-test-button";
 import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categories";
 import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
 import { calculateAge } from "@/lib/format";
+import { getLocale, getTranslations } from "next-intl/server";
 
 const STATUS_STYLES: Record<string, string> = {
   ORDERED: "bg-amber-100 text-amber-800",
@@ -33,11 +34,9 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const TABS = [
-  { value: "new", label: "New Test" },
-  { value: "orders", label: "Orders" },
-  { value: "external", label: "External Lab Test" },
-  { value: "catalog", label: "Test Catalog" },
-  { value: "history", label: "History" },
+  { value: "new", label: "newTest" }, { value: "orders", label: "orders" },
+  { value: "external", label: "externalLabTest" }, { value: "catalog", label: "testCatalog" },
+  { value: "history", label: "history" },
 ] as const;
 type Tab = (typeof TABS)[number]["value"];
 
@@ -47,6 +46,8 @@ export default async function LabPage({
   searchParams: Promise<{ tab?: string }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
+  const t = await getTranslations("staffLab");
+  const locale = await getLocale();
   const { tab: tabParam } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "new";
 
@@ -121,14 +122,14 @@ export default async function LabPage({
     <TabTransitionScope>
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-semibold">Laboratory</h1>
-        <p className="text-sm text-muted-foreground">Manage lab test orders and results.</p>
+        <h1 className="text-2xl font-semibold">{t("title")}</h1>
+        <p className="text-sm text-muted-foreground">{t("description")}</p>
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         {TABS.map(({ value, label }) => (
           <TabButton key={value} href={`/staff/lab?tab=${value}`} active={tab === value} size="sm">
-            {label}
+            {t(label)}
           </TabButton>
         ))}
       </div>
@@ -152,19 +153,14 @@ export default async function LabPage({
 
       {tab === "orders" &&
         (activeOrders.length === 0 ? (
-          <EmptyState icon={ClipboardList} message="No pending lab orders." />
+          <EmptyState icon={ClipboardList} message={t("noPendingOrders")} />
         ) : (
           <Card>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Patient</TableHead>
-                    <TableHead>Doctor</TableHead>
-                    <TableHead>Tests</TableHead>
-                    <TableHead>Ordered</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("patient")}</TableHead><TableHead>{t("doctor")}</TableHead><TableHead>{t("tests")}</TableHead><TableHead>{t("ordered")}</TableHead><TableHead>{t("status")}</TableHead><TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -185,7 +181,7 @@ export default async function LabPage({
                         {order.items.map((i) => i.labTest.name).join(", ")}
                       </TableCell>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {order.createdAt.toLocaleDateString(undefined, {
+                        {order.createdAt.toLocaleDateString(locale === "my" ? "my-MM" : "en-US", {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -193,7 +189,7 @@ export default async function LabPage({
                       </TableCell>
                       <TableCell>
                         <Badge className={STATUS_STYLES[order.status]}>
-                          {order.status.replace("_", " ")}
+                          {t(order.status === "ORDERED" ? "orderedStatus" : "sampleCollected")}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -203,7 +199,7 @@ export default async function LabPage({
                               type="submit"
                               className="font-medium text-primary underline underline-offset-2"
                             >
-                              Collect sample
+                              {t("collectSample")}
                             </button>
                           </form>
                         ) : (
@@ -211,7 +207,7 @@ export default async function LabPage({
                             href={`/staff/lab/${order.id}`}
                             className="font-medium text-primary underline underline-offset-2"
                           >
-                            Enter results
+                            {t("enterResults")}
                           </Link>
                         )}
                       </TableCell>
@@ -238,30 +234,21 @@ export default async function LabPage({
           />
 
           {externalReferrals.length === 0 ? (
-            <EmptyState icon={FlaskConical} message="No external lab referrals yet." />
+            <EmptyState icon={FlaskConical} message={t("noExternalReferrals")} />
           ) : (
             <Card>
               <CardContent className="overflow-x-auto">
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Age</TableHead>
-                      <TableHead>ID</TableHead>
-                      <TableHead>Requested test</TableHead>
-                      <TableHead>Refer lab</TableHead>
-                      <TableHead>Sample collected time</TableHead>
-                      <TableHead>Requested time</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableHead>{t("date")}</TableHead><TableHead>{t("name")}</TableHead><TableHead>{t("age")}</TableHead><TableHead>{t("id")}</TableHead><TableHead>{t("requestedTest")}</TableHead><TableHead>{t("referLab")}</TableHead><TableHead>{t("sampleCollectedTime")}</TableHead><TableHead>{t("requestedTime")}</TableHead><TableHead>{t("status")}</TableHead><TableHead className="text-right">{t("actions")}</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {externalReferrals.map((referral) => (
                       <TableRow key={referral.id}>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {referral.createdAt.toLocaleDateString(undefined, {
+                          {referral.createdAt.toLocaleDateString(locale === "my" ? "my-MM" : "en-US", {
                             month: "short",
                             day: "numeric",
                             year: "numeric",
@@ -301,7 +288,7 @@ export default async function LabPage({
                           </div>
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {referral.sampleCollectedAt.toLocaleString(undefined, {
+                          {referral.sampleCollectedAt.toLocaleString(locale === "my" ? "my-MM" : "en-US", {
                             month: "short",
                             day: "numeric",
                             hour: "numeric",
@@ -309,7 +296,7 @@ export default async function LabPage({
                           })}
                         </TableCell>
                         <TableCell className="whitespace-nowrap text-muted-foreground">
-                          {referral.requestedAt.toLocaleString(undefined, {
+                          {referral.requestedAt.toLocaleString(locale === "my" ? "my-MM" : "en-US", {
                             month: "short",
                             day: "numeric",
                             hour: "numeric",
@@ -319,10 +306,10 @@ export default async function LabPage({
                         <TableCell>
                           <Badge className={STATUS_STYLES[referral.status]}>
                             {referral.status === "SENDING"
-                              ? "Sending"
+                              ? t("sending")
                               : referral.status === "RECEIVED"
-                                ? "Received"
-                                : "Cancelled"}
+                                ? t("received")
+                                : t("cancelled")}
                           </Badge>
                         </TableCell>
                         <TableCell className="text-right">
@@ -333,7 +320,7 @@ export default async function LabPage({
                                   type="submit"
                                   className="font-medium text-primary underline underline-offset-2"
                                 >
-                                  Mark Received
+                                  {t("markReceived")}
                                 </button>
                               </form>
                               <form action={cancelExternalLabReferral.bind(null, referral.id)} className="inline">
@@ -341,7 +328,7 @@ export default async function LabPage({
                                   type="submit"
                                   className="font-medium text-destructive underline underline-offset-2"
                                 >
-                                  Cancel
+                                  {t("cancel")}
                                 </button>
                               </form>
                             </div>
@@ -351,7 +338,7 @@ export default async function LabPage({
                               href={`/staff/lab/external/${referral.id}`}
                               className="font-medium text-primary underline underline-offset-2"
                             >
-                              Enter results
+                              {t("enterResults")}
                             </Link>
                           ) : (
                             <span className="whitespace-nowrap text-muted-foreground">
@@ -373,11 +360,11 @@ export default async function LabPage({
         <div className="grid gap-4">
           <div className="flex items-center justify-end">
             <Button asChild size="sm">
-              <Link href="/staff/lab-tests/new">Add Test Type</Link>
+              <Link href="/staff/lab-tests/new">{t("addTestType")}</Link>
             </Button>
           </div>
           {tests.length === 0 ? (
-            <EmptyState icon={FlaskConical} message="No lab tests in the catalog yet." />
+            <EmptyState icon={FlaskConical} message={t("noTests")} />
           ) : (
             <div className="grid gap-6">
               {LAB_TEST_CATEGORIES.map((category) => {
@@ -411,7 +398,7 @@ export default async function LabPage({
                                       variant="outline"
                                       className="mt-1 w-fit border-amber-300 text-amber-700"
                                     >
-                                      Sent Externally
+                                      {t("sentExternally")}
                                     </Badge>
                                   )}
                                 </div>
@@ -421,14 +408,14 @@ export default async function LabPage({
                                   href={`/staff/lab-tests/${test.id}/edit`}
                                   className="text-sm font-medium text-primary underline underline-offset-2"
                                 >
-                                  Edit
+                                  {t("edit")}
                                 </Link>
                                 <DeleteLabTestButton testId={test.id} name={test.name} />
                               </div>
                             </div>
                             {test.normalRange && (
                               <p className="text-sm text-muted-foreground">
-                                Normal range: {test.normalRange}
+                                {t("normalRange", { range: test.normalRange })}
                               </p>
                             )}
                           </CardContent>
@@ -445,26 +432,21 @@ export default async function LabPage({
 
       {tab === "history" &&
         (historyOrders.length === 0 ? (
-          <EmptyState icon={HistoryIcon} message="No completed lab orders yet." />
+          <EmptyState icon={HistoryIcon} message={t("noCompletedOrders")} />
         ) : (
           <Card>
             <CardContent>
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Date</TableHead>
-                    <TableHead>Patient</TableHead>
-                    <TableHead>Doctor</TableHead>
-                    <TableHead>Tests</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead>{t("date")}</TableHead><TableHead>{t("patient")}</TableHead><TableHead>{t("doctor")}</TableHead><TableHead>{t("tests")}</TableHead><TableHead>{t("status")}</TableHead><TableHead className="text-right">{t("actions")}</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   {historyOrders.map((order) => (
                     <TableRow key={order.id}>
                       <TableCell className="whitespace-nowrap text-muted-foreground">
-                        {order.createdAt.toLocaleDateString(undefined, {
+                        {order.createdAt.toLocaleDateString(locale === "my" ? "my-MM" : "en-US", {
                           month: "short",
                           day: "numeric",
                           year: "numeric",
@@ -479,7 +461,7 @@ export default async function LabPage({
                       </TableCell>
                       <TableCell>
                         <Badge className={STATUS_STYLES[order.status]}>
-                          {order.status.replace("_", " ")}
+                          {t(order.status === "COMPLETED" ? "completed" : "cancelled")}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
@@ -488,14 +470,14 @@ export default async function LabPage({
                             href={`/staff/lab/${order.id}`}
                             className="font-medium text-primary underline underline-offset-2"
                           >
-                            View
+                            {t("view")}
                           </Link>
                           {order.status === "COMPLETED" && (
                             <Link
                               href={`/lab-report/${order.id}`}
                               className="font-medium text-primary underline underline-offset-2"
                             >
-                              Report
+                              {t("report")}
                             </Link>
                           )}
                         </div>
