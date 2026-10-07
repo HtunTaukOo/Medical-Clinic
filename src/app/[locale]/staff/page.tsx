@@ -699,7 +699,7 @@ export default async function StaffDashboardPage({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle>{t("queueOverview")}</CardTitle>
-              <Link href="/staff/queue" className="text-sm underline">
+              <Link href="/staff/queue?from=dashboard" className="text-sm underline">
                 {t("viewAll")}
               </Link>
             </CardHeader>
@@ -766,7 +766,7 @@ export default async function StaffDashboardPage({
                       Upcoming
                     </Link>
                   </div>
-                  <Link href="/staff/appointments" className="text-sm underline">
+                  <Link href="/staff/appointments?from=dashboard" className="text-sm underline">
                     {t("viewAll")}
                   </Link>
                 </div>
@@ -874,7 +874,7 @@ export default async function StaffDashboardPage({
                     </Badge>
                   )}
                 </div>
-                <Link href="/staff/lab" className="text-sm underline">
+                <Link href="/staff/lab?from=dashboard" className="text-sm underline">
                   {t("viewAll")}
                 </Link>
               </CardHeader>
@@ -922,7 +922,7 @@ export default async function StaffDashboardPage({
             <Card>
               <CardHeader className="flex flex-row items-center justify-between space-y-0">
                 <CardTitle>{t("pendingPrescriptionsTitle")}</CardTitle>
-                <Link href="/staff/inventory" className="text-sm underline">
+                <Link href="/staff/inventory?from=dashboard" className="text-sm underline">
                   {t("viewAll")}
                 </Link>
               </CardHeader>

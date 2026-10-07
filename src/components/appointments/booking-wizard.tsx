@@ -139,12 +139,17 @@ export function BookingWizard({
     "General Medicine": { name: t("specialtyGeneralMedicineName"), description: t("specialtyGeneralMedicineDescription") },
     Cardiology: { name: t("specialtyCardiologyName"), description: t("specialtyCardiologyDescription") },
     Pediatrics: { name: t("specialtyPediatricsName"), description: t("specialtyPediatricsDescription") },
+    Pediatrician: { name: t("specialtyPediatricsName"), description: t("specialtyPediatricsDescription") },
     Dermatology: { name: t("specialtyDermatologyName"), description: t("specialtyDermatologyDescription") },
     Orthopedics: { name: t("specialtyOrthopedicsName"), description: t("specialtyOrthopedicsDescription") },
     ENT: { name: t("specialtyEntName"), description: t("specialtyEntDescription") },
     "Obs & Gynecology": { name: t("specialtyObsGynecologyName"), description: t("specialtyObsGynecologyDescription") },
+    "Obs & Gynecologist": { name: t("specialtyObsGynecologyName"), description: t("specialtyObsGynecologyDescription") },
     Ophthalmology: { name: t("specialtyOphthalmologyName"), description: t("specialtyOphthalmologyDescription") },
     "Lab Visit": { name: t("specialtyLabVisitName"), description: t("specialtyLabVisitDescription") },
+    "Radiation Oncologist": { name: t("specialtyRadiationOncologyName"), description: t("specialtyRadiationOncologyDescription") },
+    "General Surgeon": { name: t("specialtyGeneralSurgeryName"), description: t("specialtyGeneralSurgeryDescription") },
+    "General Physician": { name: t("specialtyGeneralPhysicianName"), description: t("specialtyGeneralPhysicianDescription") },
   };
   const router = useRouter();
   const REASON_OPTIONS = [

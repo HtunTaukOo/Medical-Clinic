@@ -786,7 +786,13 @@
       "specialtyOphthalmologyName": "Ophthalmology",
       "specialtyOphthalmologyDescription": "Vision, eye disease, glasses & surgery",
       "specialtyLabVisitName": "Lab Visit",
-      "specialtyLabVisitDescription": "Drawing blood to see diabetes level"
+      "specialtyLabVisitDescription": "Drawing blood to see diabetes level",
+      "specialtyRadiationOncologyName": "Radiation Oncology",
+      "specialtyRadiationOncologyDescription": "Cancer diagnosis, radiation therapy, tumor treatment",
+      "specialtyGeneralSurgeryName": "General Surgery",
+      "specialtyGeneralSurgeryDescription": "Surgical consultations, operations, and post-operative care",
+      "specialtyGeneralPhysicianName": "General Physician",
+      "specialtyGeneralPhysicianDescription": "Non-surgical general health conditions for adults and families"
     },
     "waitlistForm": {
       "onWaitlist": "You're on the waitlist — we'll notify you if this doctor has an opening around that time.",

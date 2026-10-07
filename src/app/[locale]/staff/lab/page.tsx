@@ -23,6 +23,7 @@ import { LAB_TEST_CATEGORIES, LAB_TEST_CATEGORY_LABELS } from "@/lib/lab-categor
 import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
 import { calculateAge } from "@/lib/format";
 import { getLocale, getTranslations } from "next-intl/server";
+import { BackLink } from "@/components/back-link";
 
 const STATUS_STYLES: Record<string, string> = {
   ORDERED: "bg-amber-100 text-amber-800",
@@ -43,12 +44,12 @@ type Tab = (typeof TABS)[number]["value"];
 export default async function LabPage({
   searchParams,
 }: {
-  searchParams: Promise<{ tab?: string }>;
+  searchParams: Promise<{ tab?: string; from?: string }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("staffLab");
   const locale = await getLocale();
-  const { tab: tabParam } = await searchParams;
+  const { tab: tabParam, from } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "new";
 
   const [
@@ -121,6 +122,7 @@ export default async function LabPage({
   return (
     <TabTransitionScope>
     <div className="grid gap-6">
+      {from === "dashboard" && <BackLink href="/staff" />}
       <div>
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">{t("description")}</p>
@@ -128,7 +130,12 @@ export default async function LabPage({
 
       <div className="flex flex-wrap items-center gap-2">
         {TABS.map(({ value, label }) => (
-          <TabButton key={value} href={`/staff/lab?tab=${value}`} active={tab === value} size="sm">
+          <TabButton
+            key={value}
+            href={`/staff/lab?tab=${value}${from === "dashboard" ? "&from=dashboard" : ""}`}
+            active={tab === value}
+            size="sm"
+          >
             {t(label)}
           </TabButton>
         ))}

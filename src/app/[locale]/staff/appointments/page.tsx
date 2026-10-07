@@ -27,6 +27,7 @@ import { EmptyState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
 import { InventoryFilterSelect } from "@/components/inventory/inventory-filter-select";
 import { DateFilterInput } from "@/components/appointments/date-filter-input";
+import { BackLink } from "@/components/back-link";
 import { RescheduleDialog } from "@/components/appointments/reschedule-dialog";
 import { CompleteCheckoutButton } from "@/components/appointments/complete-checkout-button";
 import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
@@ -95,6 +96,7 @@ export default async function AppointmentsPage({
     q?: string;
     specialty?: string;
     date?: string;
+    from?: string;
   }>;
 }) {
   await requireStaffPermissionPage("VIEW_APPOINTMENTS");
@@ -108,6 +110,7 @@ export default async function AppointmentsPage({
     q,
     specialty,
     date,
+    from,
   } = await searchParams;
   const view = viewParam === "calendar" ? "calendar" : "list";
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "all";
@@ -191,6 +194,7 @@ export default async function AppointmentsPage({
   return (
     <TabTransitionScope>
     <div className="grid gap-4">
+      {from === "dashboard" && <BackLink href="/staff" />}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold">{t("title")}</h1>

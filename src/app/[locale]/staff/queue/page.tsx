@@ -12,6 +12,7 @@ import {
 import { callWalkIn, cancelWalkIn } from "@/actions/walk-ins";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/ui/button";
+import { BackLink } from "@/components/back-link";
 import {
   getRangeBookingSpecialtyNames,
   isRangeBookingAppointment,
@@ -77,10 +78,15 @@ function ActionButton({
   );
 }
 
-export default async function QueuePage() {
+export default async function QueuePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>;
+}) {
   await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("appointments");
   const tq = await getTranslations("staffQueue");
+  const { from } = await searchParams;
   const { start, end } = todayRange();
 
   const [appointments, walkIns, rangeBookingNames] = await Promise.all([
@@ -271,6 +277,7 @@ export default async function QueuePage() {
 
   return (
     <div className="grid gap-6">
+      {from === "dashboard" && <BackLink href="/staff" />}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{tq("title")}</h1>

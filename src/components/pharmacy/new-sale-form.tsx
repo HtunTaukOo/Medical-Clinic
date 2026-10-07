@@ -276,7 +276,10 @@ export function NewSaleForm({
   return (
     <form action={handleSubmit} className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div className="grid gap-4">
-        <Card className="relative z-20 overflow-visible">
+        {/* Keep patient suggestions above the following OTC card. A dropdown
+            cannot escape its parent stacking context, so this card must sit
+            above the card rendered after it. */}
+        <Card className="relative z-30 overflow-visible">
           <CardHeader>
             <CardTitle className="text-base">{t("prescriptionReference")}</CardTitle>
           </CardHeader>

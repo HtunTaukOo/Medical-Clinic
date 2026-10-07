@@ -788,7 +788,13 @@
       "specialtyOphthalmologyName": "မျက်စိရောဂါကု",
       "specialtyOphthalmologyDescription": "အမြင်အာရုံ၊ မျက်စိရောဂါ၊ မျက်မှန်နှင့် ခွဲစိတ်ကုသမှု",
       "specialtyLabVisitName": "ဓာတ်ခွဲလာရောက်မှု",
-      "specialtyLabVisitDescription": "ဆီးချိုအဆင့်စစ်ဆေးရန် သွေးယူခြင်း"
+      "specialtyLabVisitDescription": "ဆီးချိုအဆင့်စစ်ဆေးရန် သွေးယူခြင်း",
+      "specialtyRadiationOncologyName": "ဓာတ်ရောင်ခြည်ကင်ဆာကုသမှု",
+      "specialtyRadiationOncologyDescription": "ကင်ဆာရောဂါစစ်ဆေးခြင်း၊ ဓာတ်ရောင်ခြည်ကုသမှုနှင့် အကျိတ်ကုသမှု",
+      "specialtyGeneralSurgeryName": "အထွေထွေခွဲစိတ်ကုသမှု",
+      "specialtyGeneralSurgeryDescription": "ခွဲစိတ်တိုင်ပင်ဆွေးနွေးခြင်း၊ ခွဲစိတ်ကုသခြင်းနှင့် ခွဲစိတ်ပြီးနောက် စောင့်ရှောက်မှု",
+      "specialtyGeneralPhysicianName": "အထွေထွေရောဂါကုဆရာဝန်",
+      "specialtyGeneralPhysicianDescription": "လူကြီးနှင့် မိသားစုများအတွက် ခွဲစိတ်ရန်မလိုသော အထွေထွေကျန်းမာရေးပြဿနာများ"
     },
     "waitlistForm": {
       "onWaitlist": "သင်သည် အစီစဥ်စာရင်းတွင် ပါဝင်ပြီးပါပြီ — ထိုအချိန်ဝန်းကျင်တွင် ဆရာဝန်နေရာလွတ်ရှိပါက အကြောင်းကြားပါမည်။",
