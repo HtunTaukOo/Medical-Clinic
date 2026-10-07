@@ -88,12 +88,15 @@ export function DoctorAvailabilityForm({
         {rows.length > 0 && (
           <div className="grid gap-1.5">
             {rows.map((row) => (
-              <div key={row.key} className="flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-sm">
+              <div
+                key={row.key}
+                className="grid grid-cols-[minmax(7rem,10rem)_minmax(0,1fr)_auto] items-center gap-3 rounded-lg border px-3 py-2 text-sm"
+              >
                 <input type="hidden" name="shiftWeekday" value={row.weekday} />
                 <input type="hidden" name="shiftStart" value={row.startTime} />
                 <input type="hidden" name="shiftEnd" value={row.endTime} />
-                <span className="w-9 shrink-0 font-medium">{t(WEEKDAY_KEYS[row.weekday])}</span>
-                <span className="flex-1 text-muted-foreground">
+                <span className="min-w-0 font-medium">{t(WEEKDAY_KEYS[row.weekday])}</span>
+                <span className="min-w-0 text-muted-foreground">
                   {row.startTime} – {row.endTime}
                 </span>
                 <button
