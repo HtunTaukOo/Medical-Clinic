@@ -19,6 +19,7 @@ import {
 import { EmptyState } from "@/components/empty-state";
 import { SearchInput } from "@/components/search-input";
 import { InventoryFilterSelect } from "@/components/inventory/inventory-filter-select";
+import { BackLink } from "@/components/back-link";
 
 type StockStatus = "OUT_OF_STOCK" | "LOW_STOCK" | "IN_STOCK";
 
@@ -43,11 +44,11 @@ const STOCK_STATUS_CLASS: Record<StockStatus, string> = {
 export default async function InventoryPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; category?: string; status?: string }>;
+  searchParams: Promise<{ q?: string; category?: string; status?: string; from?: string }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("inventory");
-  const { q, category, status } = await searchParams;
+  const { q, category, status, from } = await searchParams;
 
   const allMedicines = await prisma.medicine.findMany({ orderBy: { name: "asc" } });
 
@@ -83,6 +84,7 @@ export default async function InventoryPage({
 
   return (
     <div className="grid gap-6">
+      {from === "dashboard" && <BackLink href="/staff" />}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold">{t("managementTitle")}</h1>

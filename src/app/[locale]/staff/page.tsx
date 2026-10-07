@@ -1029,7 +1029,7 @@ export default async function StaffDashboardPage({
           <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0">
               <CardTitle>Inventory Attention</CardTitle>
-              <Link href="/staff/inventory" className="text-sm underline">
+              <Link href="/staff/inventory?from=dashboard" className="text-sm underline">
                 View all
               </Link>
             </CardHeader>

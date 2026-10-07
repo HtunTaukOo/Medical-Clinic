@@ -10,6 +10,7 @@ import { AddInvoiceItemForm } from "@/components/billing/add-invoice-item-form";
 import { RefundForm } from "@/components/billing/refund-form";
 import { ClaimForm } from "@/components/billing/claim-form";
 import { ClaimDecisionForm } from "@/components/billing/claim-decision-form";
+import { BackLink } from "@/components/back-link";
 import { Link } from "@/i18n/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -61,6 +62,8 @@ export default async function InvoiceDetailPage({
 
   return (
     <div className="grid gap-6">
+      <BackLink href="/staff/billing" />
+
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-semibold">{invoice.patient.name}</h1>
         <Badge variant={invoice.status === "PAID" ? "success" : "outline"}>
@@ -84,7 +87,7 @@ export default async function InvoiceDetailPage({
           <p className="text-sm">
             This invoice was generated from a pharmacy sale. To edit items, void a payment, or
             process a refund, use{" "}
-            <Link href="/staff/pharmacy?tab=history" className="font-medium underline">
+            <Link href="/staff/pharmacy?tab=history&from=billing" className="font-medium underline">
               Pharmacy &gt; Sales History
             </Link>{" "}
             instead — the &quot;Return&quot; button there keeps stock and this invoice in sync.

@@ -487,7 +487,16 @@ export async function submitAppointmentRequest(
     await notifyDoctor(doctor.id, `📅 New appointment request: ${requestSummary}`);
   }
 
+  await logActivity({
+    actorId: appointment.patient.userId,
+    actorName: appointment.patient.name,
+    actorRole: "PATIENT",
+    action: "Requested an appointment",
+    target: `Appointment ${appointment.id}`,
+  });
+
   revalidatePath("/portal/appointments");
+  revalidatePath("/staff/activity-log");
   return { success: true };
 }
 
@@ -936,12 +945,21 @@ export async function markNoShow(appointmentId: string) {
 
   await notifyWaitlistOfOpening(appointment.doctorId, appointment.scheduledAt);
 
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: session.user.role,
+    action: "Marked an appointment as no-show",
+    target: `Appointment ${appointment.id}`,
+  });
+
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
   revalidatePath("/doctor/appointments");
   revalidatePath(`/doctor/appointments/${appointmentId}`);
   revalidatePath("/doctor/consultations");
+  revalidatePath("/staff/activity-log");
 }
 
 export async function cancelAppointment(appointmentId: string) {
@@ -1050,6 +1068,14 @@ export async function cancelAppointment(appointmentId: string) {
 
   await notifyWaitlistOfOpening(appointment.doctorId, appointment.scheduledAt);
 
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown",
+    actorRole: role,
+    action: "Cancelled an appointment",
+    target: `Appointment ${appointment.id}`,
+  });
+
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/queue");
@@ -1059,6 +1085,7 @@ export async function cancelAppointment(appointmentId: string) {
   revalidatePath("/portal/appointments");
   revalidatePath(`/portal/appointments/${appointmentId}`);
   revalidatePath("/portal");
+  revalidatePath("/staff/activity-log");
 }
 
 export async function completeAppointment(appointmentId: string) {
@@ -1247,6 +1274,14 @@ export async function updateConsultation(
       revalidatePath("/portal/notifications");
       revalidatePath("/portal");
     }
+
+    await logActivity({
+      actorId: session.user.id,
+      actorName: session.user.name ?? session.user.email ?? "Unknown doctor",
+      actorRole: "DOCTOR",
+      action: "Completed a consultation",
+      target: `Appointment ${appointmentId}`,
+    });
   }
 
   revalidatePath(`/doctor/appointments/${appointmentId}`);
@@ -1256,5 +1291,6 @@ export async function updateConsultation(
   revalidatePath("/staff/appointments");
   revalidatePath(`/staff/appointments/${appointmentId}`);
   revalidatePath("/staff/notifications");
+  revalidatePath("/staff/activity-log");
   return { success: true };
 }

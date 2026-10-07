@@ -100,7 +100,7 @@ export default async function PortalMedicalRecordsPage() {
         <p className="text-sm text-muted-foreground">{tp("description")}</p>
       </div>
 
-      <Tabs defaultValue="visits">
+      <Tabs defaultValue="visits" className="min-w-0">
         <TabsList className={PILL_TAB_LIST}>
           <TabsTrigger value="visits" className={PILL_TAB_TRIGGER}>
             {tp("tabVisitHistory")}
@@ -159,7 +159,7 @@ export default async function PortalMedicalRecordsPage() {
           <PrescriptionHistoryList items={prescriptionItems} now={now} />
         </TabsContent>
 
-        <TabsContent value="lab-results" className="mt-4">
+        <TabsContent value="lab-results" className="mt-4 min-w-0">
           <LabResultsTable rows={labRows} />
         </TabsContent>
 

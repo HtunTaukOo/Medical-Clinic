@@ -141,11 +141,11 @@ export async function updatePatient(
   return { success: true };
 }
 
-async function requireOwnPatientId() {
+async function requireOwnPatient() {
   const session = await requireSession();
   const patientId = session.user.patientId;
   if (!patientId) throw new UnauthorizedError("No patient profile");
-  return patientId;
+  return { patientId, session };
 }
 
 const personalDetailsSchema = z.object({
@@ -166,7 +166,7 @@ export async function updatePersonalDetails(
   _prevState: PatientFormState,
   formData: FormData
 ): Promise<PatientFormState> {
-  const patientId = await requireOwnPatientId();
+  const { patientId, session } = await requireOwnPatient();
 
   const parsed = personalDetailsSchema.safeParse({
     name: formData.get("name"),
@@ -197,7 +197,16 @@ export async function updatePersonalDetails(
     },
   });
 
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown patient",
+    actorRole: "PATIENT",
+    action: "Updated personal profile",
+    target: `Patient ${patientId}`,
+  });
+
   revalidatePath("/portal/settings");
+  revalidatePath("/staff/activity-log");
   return { success: true };
 }
 
@@ -213,7 +222,7 @@ export async function updateEmergencyContact(
   _prevState: PatientFormState,
   formData: FormData
 ): Promise<PatientFormState> {
-  const patientId = await requireOwnPatientId();
+  const { patientId, session } = await requireOwnPatient();
 
   const parsed = emergencyContactSchema.safeParse({
     emergencyContactName: formData.get("emergencyContactName") || undefined,
@@ -228,7 +237,16 @@ export async function updateEmergencyContact(
 
   await prisma.patient.update({ where: { id: patientId }, data: parsed.data });
 
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown patient",
+    actorRole: "PATIENT",
+    action: "Updated emergency contact details",
+    target: `Patient ${patientId}`,
+  });
+
   revalidatePath("/portal/settings");
+  revalidatePath("/staff/activity-log");
   return { success: true };
 }
 
@@ -245,7 +263,7 @@ export async function updateInsuranceInfo(
   _prevState: PatientFormState,
   formData: FormData
 ): Promise<PatientFormState> {
-  const patientId = await requireOwnPatientId();
+  const { patientId, session } = await requireOwnPatient();
 
   const parsed = insuranceSchema.safeParse({
     insuranceProvider: formData.get("insuranceProvider") || undefined,
@@ -269,7 +287,16 @@ export async function updateInsuranceInfo(
     },
   });
 
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown patient",
+    actorRole: "PATIENT",
+    action: "Updated insurance information",
+    target: `Patient ${patientId}`,
+  });
+
   revalidatePath("/portal/settings");
+  revalidatePath("/staff/activity-log");
   return { success: true };
 }
 
@@ -285,7 +312,7 @@ const PRIVACY_FIELDS = [
 export type PrivacyField = (typeof PRIVACY_FIELDS)[number];
 
 export async function updatePrivacySetting(field: PrivacyField, value: boolean) {
-  const patientId = await requireOwnPatientId();
+  const { patientId, session } = await requireOwnPatient();
   if (!PRIVACY_FIELDS.includes(field)) {
     throw new Error("Invalid privacy field");
   }
@@ -295,7 +322,16 @@ export async function updatePrivacySetting(field: PrivacyField, value: boolean) 
     data: { [field]: value },
   });
 
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown patient",
+    actorRole: "PATIENT",
+    action: "Updated privacy preferences",
+    target: `Patient ${patientId}`,
+  });
+
   revalidatePath("/portal/settings");
+  revalidatePath("/staff/activity-log");
 }
 
 export async function togglePatientActive(patientId: string) {

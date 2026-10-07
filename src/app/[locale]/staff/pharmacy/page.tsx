@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/table";
 import { EmptyState } from "@/components/empty-state";
 import { NewSaleForm } from "@/components/pharmacy/new-sale-form";
+import { BackLink } from "@/components/back-link";
 import { TabTransitionScope, TabButton, TabTransitionContent } from "@/components/tab-transition";
 
 function formatKyat(value: number) {
@@ -65,11 +66,12 @@ export default async function PharmacyPage({
     patientId?: string;
     medicineId?: string;
     requestId?: string;
+    from?: string;
   }>;
 }) {
   await requirePageRole(["ADMIN", "STAFF"]);
   const t = await getTranslations("pharmacySale");
-  const { tab: tabParam, rx, patientId, medicineId, requestId } = await searchParams;
+  const { tab: tabParam, rx, patientId, medicineId, requestId, from } = await searchParams;
   const tab: Tab = TABS.some(({ value }) => value === tabParam) ? (tabParam as Tab) : "new";
 
   const needsPending = tab === "new" || tab === "prescriptions";
@@ -118,6 +120,8 @@ export default async function PharmacyPage({
   return (
     <TabTransitionScope>
       <div className="grid gap-6">
+        {from === "billing" && <BackLink href="/staff/billing" />}
+
         <div>
           <h1 className="text-2xl font-semibold">{t("title")}</h1>
           <p className="text-sm text-muted-foreground">

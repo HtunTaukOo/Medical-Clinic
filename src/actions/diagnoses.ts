@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { requireRole, UnauthorizedError } from "@/lib/authz";
 import { notifyPatient } from "@/lib/telegram";
 import { createNotification } from "@/lib/notifications";
+import { logActivity } from "@/lib/audit";
 
 const diagnosisSchema = z.object({
   code: z.string().optional(),
@@ -64,6 +65,13 @@ export async function addDiagnosis(
     href: "/portal/medical-records",
     relatedId: `diagnosis-${diagnosis.id}`,
   });
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown doctor",
+    actorRole: "DOCTOR",
+    action: "Recorded a diagnosis",
+    target: `Appointment ${appointmentId}`,
+  });
 
   revalidatePath(`/doctor/appointments/${appointmentId}`);
   revalidatePath(`/portal/appointments/${appointmentId}`);
@@ -81,6 +89,14 @@ export async function deleteDiagnosis(diagnosisId: string) {
   }
 
   await prisma.diagnosis.delete({ where: { id: diagnosisId } });
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown doctor",
+    actorRole: "DOCTOR",
+    action: "Removed a diagnosis",
+    target: `Appointment ${diagnosis.appointmentId}`,
+  });
 
   revalidatePath(`/doctor/appointments/${diagnosis.appointmentId}`);
   revalidatePath(`/portal/appointments/${diagnosis.appointmentId}`);
@@ -111,6 +127,14 @@ export async function setDiagnosisStatus(
   await prisma.diagnosis.update({
     where: { id: diagnosisId },
     data: { status, statusChangedAt: new Date(), statusChangedAppointmentId: appointmentId },
+  });
+
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown doctor",
+    actorRole: "DOCTOR",
+    action: status === "RESOLVED" ? "Resolved a diagnosis" : "Reopened a diagnosis",
+    target: `Appointment ${appointmentId}`,
   });
 
   revalidatePath(`/doctor/appointments/${diagnosis.appointmentId}`);

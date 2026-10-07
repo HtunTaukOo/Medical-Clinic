@@ -7,7 +7,7 @@ import Image from "next/image";
 // already saved for the hero section rather than introducing new assets.
 export function CtaPhotoCluster() {
   return (
-    <div className="relative mx-auto hidden h-96 w-[26rem] shrink-0 sm:block">
+    <div className="relative mx-auto hidden h-72 w-[23rem] shrink-0 sm:block">
       <svg
         className="pointer-events-none absolute -right-10 -bottom-10 size-64 text-white/25"
         viewBox="0 0 100 100"

@@ -80,9 +80,6 @@ export function WeeklyAppointmentsChart({
 
         return (
           <g key={d.label}>
-            <title>
-              {d.label}: {d.value} appointment{d.value === 1 ? "" : "s"}
-            </title>
             <rect
               x={x}
               y={baselineY}

@@ -6,6 +6,7 @@ import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { EmptyState } from "@/components/empty-state";
+import { BackLink } from "@/components/back-link";
 import {
   Table,
   TableBody,
@@ -26,6 +27,7 @@ export default async function ClaimsPage() {
 
   return (
     <div className="grid gap-6">
+      <BackLink href="/staff" />
       <h1 className="text-2xl font-semibold">{t("insuranceClaims")}</h1>
 
       {claims.length === 0 ? (

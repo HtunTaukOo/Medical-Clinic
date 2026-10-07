@@ -90,9 +90,6 @@ export function RevenueCategoryDonut({
                 transform={`rotate(${startAngle.toFixed(2)} ${CENTER} ${CENTER})`}
                 className="cursor-pointer transition-opacity duration-150 hover:opacity-85"
               >
-                <title>
-                  {d.label}: {formatKyat(d.value)} ({Math.round(fraction * 1000) / 10}%)
-                </title>
                 <animate
                   attributeName="stroke-dasharray"
                   values={`0 ${CIRCUMFERENCE.toFixed(2)};${segmentLength.toFixed(2)} ${CIRCUMFERENCE.toFixed(2)}`}

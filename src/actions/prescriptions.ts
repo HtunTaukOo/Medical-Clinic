@@ -8,6 +8,7 @@ import { notifyIfLowStock, notifyPatient } from "@/lib/telegram";
 import { generateReminderSchedule } from "@/lib/pill-reminders";
 import { createNotification } from "@/lib/notifications";
 import { billAppointmentItems, ensureConsultationFeeBilled } from "@/lib/invoice-billing";
+import { logActivity } from "@/lib/audit";
 
 const itemsSchema = z
   .array(
@@ -124,6 +125,13 @@ export async function createPrescription(
     href: "/portal/medical-records",
     relatedId: `rx-created-${prescription.id}`,
   });
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown doctor",
+    actorRole: "DOCTOR",
+    action: `Issued a prescription (${prescription.items.length} item${prescription.items.length === 1 ? "" : "s"})`,
+    target: `Appointment ${appointmentId}`,
+  });
 
   revalidatePath(`/doctor/appointments/${appointmentId}`);
   revalidatePath("/portal/appointments");
@@ -206,4 +214,3 @@ export async function fulfillPrescription(prescriptionId: string) {
 
   revalidatePath("/staff/inventory");
 }
-

@@ -17,10 +17,6 @@ function niceMax(rawMax: number) {
   return niceNormalized * magnitude;
 }
 
-function formatKyat(value: number) {
-  return `MMK ${Math.round(value).toLocaleString()}`;
-}
-
 // Diverging bar chart around a zero baseline — profit can go negative, so
 // (unlike WeeklyAppointmentsChart) bars grow up or down from a center line
 // instead of always from the bottom, and color carries the sign. Same
@@ -77,9 +73,6 @@ export function ProfitTrendChart({
 
         return (
           <g key={d.key}>
-            <title>
-              {d.label}: {formatKyat(d.total)}
-            </title>
             <rect
               x={x}
               y={zeroY}

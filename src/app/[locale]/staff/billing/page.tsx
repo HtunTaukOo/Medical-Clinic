@@ -275,7 +275,7 @@ export default async function BillingPage({
                             {netPaid > 0 &&
                               (invoice.pharmacySaleId ? (
                                 <Link
-                                  href="/staff/pharmacy?tab=history"
+                                  href="/staff/pharmacy?tab=history&from=billing"
                                   className="font-medium text-rose-600 hover:underline"
                                 >
                                   {t("processReturn")}

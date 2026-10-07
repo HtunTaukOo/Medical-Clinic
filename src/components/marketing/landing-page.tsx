@@ -140,7 +140,6 @@ export async function LandingPage() {
               t("hero.photoAlt1"),
               t("hero.photoAlt2"),
               t("hero.photoAlt3"),
-              t("hero.photoAlt4"),
             ]}
           />
         </div>
@@ -237,7 +236,7 @@ export async function LandingPage() {
 
       {/* CTA */}
       <section className="mx-auto max-w-6xl px-4 pb-8 sm:px-6">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary-mid to-sky-400 px-6 py-12 text-primary-foreground sm:px-12">
+        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary-mid to-sky-400 px-5 py-8 text-primary-foreground sm:px-8">
           <div
             aria-hidden
             className="pointer-events-none absolute -top-16 -right-16 size-64 rounded-full bg-white/10 blur-2xl"

@@ -36,8 +36,8 @@ export async function LabResultsTable({ rows }: { rows: LabResultRow[] }) {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border">
-      <table className="w-full text-sm">
+    <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-lg border">
+      <table className="w-full min-w-[42rem] text-sm">
         <thead>
           <tr className="border-b bg-muted/40 text-left text-xs tracking-wide text-muted-foreground uppercase">
             <th className="px-4 py-2.5 font-medium">{t("colTest")}</th>

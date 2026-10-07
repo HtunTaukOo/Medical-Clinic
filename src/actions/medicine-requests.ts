@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSession, requireRole, STAFF_ROLES, UnauthorizedError } from "@/lib/authz";
 import { notifyStaffUsers } from "@/lib/notifications";
+import { logActivity } from "@/lib/audit";
 
 export type MedicineRequestState = { error?: string; success?: boolean };
 
@@ -58,9 +59,17 @@ export async function requestMedicineRefill(
     href: "/staff/pharmacy?tab=requests",
     relatedId: `medreq-${request.id}`,
   });
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown patient",
+    actorRole: "PATIENT",
+    action: "Requested a prescription refill",
+    target: `Prescription ${prescriptionId}`,
+  });
 
   revalidatePath("/portal/medicines");
   revalidatePath("/staff/pharmacy");
+  revalidatePath("/staff/activity-log");
   return { success: true };
 }
 
@@ -113,9 +122,17 @@ export async function requestMedicineNotify(
     href: "/staff/pharmacy?tab=requests",
     relatedId: `medreq-${request.id}`,
   });
+  await logActivity({
+    actorId: session.user.id,
+    actorName: session.user.name ?? session.user.email ?? "Unknown patient",
+    actorRole: "PATIENT",
+    action: "Requested pharmacy notification",
+    target: `Medicine ${medicineId}`,
+  });
 
   revalidatePath("/portal/medicines");
   revalidatePath("/staff/pharmacy");
+  revalidatePath("/staff/activity-log");
   return { success: true };
 }
 

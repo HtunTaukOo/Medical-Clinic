@@ -26,10 +26,6 @@ function niceMax(rawMax: number) {
   return niceNormalized * magnitude;
 }
 
-function formatKyat(value: number) {
-  return `MMK ${Math.round(value).toLocaleString()}`;
-}
-
 // Catmull-Rom -> cubic Bezier conversion (tension 6), the standard way to
 // draw a smooth curve through a set of points without a charting library —
 // same dependency-free inline-SVG approach as the rest of this project's
@@ -168,9 +164,6 @@ export function RevenueTrendChart({
         const begin = points.length > 1 ? DRAW_DURATION_MS * (i / (points.length - 1)) * 0.85 : 0;
         return (
           <g key={data[i].key}>
-            <title>
-              {data[i].label}: {formatKyat(data[i].total)}
-            </title>
             <circle
               cx={p.x}
               cy={p.y}

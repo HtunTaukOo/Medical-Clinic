@@ -1,10 +1,10 @@
-import { ArrowLeft, History } from "lucide-react";
+import { History } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import { requirePageRole } from "@/lib/authz";
 import { prisma } from "@/lib/prisma";
-import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/ui/badge";
 import { EmptyState } from "@/components/empty-state";
+import { BackLink } from "@/components/back-link";
 import {
   Table,
   TableBody,
@@ -26,13 +26,7 @@ export default async function ActivityLogPage() {
   return (
     <div className="grid gap-4">
       <div>
-        <Link
-          href="/staff"
-          className="mb-2 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
-        >
-          <ArrowLeft className="size-4" />
-          {t("back")}
-        </Link>
+        <BackLink href="/staff" label={t("back")} />
         <h1 className="text-2xl font-semibold">{t("title")}</h1>
         <p className="text-sm text-muted-foreground">
           {t("description")}
